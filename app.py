@@ -51,4 +51,77 @@ def aplicar_estilo():
 
 aplicar_estilo()
 
-def leer(n, d="0"): return open(n, "r").
+def leer(n, d="0"):
+    if os.path.exists(n):
+        with open(n, "r") as f: return f.read().strip()
+    return d
+
+def escribir(n, v):
+    with open(n, "w") as f: f.write(str(v))
+
+# --- 2. ESTADO ---
+fase_actual = int(leer("fase.txt"))
+tiempo_limite = leer("tiempo.txt", "OFF")
+
+# --- 3. PANEL DOCENTE ---
+if st.query_params.get("admin") == "true":
+    with st.sidebar:
+        st.title("⚖️ MANDO DEL JUEZ")
+        if st.text_input("Contraseña:", type="password") == "derecho2024":
+            if st.button("🗑️ REINICIAR TODO"):
+                if os.path.exists("data.csv"): os.remove("data.csv")
+                escribir("fase.txt", "0"); escribir("tiempo.txt", "OFF")
+                st.session_state.clear(); st.rerun()
+            st.write("---")
+            f_sel = st.selectbox("Fase:", ["Sala de Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Podio Final"], index=fase_actual if fase_actual != 99 else 4)
+            if st.button("LANZAR FASE"):
+                nv = 0 if "Sala" in f_sel else (99 if "Podio" in f_sel else int(f_sel.split(" ")[1]))
+                escribir("fase.txt", nv); escribir("tiempo.txt", "OFF"); st.rerun()
+            if 0 < fase_actual < 99:
+                seg = st.slider("Segundos:", 10, 60, 20)
+                if st.button("⏱️ INICIAR TIEMPO"):
+                    escribir("tiempo.txt", str(time.time() + seg))
+                    st.rerun()
+
+# --- 4. LOGIN ---
+if 'usuario' not in st.session_state: st.session_state.usuario = None
+if st.session_state.usuario is None:
+    st.title("⚖️ REGISTRO DE LETRADOS")
+    m, a = st.text_input("Email:"), st.text_input("Alias:")
+    if st.button("INGRESAR"):
+        if m and a:
+            if not os.path.exists("data.csv"): pd.DataFrame(columns=["Email", "Alias", "Fase", "Puntos"]).to_csv("data.csv", index=False)
+            df_login = pd.read_csv("data.csv")
+            if df_login[(df_login['Email'] == m) & (df_login['Fase'] == 0)].empty:
+                pd.DataFrame([[m, a, 0, 0]], columns=["Email", "Alias", "Fase", "Puntos"]).to_csv("data.csv", mode='a', header=False, index=False)
+            st.session_state.usuario = {"mail": m, "alias": a}; st.rerun()
+    st.stop()
+
+# --- 5. LÓGICA DE JUEGO ---
+ya_voto = False
+if os.path.exists("data.csv"):
+    df_v = pd.read_csv("data.csv")
+    ya_voto = not df_v[(df_v['Email'] == st.session_state.usuario['mail']) & (df_v['Fase'] == fase_actual)].empty
+
+hay_tiempo = False
+if 0 < fase_actual < 99 and not ya_voto and tiempo_limite != "OFF":
+    seg_rest = int(float(tiempo_limite) - time.time())
+    if seg_rest > 0:
+        st.markdown(f'<div class="reloj-pantalla">⌛ {seg_rest}s</div>', unsafe_allow_html=True)
+        hay_tiempo = True
+    else:
+        st.error("⚠️ TIEMPO AGOTADO."); escribir("tiempo.txt", "OFF"); st.rerun()
+
+# --- 6. CONTENIDO ---
+if fase_actual == 0:
+    st.header("🏛️ Sala de Espera")
+    st.write(f"Letrado: **{st.session_state.usuario['alias']}**")
+    st.info("Aguarde a que el Juez inicie el debate...")
+elif fase_actual == 99:
+    st.balloons(); st.header("🏆 SENTENCIA FINAL")
+    if os.path.exists("data.csv"):
+        df_res = pd.read_csv("data.csv")
+        st.table(df_res[df_res['Fase'] > 0].groupby("Alias")["Puntos"].sum().sort_values(ascending=False))
+else:
+    if ya_voto:
+        st.markdown('<div style="background-color:rgba(46,204,113,0.4); border:3px solid #2ECC71; padding:40px; border-radius:15px; text-align:center;"><h1>✔️ EN
