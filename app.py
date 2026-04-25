@@ -3,6 +3,60 @@ import pandas as pd
 import os
 import time
 
+# --- 1. CONFIGURACIÓN Y ESTÉTICA (Letras Blancas / Fondo de Biblioteca) ---
+st.set_page_config(page_title="LexPlay UBA", layout="wide")
+
+def aplicar_estilo():
+    # Imagen de fondo: Biblioteca Jurídica Imponente
+    fondo_url = "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070" 
+    
+    st.markdown(f"""
+        <style>
+        .stApp {{
+            background-image: url("{fondo_url}");
+            background-size: cover;
+            background-attachment: fixed;
+        }}
+        /* CAJA DE CONTENIDO: Fondo negro fuerte para que las letras blancas resalten */
+        .main .block-container {{
+            background-color: rgba(0, 0, 0, 0.85); 
+            padding: 3rem;
+            border-radius: 20px;
+            border: 2px solid #D4AF37;
+        }}
+        /* TODO EL TEXTO EN BLANCO */
+        h1, h2, h3, p, label, .stMarkdown, [data-testid="stMarkdownContainer"] p {{
+            color: #FFFFFF !important;
+            text-shadow: 2px 2px 4px #000000;
+            font-size: 1.3rem !important;
+        }}
+        h1 {{ font-size: 3rem !important; }}
+        /* BOTÓN ROJO PARA QUE SE VEA BIEN */
+        .stButton>button {{
+            background-color: #C0392B !important;
+            color: white !important;
+            font-size: 1.5rem !important;
+            height: 3.5rem !important;
+            width: 100%;
+            border-radius: 10px;
+        }}
+        </style>
+        """, unsafe_allow_html=True)
+
+aplicar_estilo()
+
+# --- 2. BANCO DE PREGUNTAS (Aquí puedes agregar más siguiendo el formato) ---
+banco = {
+    1: {"q": "¿Cuál es la porción legítima de los descendientes?", "op": ["1/2", "2/3", "4/5"], "ok": "2/3"},
+    2: {"q": "¿Cuál es el plazo máximo para aceptar la herencia?", "op": ["5 años", "10 años", "20 años"], "ok": "10 años"},
+    3: {"q": "¿Es válido un testamento ológrafo firmado pero escrito a máquina?", "op": ["Sí", "No", "Solo con testigos"], "ok": "No"},
+    4: {"q": "¿El cónyuge hereda sobre los gananciales en concurrencia con hijos?", "op": ["Sí", "No", "La mitad"], "ok": "No"},
+    5: {"q": "¿Pacto sobre herencia futura: Art. 1010 es la excepción?", "op": ["Nunca", "Sí, es posible bajo condiciones", "Siempre"], "ok": "Sí, es posible bajo condiciones"},
+    6: {"q": "¿La indignidad se purga con 3 años de posesión?", "op": ["
+import pandas as pd
+import os
+import time
+
 # --- 1. CONFIGURACIÓN Y ESTÉTICA RADICAL ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
