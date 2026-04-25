@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import time
 
-# --- 1. CONFIGURACIÓN Y ESTILO ORIGINAL ---
+# --- 1. CONFIGURACIÓN Y ESTÉTICA ORIGINAL ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide", initial_sidebar_state="collapsed")
 
 def aplicar_estilo():
@@ -32,7 +32,7 @@ def aplicar_estilo():
 
 aplicar_estilo()
 
-# --- 2. FUNCIONES DE PERSISTENCIA ---
+# --- 2. PERSISTENCIA ---
 def leer_archivo(nombre, default="0"):
     if not os.path.exists(nombre): return default
     with open(nombre, "r") as f: return f.read().strip()
@@ -40,41 +40,37 @@ def leer_archivo(nombre, default="0"):
 def escribir_archivo(nombre, valor):
     with open(nombre, "w") as f: f.write(str(valor))
 
-if 'ya_respondio' not in st.session_state:
-    st.session_state.ya_respondio = False
-
-# --- 3. PANEL DOCENTE ---
+# --- 3. PANEL DOCENTE (?admin=true) ---
 if st.query_params.get("admin") == "true":
     with st.sidebar:
-        st.title("🛂 MANDO DEL JUEZ")
-        clave = st.text_input("Contraseña:", type="password")
-        if clave == "derecho2024":
+        st.title("⚖️ MANDO DEL JUEZ")
+        if st.text_input("Clave Maestro:", type="password") == "derecho2024":
             if st.button("🗑️ REINICIAR TODO"):
                 if os.path.exists("data.csv"): os.remove("data.csv")
-                escribir_archivo("fase.txt", "0")
-                escribir_archivo("tiempo.txt", "OFF")
+                escribir_archivo("fase.txt", "0"); escribir_archivo("tiempo.txt", "OFF")
                 st.rerun()
+            
             st.write("---")
             f_act = int(leer_archivo("fase.txt"))
             f_sel = st.selectbox("Fase:", ["Sala de Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Podio Final"])
             if st.button("LANZAR FASE"):
                 nueva = 0 if "Sala" in f_sel else (99 if "Podio" in f_sel else int(f_sel.split(" ")[1]))
-                escribir_archivo("fase.txt", nueva)
-                escribir_archivo("tiempo.txt", "OFF")
-                st.session_state.ya_respondio = False # Reset local al cambiar fase
+                escribir_archivo("fase.txt", nueva); escribir_archivo("tiempo.txt", "OFF")
                 st.rerun()
+            
             if 0 < f_act < 99:
                 seg = st.slider("Segundos:", 10, 60, 20)
                 if st.button("⏱️ INICIAR TIEMPO"):
                     escribir_archivo("tiempo.txt", time.time() + seg)
                     st.rerun()
+                
                 st.write("### 📊 Monitor:")
                 if os.path.exists("data.csv"):
-                    df = pd.read_csv("data.csv")
-                    ints = df[df['Fase'] == 0]['Alias'].unique()
-                    for alu in ints:
-                        v = not df[(df['Alias'] == alu) & (df['Fase'] == f_act)].empty
-                        st.write(f"{'✅' if v else '⏳'} {alu}")
+                    df_m = pd.read_csv("data.csv")
+                    alumnos_en_sala = df_m[df_m['Fase'] == 0]['Alias'].unique()
+                    for alu in alumnos_en_sala:
+                        voto = not df_m[(df_m['Alias'] == alu) & (df_m['Fase'] == f_act)].empty
+                        st.write(f"{'✅' if voto else '⏳'} {alu}")
 
 # --- 4. LOGIN ---
 if 'usuario' not in st.session_state: st.session_state.usuario = None
@@ -85,7 +81,10 @@ if st.session_state.usuario is None:
         if m and a:
             if not os.path.exists("data.csv"):
                 pd.DataFrame(columns=["Email", "Alias", "Fase", "Puntos"]).to_csv("data.csv", index=False)
-            pd.DataFrame([[m, a, 0, 0]], columns=["Email", "Alias", "Fase", "Puntos"]).to_csv("data.csv", mode='a', header=False, index=False)
+            # Registro en Fase 0 para que el monitor los vea
+            df_login = pd.read_csv("data.csv")
+            if df_login[(df_login['Email'] == m) & (df_login['Fase'] == 0)].empty:
+                pd.DataFrame([[m, a, 0, 0]], columns=["Email", "Alias", "Fase", "Puntos"]).to_csv("data.csv", mode='a', header=False, index=False)
             st.session_state.usuario = {"mail": m, "alias": a}; st.rerun()
     st.stop()
 
@@ -93,54 +92,51 @@ if st.session_state.usuario is None:
 fase = int(leer_archivo("fase.txt"))
 tiempo_raw = leer_archivo("tiempo.txt", "OFF")
 
-# Chequeo de voto (Archivo + Sesión)
-voto_en_archivo = False
+# Chequeo de voto (¿Ya votó en esta fase?)
+ya_voto = False
 if os.path.exists("data.csv"):
     df_v = pd.read_csv("data.csv")
-    voto_en_archivo = not df_v[(df_v['Email'] == st.session_state.usuario['mail']) & (df_v['Fase'] == fase)].empty
+    ya_voto = not df_v[(df_v['Email'] == st.session_state.usuario['mail']) & (df_v['Fase'] == fase)].empty
 
 if fase == 0:
-    st.header("🏛️ Sala de Audiencias")
-    st.info("Aguarde el inicio de la sesión...")
-    time.sleep(4); st.rerun()
+    st.header(f"🏛️ Esperando inicio... {st.session_state.usuario['alias']}")
+    st.info("El Juez iniciará la sesión en breve.")
+    time.sleep(3); st.rerun()
 
 elif fase == 99:
-    st.balloons()
-    st.header("🏆 SENTENCIA FINAL")
-    df = pd.read_csv("data.csv")
-    st.table(df[df['Fase'] > 0].groupby("Alias")["Puntos"].sum().sort_values(ascending=False))
+    st.balloons(); st.header("🏆 SENTENCIA FINAL")
+    df_res = pd.read_csv("data.csv")
+    st.table(df_res[df_res['Fase'] > 0].groupby("Alias")["Puntos"].sum().sort_values(ascending=False))
 
 else:
-    # PANTALLA DE ÉXITO (Si ya votó, cortamos acá todo)
-    if st.session_state.ya_respondio or voto_en_archivo:
-        st.markdown(f"""<div class="cartel-exito"><h1 style="color: #2ECC71 !important;">✔️ RESPUESTA ENVIADA</h1>
+    # --- FRENO DE MANO: Si ya votó, mostramos cartel y SALIMOS ---
+    if ya_voto:
+        st.markdown(f"""<div class="cartel-exito"><h1>✔️ RESPUESTA ENVIADA</h1>
                     <p>Su veredicto ha sido registrado. Espere al Juez.</p></div>""", unsafe_allow_html=True)
+        # Detenemos todo aquí para que no dibuje el reloj
         time.sleep(5); st.rerun()
-    
-    # PANTALLA DE PREGUNTA
-    else:
-        # Reloj
-        if tiempo_raw != "OFF":
-            restante = int(float(tiempo_raw) - time.time())
-            if restante > 0:
-                st.markdown(f'<div class="reloj-container">⌛ {restante}s</div>', unsafe_allow_html=True)
-                time.sleep(1); st.rerun()
-            else:
-                st.markdown('<div class="reloj-container">🚫 FIN</div>', unsafe_allow_html=True)
-                st.error("TIEMPO AGOTADO.")
-                st.stop()
+        st.stop() # Esto garantiza que no se ejecute nada más abajo
 
-        banco = {1: {"q": "¿Porción legítima?", "op": ["1/2", "2/3"], "ok": "2/3"},
-                 2: {"q": "¿Plazo aceptación?", "op": ["10 años", "20 años"], "ok": "10 años"},
-                 3: {"q": "¿Testamento ológrafo?", "op": ["Sí", "No"], "ok": "No"}}
-        p = banco[fase]
-        st.header(f"RONDA {fase}")
-        st.write(f"### {p['q']}")
-        rta = st.radio("Veredicto:", p['op'], key=f"r{fase}")
-        if st.button("ENVIAR VOTACIÓN"):
-            # GUARDAR E INMEDIATAMENTE MARCAR COMO RESPONDIDO
-            pts = 100 if rta == p['ok'] else 0
-            pd.DataFrame([[st.session_state.usuario['mail'], st.session_state.usuario['alias'], fase, pts]], 
-                         columns=["Email", "Alias", "Fase", "Puntos"]).to_csv("data.csv", mode='a', header=False, index=False)
-            st.session_state.ya_respondio = True
-            st.rerun()
+    # --- SINO, MOSTRAMOS RELOJ Y PREGUNTA ---
+    if tiempo_raw != "OFF":
+        restante = int(float(tiempo_raw) - time.time())
+        if restante > 0:
+            st.markdown(f'<div class="reloj-container">⌛ {restante}s</div>', unsafe_allow_html=True)
+            time.sleep(1); st.rerun()
+        else:
+            st.markdown('<div class="reloj-container">🚫 FIN</div>', unsafe_allow_html=True)
+            st.error("TIEMPO AGOTADO.")
+            st.stop()
+
+    banco = {1: {"q": "¿Porción legítima?", "op": ["1/2", "2/3"], "ok": "2/3"},
+             2: {"q": "¿Plazo aceptación?", "op": ["10 años", "20 años"], "ok": "10 años"},
+             3: {"q": "¿Testamento ológrafo?", "op": ["Sí", "No"], "ok": "No"}}
+    p = banco[fase]
+    st.header(f"RONDA {fase}")
+    st.write(f"### {p['q']}")
+    rta = st.radio("Veredicto:", p['op'], key=f"r{fase}")
+    if st.button("ENVIAR VOTACIÓN"):
+        pts = 100 if rta == p['ok'] else 0
+        pd.DataFrame([[st.session_state.usuario['mail'], st.session_state.usuario['alias'], fase, pts]], 
+                     columns=["Email", "Alias", "Fase", "Puntos"]).to_csv("data.csv", mode='a', header=False, index=False)
+        st.rerun()
