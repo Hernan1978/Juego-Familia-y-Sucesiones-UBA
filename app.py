@@ -10,51 +10,58 @@ def aplicar_estilo():
     fondo_url = "https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=2070"
     st.markdown(f"""
         <style>
-        /* 1. Fondo con efecto blur para que no distraiga */
         .stApp {{
             background-image: url("{fondo_url}");
             background-attachment: fixed;
             background-size: cover;
         }}
         
-        /* 2. El contenedor donde están las preguntas (Blanco casi puro) */
+        /* Contenedor principal: lo hacemos un poco más oscuro para que el blanco resalte */
         .main .block-container {{
-            background-color: rgba(255, 255, 255, 0.98); 
+            background-color: rgba(0, 0, 0, 0.7); /* Fondo negro traslúcido */
             padding: 3rem;
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            margin-top: 10px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            margin-top: 20px;
         }}
 
-        /* 3. Títulos en Azul muy oscuro y GRANDES */
-        h1 {{
-            color: #0A192F !important;
-            font-size: 3rem !important;
-            text-align: center;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-        }}
-
-        /* 4. Las preguntas y textos (Negro total y negrita) */
-        .stMarkdown p, label, .stRadio label {{
-            color: #121212 !important;
-            font-size: 1.3rem !important;
-            font-weight: 600 !important;
-            line-height: 1.6;
-        }}
-
-        /* 5. Estilo para los inputs (Email y Alias) */
-        input {{
-            background-color: #F0F2F6 !important;
-            color: #000000 !important;
-            font-weight: bold !important;
-        }}
-
-        /* 6. Botones que se noten */
-        .stButton>button {{
-            background-color: #1A3A5A !important;
+        /* Títulos: Blancos con sombra negra para que no se pierdan nunca */
+        h1, h2, h3 {{
             color: #FFFFFF !important;
+            text-shadow: 2px 2px 4px #000000 !important;
+            font-weight: bold !important;
+            text-align: center;
+        }}
+
+        /* Textos, preguntas y etiquetas: Blanco Puro y Negrita */
+        .stMarkdown p, label, .stRadio label {{
+            color: #FFFFFF !important;
+            text-shadow: 1px 1px 2px #000000 !important;
+            font-size: 1.4rem !important; /* Más grandes aún */
+            font-weight: 700 !important;
+        }}
+
+        /* Los inputs (donde escriben) los dejamos claros para que se note dónde escribir */
+        input {{
+            background-color: rgba(255, 255, 255, 0.9) !important;
+            color: #000000 !important;
             font-size: 1.2rem !important;
-            border: 2px solid #0A192F;
+        }}
+
+        /* Botón de enviar: color llamativo para que lo encuentren rápido */
+        .stButton>button {{
+            background-color: #FF4B4B !important; /* Rojo Streamlit para resaltar */
+            color: white !important;
+            font-size: 1.3rem !important;
+            border-radius: 10px;
+            border: none;
+            font-weight: bold;
+        }}
+        
+        /* Ranking: que los nombres se vean blancos */
+        .stTable td, .stTable th {{
+            color: white !important;
+            background-color: rgba(0,0,0,0.3);
         }}
         </style>
         """, unsafe_allow_html=True)
