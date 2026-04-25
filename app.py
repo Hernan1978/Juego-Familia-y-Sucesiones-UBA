@@ -1,5 +1,4 @@
 import streamlit as st
-import pd
 import pandas as pd
 import os
 import time
@@ -44,11 +43,11 @@ aplicar_estilo()
 def leer(n, d="0"): return open(n, "r").read().strip() if os.path.exists(n) else d
 def escribir(n, v): open(n, "w").write(str(v))
 
-# --- 2. VARIABLES DE ESTADO ---
+# --- 2. ESTADO INICIAL ---
 fase_actual = int(leer("fase.txt"))
 tiempo_limite = leer("tiempo.txt", "OFF")
 
-# --- 3. PANEL DOCENTE ---
+# --- 3. PANEL ADMIN ---
 if st.query_params.get("admin") == "true":
     with st.sidebar:
         st.title("⚖️ MANDO DEL JUEZ")
@@ -84,16 +83,16 @@ if st.session_state.usuario is None:
     st.stop()
 
 # --- 5. LÓGICA DE JUEGO ---
-ya_voto_alumno = False
+ya_voto = False
 if os.path.exists("data.csv"):
     df_v = pd.read_csv("data.csv")
-    ya_voto_alumno = not df_v[(df_v['Email'] == st.session_state.usuario['mail']) & (df_v['Fase'] == fase_actual)].empty
+    ya_voto = not df_v[(df_v['Email'] == st.session_state.usuario['mail']) & (df_v['Fase'] == fase_actual)].empty
 
-# RELOJ (Aparece si hay tiempo activo y el alumno no votó)
-if 0 < fase_actual < 99 and not ya_voto_alumno and tiempo_limite != "OFF":
-    seg_restantes = int(float(tiempo_limite) - time.time())
-    if seg_restantes > 0:
-        st.markdown(f'<div class="reloj-container">⌛ {seg_restantes}s</div>', unsafe_allow_html=True)
+# RELOJ (VISIBLE SI NO VOTÓ)
+if 0 < fase_actual < 99 and not ya_voto and tiempo_limite != "OFF":
+    seg_rest = int(float(tiempo_limite) - time.time())
+    if seg_rest > 0:
+        st.markdown(f'<div class="reloj-container">⌛ {seg_rest}s</div>', unsafe_allow_html=True)
     else:
         st.error("⚠️ TIEMPO AGOTADO."); time.sleep(1); st.rerun()
 
@@ -101,15 +100,15 @@ if 0 < fase_actual < 99 and not ya_voto_alumno and tiempo_limite != "OFF":
 if fase_actual == 0:
     st.header("🏛️ Sala de Espera")
     st.write(f"Abogado: **{st.session_state.usuario['alias']}**")
-    st.info("Aguarde a que el Juez inicie la sesión...")
+    st.info("Aguarde instrucciones del Juez...")
 elif fase_actual == 99:
     st.balloons(); st.header("🏆 SENTENCIA FINAL")
     if os.path.exists("data.csv"):
         df_res = pd.read_csv("data.csv")
         st.table(df_res[df_res['Fase'] > 0].groupby("Alias")["Puntos"].sum().sort_values(ascending=False))
 else:
-    if ya_voto_alumno:
-        st.markdown('<div class="cartel-exito"><h1>✔️ ENVIADO</h1><p>Veredicto registrado. Espere a la siguiente ronda.</p></div>', unsafe_allow_html=True)
+    if ya_voto:
+        st.markdown('<div class="cartel-exito"><h1>✔️ ENVIADO</h1><p>Espere a la siguiente ronda.</p></div>', unsafe_allow_html=True)
     else:
         banco = {1: {"q": "¿Porción legítima de los descendientes?", "op": ["1/2", "2/3", "4/5"], "ok": "2/3"},
                  2: {"q": "¿Plazo máximo para aceptar la herencia?", "op": ["5 años", "10 años", "20 años"], "ok": "10 años"},
@@ -118,4 +117,27 @@ else:
         st.header(f"RONDA {fase_actual}")
         st.write(f"### {p['q']}")
         rta = st.radio("Veredicto:", p['op'], key=f"p_{fase_actual}")
-        if st.button("ENVIAR VOTACIÓN
+        if st.button("ENVIAR VOTACIÓN"):
+            pts = 100 if rta == p['ok'] else 0
+            pd.DataFrame([[st.session_state.usuario['mail'], st.session_state.usuario['alias'], fase_actual, pts]], 
+                         columns=["Email", "Alias", "Fase", "Puntos"]).to_csv("data.csv", mode='a', header=False, index=False)
+            st.rerun()
+
+# --- 6. MONITOR DE PARTICIPANTES (ABAJO) ---
+st.write("---")
+st.write("### 👥 Letrados en la Audiencia")
+if os.path.exists("data.csv"):
+    df_p = pd.read_csv("data.csv")
+    todos = df_p[df_p['Fase'] == 0]['Alias'].unique()
+    cols = st.columns(4)
+    for i, alu in enumerate(todos):
+        status = "👤"
+        if 0 < fase_actual < 99:
+            voto_alu = not df_p[(df_p['Alias'] == alu) & (df_p['Fase'] == fase_actual)].empty
+            status = "✅" if voto_alu else "⏳"
+        cols[i % 4].markdown(f"**{status} {alu}**")
+
+# REFREZCO PARA SINCRONIZAR
+if (tiempo_limite != "OFF" and not ya_voto) or fase_actual == 0 or ya_voto:
+    time.sleep(2)
+    st.rerun()
