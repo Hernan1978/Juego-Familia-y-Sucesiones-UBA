@@ -3,6 +3,142 @@ import pandas as pd
 import os
 import time
 
+# --- 1. CONFIGURACIÓN Y ESTÉTICA RADICAL ---
+st.set_page_config(page_title="LexPlay UBA", layout="wide")
+
+def aplicar_estilo():
+    # Nueva imagen de fondo (Biblioteca clásica)
+    fondo_url = "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070" 
+    
+    st.markdown(f"""
+        <style>
+        .stApp {{
+            background-image: url("{fondo_url}");
+            background-size: cover;
+            background-attachment: fixed;
+        }}
+        /* CAJA CONTENEDORA OSCURA */
+        .main .block-container {{
+            background-color: rgba(0, 0, 0, 0.8); 
+            padding: 3rem;
+            border-radius: 20px;
+            border: 3px solid #D4AF37;
+        }}
+        /* LETRAS BLANCAS Y GRANDES */
+        h1, h2, h3, p, label, .stMarkdown, .stSelectbox label {{
+            color: #FFFFFF !important;
+            text-shadow: 2px 2px 8px #000000 !important;
+            font-family: 'Georgia', serif;
+        }}
+        /* AGRANDAR OPCIONES DE RESPUESTA */
+        div[data-testid="stMarkdownContainer"] p {{
+            font-size: 1.5rem !important;
+            font-weight: bold !important;
+        }}
+        /* BOTÓN DE ENVIAR (GRANDE Y ROJO) */
+        .stButton>button {{
+            background-color: #C0392B !important;
+            color: white !important;
+            font-size: 1.8rem !important;
+            height: 4rem !important;
+            width: 100%;
+            border-radius: 15px;
+            border: 1px solid white;
+        }}
+        /* ESTILO PARA LOS INPUTS */
+        .stTextInput input {{
+            font-size: 1.2rem !important;
+            font-weight: bold;
+        }}
+        </style>
+        """, unsafe_allow_html=True)
+
+aplicar_estilo()
+
+# --- 2. BANCO DE PREGUNTAS ---
+banco = {
+    1: {"q": "¿Cuál es la porción legítima de los descendientes?", "op": ["1/2", "2/3", "4/5"], "ok": "2/3"},
+    2: {"q": "¿Cuál es el plazo máximo para aceptar la herencia?", "op": ["5 años", "10 años", "20 años"], "ok": "10 años"},
+    3: {"q": "¿Es válido un testamento ológrafo firmado pero escrito a máquina?", "op": ["Sí", "No", "Solo si hay testigos"], "ok": "No"},
+    4: {"q": "¿El cónyuge hereda sobre los bienes gananciales en concurrencia con hijos?", "op": ["Sí", "No", "Solo la mitad"], "ok": "No"},
+    5: {"q": "¿Se puede pactar sobre una herencia futura?", "op": ["Nunca", "Solo en casos excepcionales (Art. 1010)", "Siempre"], "ok": "Solo en casos excepcionales (Art. 1010)"}
+}
+
+# --- 3. LOGIN ÚNICO (Session State) ---
+if 'usuario' not in st.session_state:
+    st.session_state.usuario = None
+
+if st.session_state.usuario is None:
+    st.title("⚖️ REGISTRO DE LETRADOS - UBA")
+    st.write("### Identifíquese para ingresar a la sala de audiencias.")
+    
+    with st.container():
+        m = st.text_input("Email Institucional:")
+        a = st.text_input("Alias para el Ranking:")
+        if st.button("INGRESAR AL JUICIO"):
+            if m and a and "@" in m:
+                st.session_state.usuario = {"mail": m, "alias": a}
+                st.rerun()
+            else:
+                st.error("Complete los datos correctamente.")
+    st.stop()
+
+# --- 4. CONTROL DEL PROFESOR ---
+def set_fase(n):
+    with open("fase.txt", "w") as f: f.write(str(n))
+
+def get_fase():
+    if not os.path.exists("fase.txt"): return 0
+    with open("fase.txt", "r") as f: return int(f.read())
+
+with st.sidebar:
+    st.header("🛂 PANEL DE JUEZ")
+    clave = st.text_input("Clave Docente:", type="password")
+    if clave == "derecho2024":
+        opc = ["Espera"] + [f"Pregunta {i}" for i in banco.keys()] + ["Podio Final"]
+        sel = st.selectbox("Cambiar fase:", opc)
+        if st.button("Lanzar"):
+            if "Espera" in sel: set_fase(0)
+            elif "Podio" in sel: set_fase(99)
+            else: set_fase(int(sel.split(" ")[1]))
+            st.rerun()
+
+# --- 5. DINÁMICA DEL JUEGO ---
+fase_actual = get_fase()
+
+if fase_actual == 0:
+    st.header(f"🏛️ Sala de Espera: {st.session_state.usuario['alias']}")
+    st.write("### El Tribunal está deliberando. Aguarde el inicio del examen.")
+    time.sleep(2)
+    st.rerun()
+
+elif fase_actual in banco:
+    pregunta = banco[fase_actual]
+    st.header(f"RONDA {fase_actual}")
+    st.write(f"## {pregunta['q']}")
+    
+    # Usamos un identificador único para que no se mezcle
+    eleccion = st.radio("Seleccione su respuesta:", pregunta['op'], key=f"r_{fase_actual}")
+    
+    if st.button("ENVIAR VEREDICTO"):
+        puntos = 100 if eleccion == pregunta['ok'] else 0
+        df = pd.DataFrame([[st.session_state.usuario['mail'], st.session_state.usuario['alias'], puntos]], columns=["Email", "Alias", "Puntos"])
+        df.to_csv("data.csv", mode='a', header=not os.path.exists("data.csv"), index=False)
+        st.success("¡Veredicto registrado correctamente!")
+
+elif fase_actual == 99:
+    st.balloons()
+    st.header("🏆 SENTENCIA FINAL: EL PODIO")
+    if os.path.exists("data.csv"):
+        datos = pd.read_csv("data.csv")
+        ranking = datos.groupby("Alias")["Puntos"].sum().sort_values(ascending=False)
+        st.table(ranking)
+    else:
+        st.write("No hay registros en esta sesión.")mport streamlit as st
+import pandas as pd
+import os
+import time
+
 # --- 1. CONFIGURACIÓN Y ESTÉTICA ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
