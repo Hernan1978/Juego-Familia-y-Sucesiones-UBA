@@ -13,21 +13,28 @@ def aplicar_estilo():
         .stApp {{ background-image: url("{fondo_url}"); background-size: cover; background-attachment: fixed; }}
         .main .block-container {{ background-color: rgba(0, 0, 0, 0.85); padding: 2rem 3rem; border-radius: 20px; border: 2px solid #D4AF37; margin-top: 20px; }}
         
-        /* ESTILO DEL RELOJ (Arriba a la derecha, fijo) */
+        /* ESTILO DEL RELOJ (Abajo a la derecha, fijo) */
         .reloj-container {{
             position: fixed;
-            top: 20px;
-            right: 20px;
+            bottom: 30px;
+            right: 30px;
             background-color: #C0392B;
             color: white;
-            padding: 10px 20px;
-            border-radius: 10px;
-            border: 2px solid white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            border: 3px solid #D4AF37;
             z-index: 1000;
             font-family: 'Courier New', monospace;
-            font-size: 2rem;
+            font-size: 2.2rem;
             font-weight: bold;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+            animation: pulse 1s infinite;
+        }}
+
+        @keyframes pulse {{
+            0% {{ transform: scale(1); }}
+            50% {{ transform: scale(1.05); }}
+            100% {{ transform: scale(1); }}
         }}
 
         h1, h2, h3, p, label, .stMarkdown, .stRadio label {{ 
@@ -74,7 +81,7 @@ if es_admin:
                 else: escribir_archivo("fase.txt", fase_sel.split(" ")[1])
                 escribir_archivo("tiempo.txt", "OFF")
                 st.rerun()
-            seg = st.slider("Segundos:", 10, 30, 20)
+            seg = st.slider("Segundos:", 10, 40, 20)
             if st.button("⏱️ INICIAR TIEMPO"):
                 escribir_archivo("tiempo.txt", time.time() + seg)
                 st.rerun()
@@ -102,11 +109,11 @@ if st.session_state.usuario is None:
 fase = int(leer_archivo("fase.txt"))
 tiempo_final_raw = leer_archivo("tiempo.txt", "OFF")
 
-# Mostrar Reloj flotante si está activo
+# Mostrar Reloj flotante ABAJO A LA DERECHA
 if tiempo_final_raw != "OFF":
     restante = int(float(tiempo_final_raw) - time.time())
     if restante > 0:
-        st.markdown(f'<div class="reloj-container">⏳ {restante}s</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="reloj-container">⌛ {restante}s</div>', unsafe_allow_html=True)
         time.sleep(1)
         st.rerun()
     else:
@@ -124,16 +131,20 @@ elif fase in banco:
     st.header(f"RONDA {fase}")
     st.write(f"### {p['q']}")
     
-    # Si el tiempo terminó, bloqueamos la respuesta
+    # Bloqueo si el tiempo terminó
+    tiempo_agotado = False
     if tiempo_final_raw != "OFF" and int(float(tiempo_final_raw) - time.time()) <= 0:
-        st.error("TIEMPO AGOTADO. No se pueden enviar más respuestas.")
+        tiempo_agotado = True
+
+    if tiempo_agotado:
+        st.error("TIEMPO AGOTADO. No se aceptan más veredictos.")
     else:
         rta = st.radio("Seleccione respuesta:", p['op'], key=f"r{fase}")
         if st.button("ENVIAR VEREDICTO"):
             pts = 100 if rta == p['ok'] else 0
             pd.DataFrame([[st.session_state.usuario['mail'], st.session_state.usuario['alias'], pts]], 
                          columns=["Email", "Alias", "Puntos"]).to_csv("data.csv", mode='a', header=False, index=False)
-            st.success("¡Voto registrado!")
+            st.success("¡Veredicto registrado!")
 
 elif fase == 99:
     st.balloons()
