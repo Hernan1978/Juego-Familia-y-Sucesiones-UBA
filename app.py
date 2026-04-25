@@ -8,7 +8,7 @@ st.set_page_config(page_title="LexPlay: Desafío Jurídico", layout="wide")
 
 def aplicar_estilo():
     # URL de imagen de fondo (puedes cambiarla por una de un tribunal o biblioteca)
-    fondo_url = "https://www.derecho.uba.ar/derechoaldia/notas/preguntas-frecuentes/+7888"
+    fondo_url = "https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=2070"
     st.markdown(f"""
         <style>
         .stApp {{
