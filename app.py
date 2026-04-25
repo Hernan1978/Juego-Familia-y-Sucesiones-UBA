@@ -11,112 +11,120 @@ def style():
     header {visibility:hidden;}
     .stApp {background: #1a1a1a;}
     .main .block-container {
-        background: #000;
-        border: 2px solid #D4AF37;
-        color: white;
+        background: #000; border: 2px solid #D4AF37; color: white;
     }
     .reloj {
-        position:fixed; top:20px;
-        right:20px; background:#C0392B;
-        color:white; padding:10px;
-        font-size:2rem; z-index:99;
-        border-radius:10px;
+        position:fixed; top:20px; right:20px; 
+        background:#C0392B; color:white; padding:15px;
+        font-size:2rem; z-index:99; border-radius:10px;
+        border: 2px solid #D4AF37;
     }
     </style>""", unsafe_allow_html=True)
 style()
 
-# --- FUNCIONES ---
-def rd(n):
-    if os.path.exists(n):
-        return open(n,"r").read().strip()
+# --- PERSISTENCIA SIMPLE ---
+def leer_fase():
+    if os.path.exists("f.txt"):
+        return open("f.txt","r").read().strip()
     return "0"
 
-def wr(n,v):
-    with open(n,"w") as f:
+def escribir_fase(v):
+    with open("f.txt","w") as f:
         f.write(str(v))
 
-f = int(rd("f.txt"))
-t_l = rd("t.txt","OFF")
+# Inicializar tiempo en la sesión si no existe
+if "t_limite" not in st.session_state:
+    st.session_state.t_limite = 0
+
+fase = int(leer_fase())
 
 # --- JUEZ ---
 if st.query_params.get("admin")=="true":
     with st.sidebar:
-        pw = st.text_input("Pw:",type="password")
-        if pw=="derecho2024":
-            if st.button("RESET"):
-                if os.path.exists("d.csv"):
-                    os.remove("d.csv")
-                wr("f.txt","0")
-                wr("t.txt","OFF")
+        st.title("JUEZ")
+        pw = st.text_input("Clave:", type="password")
+        if pw == "derecho2024":
+            if st.button("BORRAR TODO"):
+                if os.path.exists("d.csv"): os.remove("d.csv")
+                escribir_fase("0")
+                st.session_state.t_limite = 0
                 st.rerun()
-            s = st.selectbox("F:",["0","1","2","3","99"])
-            if st.button("IR"):
-                wr("f.txt",s)
-                wr("t.txt","OFF")
+            
+            f_nueva = st.selectbox("Fase:", ["0","1","2","3","99"])
+            if st.button("CAMBIAR FASE"):
+                escribir_fase(f_nueva)
+                st.session_state.t_limite = 0
                 st.rerun()
-            if f in [1,2,3]:
-                if st.button("TIEMPO"):
-                    wr("t.txt",str(time.time()+20))
+                
+            if fase in [1,2,3]:
+                if st.button("LARGAR RELOJ"):
+                    st.session_state.t_limite = time.time() + 21
                     st.rerun()
 
 # --- LOGIN ---
 if 'u' not in st.session_state:
-    st.session_state.u=None
+    st.session_state.u = None
+
 if not st.session_state.u:
     st.title("REGISTRO")
-    e = st.text_input("Email:")
-    a = st.text_input("Alias:")
-    if st.button("OK") and e and a:
+    email = st.text_input("Email:")
+    alias = st.text_input("Alias:")
+    if st.button("ENTRAR") and email and alias:
         if not os.path.exists("d.csv"):
             pd.DataFrame(columns=["E","A","F","P"]).to_csv("d.csv",index=False)
-        df=pd.read_csv("d.csv")
-        pd.DataFrame([[e,a,0,0]],columns=["E","A","F","P"]).to_csv("d.csv",mode='a',header=False,index=False)
-        st.session_state.u={"e":e,"a":a}
+        pd.DataFrame([[email,alias,0,0]], columns=["E","A","F","P"]).to_csv("d.csv",mode='a',header=False,index=False)
+        st.session_state.u = {"e":email, "a":alias}
         st.rerun()
     st.stop()
 
-# --- LOGICA ---
-v = False
+# --- LÓGICA RELOJ ---
+voto_hecho = False
 if os.path.exists("d.csv"):
     df_v = pd.read_csv("d.csv")
-    v = not df_v[(df_v.E==st.session_state.u['e'])&(df_v.F==f)].empty
+    voto_hecho = not df_v[(df_v.E==st.session_state.u['e'])&(df_v.F==fase)].empty
 
-act = False
-if f in [1,2,3] and not v and t_l!="OFF":
-    r = int(float(t_l)-time.time())
-    if r>0:
-        st.markdown(f'<div class="reloj">{r}s</div>',unsafe_allow_html=True)
-        act = True
-    else:
-        wr("t.txt","OFF")
-        st.rerun()
+activo = False
+ahora = time.time()
+if fase in [1,2,3] and not voto_hecho and st.session_state.t_limite > ahora:
+    resta = int(st.session_state.t_limite - ahora)
+    st.markdown(f'<div class="reloj">⌛ {resta}s</div>', unsafe_allow_html=True)
+    activo = True
 
-# --- VISTAS ---
-if f==0:
-    st.write("ESPERE AL JUEZ")
-elif f==99:
-    st.write("FIN")
+# --- PANTALLAS ---
+if fase == 0:
+    st.header("🏛️ SALA DE ESPERA")
+    st.write(f"Hola {st.session_state.u['a']}, espera al Juez...")
+
+elif fase == 99:
+    st.header("🏆 RESULTADOS")
     if os.path.exists("d.csv"):
-        st.table(pd.read_csv("d.csv").groupby("A").P.sum())
-else:
-    if v:
-        st.write("ENVIADO")
-    else:
-        qs = {1:["Preg 1","A","B"],2:["Preg 2","C","D"],3:["Preg 3","E","F"]}
-        st.write(qs[f][0])
-        an = st.radio("Op:",qs[f][1:])
-        if st.button("VOTAR",disabled=not act):
-            p = 100 if an==qs[f][1] else 0
-            pd.DataFrame([[st.session_state.u['e'],st.session_state.u['a'],f,p]],columns=["E","A","F","P"]).to_csv("d.csv",mode='a',header=False,index=False)
-            st.rerun()
+        df_res = pd.read_csv("d.csv")
+        st.table(df_res[df_res.F > 0].groupby("A").P.sum())
 
-# --- LISTA ---
+else:
+    if voto_hecho:
+        st.success("✅ VOTO ENVIADO")
+    else:
+        preguntas = {
+            1: ["¿Legítima?", "2/3", "1/2"],
+            2: ["¿Plazo?", "10 años", "5 años"],
+            3: ["¿Máquina?", "No", "Sí"]
+        }
+        st.header(f"RONDA {fase}")
+        st.write(f"### {preguntas[fase][0]}")
+        opcion = st.radio("Respuesta:", preguntas[fase][1:])
+        
+        if st.button("ENVIAR", disabled=not activo):
+            puntos = 100 if opcion == preguntas[fase][1] else 0
+            pd.DataFrame([[st.session_state.u['e'], st.session_state.u['a'], fase, puntos]], 
+                         columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=False, index=False)
+            st.rerun()
+        
+        if not activo:
+            st.warning("⏳ Esperando que el Juez inicie el reloj...")
+
+# --- PARTICIPANTES ---
+st.write("---")
 if os.path.exists("d.csv"):
     df_p = pd.read_csv("d.csv")
-    al = df_p[df_p.F==0].A.unique()
-    for n in al:
-        st.write(f"USER: {n}")
-
-if t_l!="OFF" or f==0:
-    time.sleep(1)
-    st.rerun()
+    presentes = df_
