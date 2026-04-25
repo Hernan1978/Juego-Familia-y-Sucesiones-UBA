@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import time
 
-# --- 1. CONFIGURACIÓN Y ESTÉTICA (RESTAURADA AL 100%) ---
+# --- 1. CONFIGURACIÓN Y ESTÉTICA ORIGINAL ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide", initial_sidebar_state="collapsed")
 
 def aplicar_estilo():
@@ -18,7 +18,7 @@ def aplicar_estilo():
             padding: 3rem 3rem; border-radius: 20px; border: 2px solid #D4AF37; margin-top: 50px;
         }}
 
-        /* RELOJ REDISEÑADO - VISIBLE Y ELEGANTE */
+        /* RELOJ SUPERIOR DERECHA */
         .reloj-pantalla {{
             position: fixed !important; top: 20px !important; right: 20px !important;
             background-color: #C0392B !important; color: white !important;
@@ -36,24 +36,23 @@ def aplicar_estilo():
         }}
         h1 {{ font-size: 3rem !important; }}
 
-        .cartel-exito {{ 
-            background-color: rgba(46, 204, 113, 0.4); border: 3px solid #2ECC71; 
-            padding: 40px; border-radius: 15px; text-align: center; margin-top: 20px;
-        }}
-
         /* BOTÓN ROJO UBA */
         .stButton>button {{ 
             background-color: #C0392B !important; color: white !important; 
             font-size: 1.5rem !important; height: 3.5rem; width: 100%; border: 1px solid #D4AF37;
         }}
         
-        /* BOTÓN DESHABILITADO */
         .stButton>button:disabled {{
             background-color: #444444 !important; color: #888888 !important;
             border: 1px solid #222222 !important; cursor: not-allowed !important;
         }}
 
-        [data-testid="stSidebar"] {{ background-color: rgba(26, 58, 90, 1) !important; }}
+        /* CAJA DE PARTICIPANTES */
+        .monitor-publico {{
+            background-color: rgba(212, 175, 55, 0.15);
+            padding: 20px; border-radius: 10px; border: 1px solid #D4AF37;
+            margin-top: 40px;
+        }}
         </style>
         """, unsafe_allow_html=True)
 
@@ -99,7 +98,7 @@ if st.session_state.usuario is None:
             st.session_state.usuario = {"mail": m, "alias": a}; st.rerun()
     st.stop()
 
-# --- 5. JUEGO Y RELOJ ---
+# --- 5. RELOJ Y LÓGICA ---
 ya_voto = False
 if os.path.exists("data.csv"):
     df_v = pd.read_csv("data.csv")
@@ -114,7 +113,7 @@ if 0 < fase_actual < 99 and not ya_voto and tiempo_limite != "OFF":
     else:
         st.error("⚠️ TIEMPO AGOTADO."); escribir("tiempo.txt", "OFF"); st.rerun()
 
-# CONTENIDO
+# CONTENIDO PRINCIPAL
 if fase_actual == 0:
     st.header("🏛️ Sala de Espera")
     st.write(f"Abogado: **{st.session_state.usuario['alias']}**")
@@ -131,35 +130,3 @@ else:
         banco = {1: {"q": "¿Porción legítima de los descendientes?", "op": ["1/2", "2/3", "4/5"], "ok": "2/3"},
                  2: {"q": "¿Plazo máximo para aceptar la herencia?", "op": ["5 años", "10 años", "20 años"], "ok": "10 años"},
                  3: {"q": "¿Es válido un testamento ológrafo escrito a máquina?", "op": ["Sí", "No"], "ok": "No"}}
-        p = banco[fase_actual]
-        st.header(f"RONDA {fase_actual}")
-        st.write(f"### {p['q']}")
-        rta = st.radio("Veredicto:", p['op'], key=f"p_{fase_actual}")
-        
-        # EL BOTÓN SOLO SE ACTIVA SI HAY RELOJ CORRIENDO
-        if st.button("ENVIAR VOTACIÓN", disabled=not hay_tiempo):
-            pts = 100 if rta == p['ok'] else 0
-            pd.DataFrame([[st.session_state.usuario['mail'], st.session_state.usuario['alias'], fase_actual, pts]], 
-                         columns=["Email", "Alias", "Fase", "Puntos"]).to_csv("data.csv", mode='a', header=False, index=False)
-            st.rerun()
-        if not hay_tiempo:
-            st.warning("⌛ El botón se habilitará cuando el Juez inicie el cronómetro.")
-
-# --- 6. MONITOR PÚBLICO ---
-st.write("---")
-st.write("### 👥 Letrados en la Audiencia")
-if os.path.exists("data.csv"):
-    df_p = pd.read_csv("data.csv")
-    todos = df_p[df_p['Fase'] == 0]['Alias'].unique()
-    cols = st.columns(4)
-    for i, alu in enumerate(todos):
-        status = "👤"
-        if 0 < fase_actual < 99:
-            v_alu = not df_p[(df_p['Alias'] == alu) & (df_p['Fase'] == fase_actual)].empty
-            status = "✅" if v_alu else "⏳"
-        cols[i % 4].markdown(f"**{status} {alu}**")
-
-# REFREZCO
-if (tiempo_limite != "OFF") or fase_actual == 0 or ya_voto:
-    time.sleep(1)
-    st.rerun()
