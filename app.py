@@ -3,128 +3,138 @@ import pandas as pd
 import os
 import time
 
-# --- ESTILO ---
-st.set_page_config(layout="wide")
-def style():
-    st.markdown("""
-    <style>
-    header {visibility:hidden;}
-    .stApp {background: #1a1a1a;}
-    .main .block-container {
-        background: #000; border: 2px solid #D4AF37; color: white;
-    }
-    .reloj {
-        position:fixed; top:20px; right:20px; 
-        background:#C0392B; color:white; padding:15px;
-        font-size:2rem; z-index:99; border-radius:10px;
-        border: 2px solid #D4AF37;
-    }
-    </style>""", unsafe_allow_html=True)
-style()
+# --- 1. ESTÉTICA RESTAURADA (ORO, ROJO Y MADERA) ---
+st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# --- PERSISTENCIA SIMPLE ---
-def leer_fase():
-    if os.path.exists("f.txt"):
-        return open("f.txt","r").read().strip()
-    return "0"
+def aplicar_estilo():
+    img = "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"
+    st.markdown(f"""
+        <style>
+        header {{ visibility: hidden; }}
+        .stApp {{ background-image: url("{img}"); background-size: cover; background-attachment: fixed; }}
+        
+        /* Contenedor principal */
+        .main .block-container {{ 
+            background-color: rgba(0, 0, 0, 0.85) !important; 
+            padding: 3rem !important; border-radius: 20px !important; 
+            border: 3px solid #D4AF37 !important; margin-top: 50px !important;
+            max-width: 900px !important;
+        }}
 
-def escribir_fase(v):
-    with open("f.txt","w") as f:
-        f.write(str(v))
+        /* Reloj flotante */
+        .reloj {{
+            position: fixed !important; top: 20px !important; right: 20px !important;
+            background-color: #C0392B !important; color: white !important;
+            padding: 15px 25px !important; border-radius: 50px !important;
+            border: 3px solid #D4AF37 !important; z-index: 9999;
+            font-family: monospace !important; font-size: 2.2rem !important;
+            font-weight: bold !important; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }}
 
-# Inicializar tiempo en la sesión si no existe
-if "t_limite" not in st.session_state:
-    st.session_state.t_limite = 0
+        /* Textos y etiquetas */
+        h1, h2, h3, p, label, .stMarkdown, [data-testid="stWidgetLabel"] p {{ 
+            color: #FFFFFF !important; text-shadow: 2px 2px 4px #000000 !important; 
+            font-size: 1.2rem !important;
+        }}
+        h1 {{ font-size: 3rem !important; color: #D4AF37 !important; }}
 
-fase = int(leer_fase())
+        /* Botón Rojo UBA */
+        .stButton>button {{ 
+            background-color: #C0392B !important; color: white !important; 
+            font-size: 1.5rem !important; font-weight: bold !important;
+            border: 2px solid #D4AF37 !important; border-radius: 10px !important;
+            height: 3.5rem !important; width: 100% !important;
+        }}
+        .stButton>button:disabled {{ background-color: #444 !important; border-color: #222 !important; }}
 
-# --- JUEZ ---
-if st.query_params.get("admin")=="true":
+        /* Inputs (Fondo oscuro para que no maten la vista) */
+        input {{ background-color: #222 !important; color: white !important; border: 1px solid #D4AF37 !important; }}
+        </style>
+        """, unsafe_allow_html=True)
+
+aplicar_estilo()
+
+# --- 2. PERSISTENCIA ---
+def leer_f(): return open("f.txt","r").read().strip() if os.path.exists("f.txt") else "0"
+def escribir_f(v): open("f.txt","w").write(str(v))
+
+if "t_limite" not in st.session_state: st.session_state.t_limite = 0
+fase = int(leer_f())
+
+# --- 3. PANEL JUEZ ---
+if st.query_params.get("admin") == "true":
     with st.sidebar:
-        st.title("JUEZ")
-        pw = st.text_input("Clave:", type="password")
-        if pw == "derecho2024":
-            if st.button("BORRAR TODO"):
+        st.title("⚖️ MANDO")
+        if st.text_input("Clave:", type="password") == "derecho2024":
+            if st.button("🗑️ RESET"):
                 if os.path.exists("d.csv"): os.remove("d.csv")
-                escribir_fase("0")
-                st.session_state.t_limite = 0
-                st.rerun()
-            
-            f_nueva = st.selectbox("Fase:", ["0","1","2","3","99"])
+                escribir_f("0"); st.session_state.t_limite = 0; st.rerun()
+            sel = st.selectbox("Fase:", ["0", "1", "2", "3", "99"], index=0)
             if st.button("CAMBIAR FASE"):
-                escribir_fase(f_nueva)
-                st.session_state.t_limite = 0
-                st.rerun()
-                
-            if fase in [1,2,3]:
-                if st.button("LARGAR RELOJ"):
-                    st.session_state.t_limite = time.time() + 21
-                    st.rerun()
+                escribir_f(sel); st.session_state.t_limite = 0; st.rerun()
+            if 0 < fase < 99:
+                if st.button("⏱️ LARGAR 20s"):
+                    st.session_state.t_limite = time.time() + 21; st.rerun()
 
-# --- LOGIN ---
-if 'u' not in st.session_state:
-    st.session_state.u = None
-
+# --- 4. LOGIN ---
+if 'u' not in st.session_state: st.session_state.u = None
 if not st.session_state.u:
-    st.title("REGISTRO")
-    email = st.text_input("Email:")
-    alias = st.text_input("Alias:")
-    if st.button("ENTRAR") and email and alias:
+    st.title("🏛️ REGISTRO DE LETRADOS")
+    e = st.text_input("Email:")
+    a = st.text_input("Alias:")
+    if st.button("INGRESAR") and e and a:
         if not os.path.exists("d.csv"):
-            pd.DataFrame(columns=["E","A","F","P"]).to_csv("d.csv",index=False)
-        pd.DataFrame([[email,alias,0,0]], columns=["E","A","F","P"]).to_csv("d.csv",mode='a',header=False,index=False)
-        st.session_state.u = {"e":email, "a":alias}
-        st.rerun()
+            pd.DataFrame(columns=["E","A","F","P"]).to_csv("d.csv", index=False)
+        pd.DataFrame([[e,a,0,0]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=False, index=False)
+        st.session_state.u = {"e": e, "a": a}; st.rerun()
     st.stop()
 
-# --- LÓGICA RELOJ ---
-voto_hecho = False
+# --- 5. LÓGICA JUEGO ---
+voto = False
 if os.path.exists("d.csv"):
-    df_v = pd.read_csv("d.csv")
-    voto_hecho = not df_v[(df_v.E==st.session_state.u['e'])&(df_v.F==fase)].empty
+    df = pd.read_csv("d.csv")
+    voto = not df[(df.E == st.session_state.u['e']) & (df.F == fase)].empty
 
-activo = False
 ahora = time.time()
-if fase in [1,2,3] and not voto_hecho and st.session_state.t_limite > ahora:
-    resta = int(st.session_state.t_limite - ahora)
-    st.markdown(f'<div class="reloj">⌛ {resta}s</div>', unsafe_allow_html=True)
+activo = False
+if 0 < fase < 99 and not voto and st.session_state.t_limite > ahora:
+    rem = int(st.session_state.t_limite - ahora)
+    st.markdown(f'<div class="reloj">⌛ {rem}s</div>', unsafe_allow_html=True)
     activo = True
 
-# --- PANTALLAS ---
+# --- 6. PANTALLAS ---
 if fase == 0:
-    st.header("🏛️ SALA DE ESPERA")
-    st.write(f"Hola {st.session_state.u['a']}, espera al Juez...")
-
+    st.header("⚖️ Sala de Espera")
+    st.info(f"Bienvenido, Dr. {st.session_state.u['a']}. Aguarde al Juez.")
 elif fase == 99:
-    st.header("🏆 RESULTADOS")
+    st.header("🏆 SENTENCIA FINAL")
     if os.path.exists("d.csv"):
-        df_res = pd.read_csv("d.csv")
-        st.table(df_res[df_res.F > 0].groupby("A").P.sum())
-
+        res = pd.read_csv("d.csv")
+        st.table(res[res.F > 0].groupby("A").P.sum().sort_values(ascending=False))
 else:
-    if voto_hecho:
-        st.success("✅ VOTO ENVIADO")
+    if voto:
+        st.success("✅ Voto emitido correctamente.")
     else:
-        preguntas = {
-            1: ["¿Legítima?", "2/3", "1/2"],
-            2: ["¿Plazo?", "10 años", "5 años"],
-            3: ["¿Máquina?", "No", "Sí"]
-        }
+        qs = {1: ["¿Legítima?", "2/3", "1/2"], 2: ["¿Plazo?", "10 años", "5 años"], 3: ["¿Máquina?", "No", "Sí"]}
         st.header(f"RONDA {fase}")
-        st.write(f"### {preguntas[fase][0]}")
-        opcion = st.radio("Respuesta:", preguntas[fase][1:])
-        
-        if st.button("ENVIAR", disabled=not activo):
-            puntos = 100 if opcion == preguntas[fase][1] else 0
-            pd.DataFrame([[st.session_state.u['e'], st.session_state.u['a'], fase, puntos]], 
+        st.write(f"### {qs[fase][0]}")
+        rta = st.radio("Veredicto:", qs[fase][1:])
+        if st.button("ENVIAR VOTACIÓN", disabled=not activo):
+            pts = 100 if rta == qs[fase][1] else 0
+            pd.DataFrame([[st.session_state.u['e'], st.session_state.u['a'], fase, pts]], 
                          columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=False, index=False)
             st.rerun()
-        
-        if not activo:
-            st.warning("⏳ Esperando que el Juez inicie el reloj...")
 
-# --- PARTICIPANTES ---
+# --- 7. MONITOR ---
 st.write("---")
 if os.path.exists("d.csv"):
-    df_p = pd.read_csv("d.csv")
-    presentes = df_
+    df_m = pd.read_csv("d.csv")
+    al = df_m[df_m.F == 0].A.unique()
+    st.write("### 👥 Letrados en Audiencia")
+    cols = st.columns(4)
+    for i, n in enumerate(al):
+        status = "✅" if not df_m[(df_m.A == n) & (df_m.F == fase)].empty else "⏳"
+        cols[i % 4].write(f"{status} {n}")
+
+if st.session_state.t_limite > ahora or fase == 0:
+    time.sleep(1); st.rerun()
