@@ -3,6 +3,131 @@ import pandas as pd
 import os
 import time
 
+# --- 1. CONFIGURACIÓN Y ESTÉTICA ---
+st.set_page_config(page_title="LexPlay UBA", layout="wide")
+
+def aplicar_estilo():
+    # CAMBIA ESTE LINK POR LA FOTO QUE QUIERAS
+    fondo_url = "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?q=80&w=2070" 
+    
+    st.markdown(f"""
+        <style>
+        .stApp {{
+            background-image: url("{fondo_url}");
+            background-size: cover;
+            background-attachment: fixed;
+        }}
+        /* CUADRO DE PREGUNTAS: Negro para que el blanco resalte 100% */
+        .main .block-container {{
+            background-color: rgba(0, 0, 0, 0.85); 
+            padding: 3rem;
+            border-radius: 20px;
+            border: 2px solid #D4AF37; /* Borde dorado tipo diplomático */
+        }}
+        /* TEXTOS EN BLANCO PURO */
+        h1, h2, h3, p, label, .stMarkdown {{
+            color: #FFFFFF !important;
+            font-family: 'Arial', sans-serif;
+        }}
+        .stRadio label {{
+            font-size: 1.4rem !important;
+            font-weight: bold !important;
+        }}
+        /* BOTÓN ROJO LLAMATIVO */
+        .stButton>button {{
+            background-color: #E63946 !important;
+            color: white !important;
+            font-size: 1.5rem !important;
+            width: 100%;
+        }}
+        </style>
+        """, unsafe_allow_html=True)
+
+aplicar_estilo()
+
+# --- 2. BANCO DE PREGUNTAS (Agregá las que quieras acá) ---
+banco_preguntas = {
+    1: {"q": "¿Cuál es la porción legítima de los descendientes?", "op": ["1/2", "2/3", "4/5"], "ok": "2/3"},
+    2: {"q": "¿Plazo para aceptar una herencia?", "op": ["5 años", "10 años", "20 años"], "ok": "10 años"},
+    3: {"q": "¿Es válido el testamento ológrafo a máquina?", "op": ["Sí", "No", "Solo con firma"], "ok": "No"},
+    4: {"q": "¿La nuera viuda sin hijos hereda a los suegros?", "op": ["Sí", "No", "Depende"], "ok": "No"},
+    5: {"q": "¿El cónyuge concurre con los ascendientes?", "op": ["Sí", "No", "Solo si no hay bienes"], "ok": "Sí"}
+}
+
+# --- 3. LÓGICA DE LOGIN ÚNICO ---
+if 'logueado' not in st.session_state:
+    st.session_state.logueado = False
+
+if not st.session_state.logueado:
+    st.title("⚖️ Registro de Letrados")
+    st.subheader("Ingresá tus datos una sola vez para comenzar")
+    mail = st.text_input("Email Institucional:")
+    alias = st.text_input("Tu Alias:")
+    
+    if st.button("ENTRAR AL JUICIO"):
+        if mail and alias and "@" in mail:
+            st.session_state.mail = mail
+            st.session_state.alias = alias
+            st.session_state.logueado = True
+            st.rerun()
+        else:
+            st.error("Por favor, ingresá un mail válido y un alias.")
+    st.stop()
+
+# --- 4. CONTROL DEL PROFESOR (BARRA LATERAL) ---
+def set_estado(n):
+    with open("estado.txt", "w") as f: f.write(str(n))
+
+def get_estado():
+    if not os.path.exists("estado.txt"): return 0
+    with open("estado.txt", "r") as f: return int(f.read())
+
+with st.sidebar:
+    st.header("🛂 Mando Docente")
+    passw = st.text_input("Clave:", type="password")
+    if passw == "derecho2024":
+        opciones = ["Espera"] + [f"Pregunta {i}" for i in banco_preguntas.keys()] + ["Podio"]
+        fase_sel = st.selectbox("Cambiar a:", opciones)
+        if st.button("Lanzar"):
+            if "Espera" in fase_sel: set_estado(0)
+            elif "Podio" in fase_sel: set_estado(99)
+            else: set_estado(int(fase_sel.split(" ")[1]))
+            st.rerun()
+
+# --- 5. JUEGO EN VIVO ---
+fase = get_estado()
+
+if fase == 0:
+    st.header(f"🏛️ ¡Bienvenido, {st.session_state.alias}!")
+    st.write("El tribunal está sesionando. Esperá a que el profesor lance la primera pregunta...")
+    time.sleep(3)
+    st.rerun()
+
+elif fase in banco_preguntas:
+    p = banco_preguntas[fase]
+    st.header(f"Ronda {fase}")
+    st.subheader(p["q"])
+    
+    respuesta = st.radio("Seleccioná tu fundamento:", p["op"], key=f"p_{fase}")
+    
+    if st.button("ENVIAR VEREDICTO"):
+        puntos = 100 if respuesta == p["ok"] else 0
+        df = pd.DataFrame([[st.session_state.mail, st.session_state.alias, puntos]], columns=["Email", "Alias", "Puntos"])
+        df.to_csv("data.csv", mode='a', header=not os.path.exists("data.csv"), index=False)
+        st.success("¡Voto registrado! Esperá a la siguiente ronda.")
+
+elif fase == 99:
+    st.balloons()
+    st.header("🏆 Podio Final")
+    if os.path.exists("data.csv"):
+        res = pd.read_csv("data.csv").groupby("Alias")["Puntos"].sum().sort_values(ascending=False)
+        st.table(res)
+    else:
+        st.write("No hay datos.")
+import pandas as pd
+import os
+import time
+
 # --- 1. ESTÉTICA (Letras Blancas / Fondo Oscuro) ---
 st.set_page_config(page_title="LexPlay: UBA Derecho", layout="wide")
 
