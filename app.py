@@ -7,7 +7,6 @@ import time
 st.set_page_config(page_title="LexPlay: Desafío Jurídico", layout="wide")
 
 def aplicar_estilo():
-    # URL de imagen de fondo (puedes cambiarla por una de un tribunal o biblioteca)
     fondo_url = "https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=2070"
     st.markdown(f"""
         <style>
@@ -16,19 +15,32 @@ def aplicar_estilo():
             background-attachment: fixed;
             background-size: cover;
         }}
+        /* Estilo para el contenedor blanco donde va el texto */
         .main .block-container {{
-            background-color: rgba(255, 255, 255, 0.92);
+            background-color: rgba(255, 255, 255, 0.94); /* Un poco más opaco para leer mejor */
             padding: 2rem;
             border-radius: 15px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            color: #000000; /* COLOR DE LETRA GENERAL: Negro */
         }}
-        .stButton>button {{
-            width: 100%;
-            border-radius: 20px;
-            height: 3em;
-            background-color: #1A3A5A;
-            color: white;
+        /* Color de los Títulos (H1) */
+        h1 {{
+            color: #1A3A5A !important; /* Azul Marino */
             font-weight: bold;
+        }}
+        /* Color de los Subtítulos (H2 y H3) */
+        h2, h3 {{
+            color: #2C3E50 !important; /* Gris muy oscuro */
+        }}
+        /* Color de las etiquetas de los campos (Email, Alias) */
+        label {{
+            color: #1A3A5A !important;
+            font-weight: bold !important;
+        }}
+        /* Color de los textos de radio buttons y preguntas */
+        .stMarkdown p, .stRadio label {{
+            color: #000000 !important; /* Negro puro para las preguntas */
+            font-size: 1.1rem;
         }}
         </style>
         """, unsafe_allow_html=True)
