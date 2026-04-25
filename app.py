@@ -10,7 +10,7 @@ def aplicar_estilo():
     img = "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"
     st.markdown(f"""
         <style>
-        header, [data-testid="stHeader"] {{ visibility: hidden; }}
+        header, [data-testid="stHeader"], [data-testid="stSidebar"] {{ visibility: hidden !important; width: 0; }}
         .stApp {{ 
             background-image: url("{img}"); 
             background-size: cover; 
@@ -18,9 +18,9 @@ def aplicar_estilo():
         }}
         .main .block-container {{ 
             background-color: #000000 !important; 
-            padding: 3rem !important; 
+            padding: 2.5rem !important; 
             border: 4px solid #D4AF37 !important; 
-            margin-top: 30px !important;
+            margin-top: 20px !important;
             border-radius: 15px !important;
         }}
         .reloj-pantalla {{
@@ -35,14 +35,25 @@ def aplicar_estilo():
             text-shadow: 3px 3px 5px #000000 !important;
             font-weight: 800 !important;
         }}
-        /* BOTÓN DE EMERGENCIA PARA EL JUEZ (ABAJO A LA IZQUIERDA) */
-        .stActionButton {{ display: none !important; }} /* Oculta basura de streamlit */
+        input {{ background-color: #1A1A1A !important; color: white !important; border: 1px solid #D4AF37 !important; }}
+        .stButton>button {{ 
+            background-color: #C0392B !important; color: white !important; 
+            border: 2px solid #D4AF37 !important; font-weight: bold !important;
+        }}
+        /* Estilo para el panel de admin */
+        .admin-box {{
+            background-color: #111 !important;
+            padding: 20px;
+            border: 2px dashed #D4AF37;
+            margin-bottom: 30px;
+            border-radius: 10px;
+        }}
         </style>
         """, unsafe_allow_html=True)
 
 aplicar_estilo()
 
-# --- 2. LÓGICA DE DATOS ---
+# --- 2. GESTIÓN DE DATOS ---
 def leer_f():
     if os.path.exists("f.txt"):
         try: return open("f.txt", "r").read().strip()
@@ -66,45 +77,46 @@ if "t_duracion" not in st.session_state: st.session_state.t_duracion = 20
 fase = int(leer_f())
 df_global = cargar_datos()
 
-# --- 3. PANEL JUEZ (?admin=true) ---
+# --- 3. PANEL JUEZ INTEGRADO (Solo si ?admin=true) ---
 if st.query_params.get("admin") == "true":
-    # BOTÓN DE EMERGENCIA POR SI SE PIERDE EL SIDEBAR
-    with st.container():
-        st.markdown("""<div style='position: fixed; bottom: 10px; left: 10px; z-index: 10000;'>""", unsafe_allow_html=True)
-        if st.button("⚙️ ABRIR MANDO"):
-            st.markdown('<script>window.parent.document.querySelector(".stSidebar").style.visibility="visible";</script>', unsafe_allow_html=True)
-        st.markdown("""</div>""", unsafe_allow_html=True)
-
-    with st.sidebar:
-        st.title("⚖️ MANDO JUEZ")
-        clave = st.text_input("Clave:", type="password")
-        if clave == "derecho2024":
-            if st.button("🗑️ REINICIAR TODO"):
-                if os.path.exists("d.csv"): os.remove("d.csv")
-                escribir_f("0"); st.session_state.t_limite = 0; st.rerun()
-            st.write("---")
+    st.markdown('<div class="admin-box">', unsafe_allow_html=True)
+    st.title("⚖️ MANDO DOCENTE")
+    col1, col2, col3 = st.columns([1, 1, 1])
+    
+    with col1:
+        clave = st.text_input("Clave de Acceso:", type="password")
+    
+    if clave == "derecho2024":
+        with col2:
             ops = ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Podio"]
-            sel = st.selectbox("Fase Actual:", ops)
-            if st.button("CAMBIAR FASE"):
+            sel = st.selectbox("Cambiar a:", ops)
+            if st.button("🔄 ACTUALIZAR FASE"):
                 nv = 0 if "Esp" in sel else (99 if "Pod" in sel else int(sel.split(" ")[1]))
                 escribir_f(str(nv)); st.session_state.t_limite = 0; st.rerun()
-            if 0 < fase < 99:
-                st.session_state.t_duracion = st.slider("Segundos:", 5, 60, 20)
-                if st.button("⏱️ INICIAR RELOJ"):
-                    st.session_state.t_limite = time.time() + st.session_state.t_duracion + 1
-                    st.rerun()
+        
+        with col3:
+            st.session_state.t_duracion = st.number_input("Segundos:", 5, 60, 20)
+            if st.button("⏱️ LARGAR RELOJ"):
+                st.session_state.t_limite = time.time() + st.session_state.t_duracion + 1
+                st.rerun()
+        
+        if st.button("🗑️ BORRAR TODOS LOS DATOS"):
+            if os.path.exists("d.csv"): os.remove("d.csv")
+            escribir_f("0"); st.session_state.t_limite = 0; st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 4. LOGIN ---
 if 'u' not in st.session_state: st.session_state.u = None
 if not st.session_state.u:
-    st.title("🏛️ REGISTRO")
+    st.title("🏛️ REGISTRO DE PARTICIPANTES")
     e, a = st.text_input("Email:"), st.text_input("Alias:")
-    if st.button("INGRESAR") and e and a:
-        pd.DataFrame([[e, a, 0, 0]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=not os.path.exists("d.csv"), index=False)
-        st.session_state.u = {"e": e, "a": a}; st.rerun()
+    if st.button("INGRESAR"):
+        if e and a:
+            pd.DataFrame([[e, a, 0, 0]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=not os.path.exists("d.csv"), index=False)
+            st.session_state.u = {"e": e, "a": a}; st.rerun()
     st.stop()
 
-# --- 5. LÓGICA VOTO ---
+# --- 5. LÓGICA ---
 df_global = cargar_datos()
 v_ok = False
 if not df_global.empty:
@@ -120,7 +132,7 @@ if 0 < fase < 99 and not v_ok and st.session_state.t_limite > ahora:
 # --- 6. PANTALLAS ---
 if fase == 0:
     st.header("⚖️ Sala de Espera")
-    st.write(f"Bienvenido Dr/a. **{st.session_state.u['a']}**")
+    st.write(f"Bienvenido Dr/a. **{st.session_state.u['a']}**, aguarde instrucciones.")
 elif fase == 99:
     st.header("🏆 SENTENCIA FINAL")
     st.balloons()
