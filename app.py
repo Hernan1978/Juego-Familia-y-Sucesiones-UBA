@@ -10,37 +10,51 @@ def aplicar_estilo():
     fondo_url = "https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=2070"
     st.markdown(f"""
         <style>
+        /* 1. Fondo con efecto blur para que no distraiga */
         .stApp {{
             background-image: url("{fondo_url}");
             background-attachment: fixed;
             background-size: cover;
         }}
-        /* Estilo para el contenedor blanco donde va el texto */
+        
+        /* 2. El contenedor donde están las preguntas (Blanco casi puro) */
         .main .block-container {{
-            background-color: rgba(255, 255, 255, 0.94); /* Un poco más opaco para leer mejor */
-            padding: 2rem;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            color: #000000; /* COLOR DE LETRA GENERAL: Negro */
+            background-color: rgba(255, 255, 255, 0.98); 
+            padding: 3rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-top: 10px;
         }}
-        /* Color de los Títulos (H1) */
+
+        /* 3. Títulos en Azul muy oscuro y GRANDES */
         h1 {{
-            color: #1A3A5A !important; /* Azul Marino */
-            font-weight: bold;
+            color: #0A192F !important;
+            font-size: 3rem !important;
+            text-align: center;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
         }}
-        /* Color de los Subtítulos (H2 y H3) */
-        h2, h3 {{
-            color: #2C3E50 !important; /* Gris muy oscuro */
+
+        /* 4. Las preguntas y textos (Negro total y negrita) */
+        .stMarkdown p, label, .stRadio label {{
+            color: #121212 !important;
+            font-size: 1.3rem !important;
+            font-weight: 600 !important;
+            line-height: 1.6;
         }}
-        /* Color de las etiquetas de los campos (Email, Alias) */
-        label {{
-            color: #1A3A5A !important;
+
+        /* 5. Estilo para los inputs (Email y Alias) */
+        input {{
+            background-color: #F0F2F6 !important;
+            color: #000000 !important;
             font-weight: bold !important;
         }}
-        /* Color de los textos de radio buttons y preguntas */
-        .stMarkdown p, .stRadio label {{
-            color: #000000 !important; /* Negro puro para las preguntas */
-            font-size: 1.1rem;
+
+        /* 6. Botones que se noten */
+        .stButton>button {{
+            background-color: #1A3A5A !important;
+            color: #FFFFFF !important;
+            font-size: 1.2rem !important;
+            border: 2px solid #0A192F;
         }}
         </style>
         """, unsafe_allow_html=True)
