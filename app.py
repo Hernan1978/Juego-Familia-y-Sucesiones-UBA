@@ -10,32 +10,22 @@ def style():
     img = "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"
     st.markdown(f"""
     <style>
-    header {{
-        visibility: hidden;
-    }}
+    header {{ visibility: hidden; }}
     .stApp {{
-        background-image: 
-        url("{img}");
+        background-image: url("{img}");
         background-size: cover;
     }}
     .main .block-container {{
-        background: 
-        rgba(0,0,0,0.85);
+        background: rgba(0,0,0,0.85);
         padding: 2rem !important;
         border: 3px solid #D4AF37;
         border-radius: 20px;
     }}
     .reloj {{
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #C0392B;
-        color: white;
-        padding: 15px;
-        border: 2px solid #D4AF37;
-        border-radius: 50px;
-        font-size: 2rem;
-        z-index: 999;
+        position: fixed; top: 20px; right: 20px;
+        background: #C0392B; color: white;
+        padding: 15px; border: 2px solid #D4AF37;
+        border-radius: 50px; font-size: 2rem; z-index: 999;
     }}
     h1, h2, h3, p, label {{
         color: white !important;
@@ -44,7 +34,6 @@ def style():
     .stButton>button {{
         background: #C0392B !important;
         color: white !important;
-        border: 1px solid #D4AF37;
     }}
     </style>
     """, unsafe_allow_html=True)
@@ -53,8 +42,11 @@ style()
 
 # --- 2. ARCHIVOS ---
 def rd():
-    if os.path.exists("f.txt"):
-        return open("f.txt").read()
+    try:
+        if os.path.exists("f.txt"):
+            return open("f.txt").read().strip()
+    except:
+        pass
     return "0"
 
 def wr(v):
@@ -65,27 +57,29 @@ if "t" not in st.session_state:
     st.session_state.t = 0
 
 # --- 3. LOGICA ---
-f = int(rd())
+f_val = rd()
+f = int(f_val) if f_val.isdigit() else 0
 
+# ADMIN con ?a=1
 if st.query_params.get("a")=="1":
     with st.sidebar:
-        st.write("JUEZ")
-        if st.button("RESET"):
+        st.write("MANDO JUEZ")
+        if st.button("BORRAR DATOS"):
             if os.path.exists("d.csv"):
                 os.remove("d.csv")
             wr("0")
             st.session_state.t = 0
             st.rerun()
-        s = st.selectbox("F:",
-            ["0","1","2","3","99"])
-        if st.button("IR"):
+        
+        op = ["0","1","2","3","99"]
+        s = st.selectbox("Fase:", op)
+        if st.button("CAMBIAR"):
             wr(s)
             st.session_state.t = 0
             st.rerun()
-        if st.button("RELOJ"):
-            st.session_state.t = (
-                time.time() + 21
-            )
+            
+        if st.button("INICIAR 20s"):
+            st.session_state.t = time.time() + 21
             st.rerun()
 
 # --- 4. LOGIN ---
@@ -94,92 +88,102 @@ if 'u' not in st.session_state:
 
 if not st.session_state.u:
     st.title("REGISTRO")
-    e = st.text_input("Email:")
-    a = st.text_input("Alias:")
-    if st.button("ENTRAR") and e:
+    email = st.text_input("Email:")
+    alias = st.text_input("Alias:")
+    if st.button("ENTRAR") and email and alias:
         if not os.path.exists("d.csv"):
-            df = pd.DataFrame(
+            pd.DataFrame(
                 columns=["E","A","F","P"]
-            )
-            df.to_csv("d.csv",
-                index=False)
-        row = [[e,a,0,0]]
-        df2 = pd.DataFrame(
-            row, columns=["E","A","F","P"]
+            ).to_csv("d.csv", index=False)
+        
+        df_log = pd.DataFrame(
+            [[email, alias, 0, 0]], 
+            columns=["E","A","F","P"]
         )
-        df2.to_csv("d.csv",
-            mode='a',
-            header=False,
-            index=False)
-        st.session_state.u = {
-            "e":e, "a":a
-        }
+        df_log.to_csv(
+            "d.csv", mode='a', 
+            header=False, index=False
+        )
+        st.session_state.u = {"e":email, "a":alias}
         st.rerun()
     st.stop()
 
-# --- 5. JUEGO ---
-v = False
+# --- 5. TIEMPO ---
+v_hecho = False
 if os.path.exists("d.csv"):
-    dx = pd.read_csv("d.csv")
-    m = st.session_state.u["e"]
-    v = not dx[(dx.E==m)&(dx.F==f)].empty
+    try:
+        dx = pd.read_csv("d.csv")
+        m_u = st.session_state.u["e"]
+        v_hecho = not dx[(dx.E==m_u)&(dx.F==f)].empty
+    except:
+        pass
 
 now = time.time()
-ok = False
-if f>0 and f<99 and not v:
+puede_votar = False
+if 0 < f < 99 and not v_hecho:
     if st.session_state.t > now:
-        r = int(st.session_state.t-now)
+        seg = int(st.session_state.t - now)
         st.markdown(
-            f'<div class="reloj">{r}s</div>',
+            f'<div class="reloj">{seg}s</div>',
             unsafe_allow_html=True
         )
-        ok = True
+        puede_votar = True
 
 # --- 6. VISTAS ---
 if f == 0:
     st.header("SALA DE ESPERA")
+    st.write("Aguarde al inicio...")
 elif f == 99:
     st.header("PODIO")
     if os.path.exists("d.csv"):
         dz = pd.read_csv("d.csv")
-        st.table(
-            dz[dz.F>0].groupby("A").P.sum()
-        )
+        res = dz[dz.F>0].groupby("A").P.sum()
+        st.table(res.sort_values(ascending=False))
 else:
-    if v:
-        st.success("ENVIADO")
+    if v_hecho:
+        st.success("VOTO RECIBIDO")
     else:
+        # Preguntas cortas
         qs = {
             1: ["Legitima?","2/3","1/2"],
             2: ["Plazo?","10a","5a"],
             3: ["Maquina?","No","Si"]
         }
-        st.write(qs[f][0])
-        rt = st.radio("Op:",qs[f][1:])
-        if st.button("VOTAR",
-            disabled=not ok):
-            pts = 100 if rt==qs[f][1] else 0
+        st.header(f"RONDA {f}")
+        st.write(f"### {qs[f][0]}")
+        rt = st.radio("Op:", qs[f][1:])
+        
+        if st.button("ENVIAR", disabled=not puede_votar):
+            puntos = 100 if rt==qs[f][1] else 0
             u = st.session_state.u
-            nr = [[u["e"],u["a"],f,pts]]
-            df3 = pd.DataFrame(
-                nr, columns=["E","A","F","P"]
+            new_row = pd.DataFrame(
+                [[u["e"], u["a"], f, puntos]], 
+                columns=["E","A","F","P"]
             )
-            df3.to_csv("d.csv",
-                mode='a',
-                header=False,
-                index=False)
+            new_row.to_csv(
+                "d.csv", mode='a', 
+                header=False, index=False
+            )
             st.rerun()
+        
+        if not puede_votar:
+            st.warning("Esperando reloj...")
 
 # --- 7. MONITOR ---
 st.write("---")
 if os.path.exists("d.csv"):
-    dm = pd.read_csv("d.csv")
-    al = dm[dm.F==0].A.unique()
-    c = st.columns(4)
-    for i, n in enumerate(al):
-        stt = "✅" if not dm[(dm.A==n)&(dm.F==f)].empty else "👤"
-        c[i%4].write(f"{stt} {n}")
+    try:
+        dm = pd.read_csv("d.csv")
+        lista = dm[dm.F==0].A.unique()
+        cols = st.columns(4)
+        for i, n in enumerate(lista):
+            check = not dm[(dm.A==n)&(dm.F==f)].empty
+            icon = "✅" if check else "👤"
+            cols[i%4].write(f"{icon} {n}")
+    except:
+        pass
 
+# Refresco
 if st.session_state.t > now or f==0:
     time.sleep(1)
     st.rerun()
