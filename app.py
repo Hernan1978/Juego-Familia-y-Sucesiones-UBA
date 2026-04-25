@@ -35,7 +35,7 @@ banco = {
     3: {"q": "¿Es válido un testamento ológrafo escrito a máquina?", "op": ["Sí", "No", "Solo con testigos"], "ok": "No"}
 }
 
-# --- 3. PERSISTENCIA ---
+# --- 3. FUNCIONES DE APOYO ---
 def leer_archivo(nombre, default="0"):
     if not os.path.exists(nombre): return default
     with open(nombre, "r") as f: return f.read().strip()
@@ -43,10 +43,22 @@ def leer_archivo(nombre, default="0"):
 def escribir_archivo(nombre, valor):
     with open(nombre, "w") as f: f.write(str(valor))
 
+def inicializar_csv():
+    if not os.path.exists("data.csv"):
+        pd.DataFrame(columns=["Email", "Alias", "Fase", "Puntos"]).to_csv("data.csv", index=False)
+    else:
+        # Si existe pero es viejo y le falta la columna 'Fase', lo reseteamos
+        df_check = pd.read_csv("data.csv")
+        if "Fase" not in df_check.columns:
+            pd.DataFrame(columns=["Email", "Alias", "Fase", "Puntos"]).to_csv("data.csv", index=False)
+
 def ya_voto(mail, fase):
     if not os.path.exists("data.csv"): return False
     df = pd.read_csv("data.csv")
+    if "Fase" not in df.columns: return False
     return not df[(df['Email'] == mail) & (df['Fase'] == fase)].empty
+
+inicializar_csv()
 
 # --- 4. PANEL DOCENTE (?admin=true) ---
 params = st.query_params
@@ -74,10 +86,11 @@ if es_admin:
                     st.rerun()
                 
                 st.write("### 📊 Monitor de Votos:")
-                if os.path.exists("data.csv"):
-                    df = pd.read_csv("data.csv")
-                    alumnos = df['Alias'].unique()
-                    for alu in alumnos:
+                df = pd.read_csv("data.csv")
+                if not df.empty:
+                    # Obtenemos lista de todos los que se registraron (Fase 0)
+                    todos = df[df['Fase'] == 0]['Alias'].unique()
+                    for alu in todos:
                         voto = not df[(df['Alias'] == alu) & (df['Fase'] == fase_actual)].empty
                         st.write(f"{'✅' if voto else '⏳'} {alu}")
 
@@ -91,9 +104,6 @@ if st.session_state.usuario is None:
     a = st.text_input("Alias:")
     if st.button("INGRESAR"):
         if m and a:
-            if not os.path.exists("data.csv"):
-                pd.DataFrame(columns=["Email", "Alias", "Fase", "Puntos"]).to_csv("data.csv", index=False)
-            # Registro inicial en fase 0
             if not ya_voto(m, 0):
                 pd.DataFrame([[m, a, 0, 0]], columns=["Email", "Alias", "Fase", "Puntos"]).to_csv("data.csv", mode='a', header=False, index=False)
             st.session_state.usuario = {"mail": m, "alias": a}
@@ -109,18 +119,15 @@ if fase == 0:
     st.header("🏛️ Sala de Audiencias")
     st.write(f"Abogado: {st.session_state.usuario['alias']}")
     st.info("Aguardando el inicio del debate...")
-    time.sleep(3)
-    st.rerun()
+    time.sleep(4); st.rerun()
 
 elif fase in banco:
     if voto_realizado:
         st.header("⚖️ Veredicto Enviado")
         st.success("RESPUESTA ENVIADA correctamente.")
-        st.write("Por favor, espere a que todos los participantes terminen de votar.")
-        time.sleep(4)
-        st.rerun()
+        st.write("Espere a que el Juez pase a la siguiente ronda.")
+        time.sleep(5); st.rerun()
     else:
-        # Reloj
         if tiempo_final_raw != "OFF":
             restante = int(float(tiempo_final_raw) - time.time())
             if restante > 0:
@@ -146,5 +153,6 @@ elif fase == 99:
     st.header("🏆 SENTENCIA FINAL")
     if os.path.exists("data.csv"):
         datos = pd.read_csv("data.csv")
-        ranking = datos.groupby("Alias")["Puntos"].sum().sort_values(ascending=False)
+        # Sumamos puntos ignorando los registros de fase 0
+        ranking = datos[datos['Fase'] > 0].groupby("Alias")["Puntos"].sum().sort_values(ascending=False)
         st.table(ranking)
