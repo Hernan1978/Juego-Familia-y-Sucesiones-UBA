@@ -120,27 +120,3 @@ elif fase == 99:
         st.table(datos.groupby("Alias")["Puntos"].sum().sort_values(ascending=False))
     else:
         st.write("Sin datos")
-            background-color: #C0392B !important; 
-            color: white !important; 
-            font-size: 1.5rem !important; 
-            width: 100%; 
-            height: 4rem;
-            border-radius: 10px;
-        }}
-        [data-testid="stSidebar"] {{ background-color: rgba(26, 58, 90, 0.9) !important; }}
-        </style>
-        """, unsafe_allow_html=True)
-
-aplicar_estilo()
-
-# --- 2. BANCO DE PREGUNTAS ---
-banco = {
-    1: {"q": "¿Cuál es la porción legítima de los descendientes?", "op": ["1/2", "2/3", "4/5"], "ok": "2/3"},
-    2: {"q": "¿Cuál es el plazo máximo para aceptar la herencia?", "op": ["5 años", "10 años", "20 años"], "ok": "10 años"},
-    3: {"q": "¿Es válido un testamento ológrafo escrito a máquina pero firmado?", "op": ["Sí", "No", "Solo con testigos"], "ok": "No"},
-    4: {"q": "¿El cónyuge hereda sobre los gananciales con hijos?", "op": ["Sí", "No", "Solo la mitad"], "ok": "No"},
-    5: {"q": "¿Es posible el pacto sobre herencia futura (Art. 1010)?", "op": ["Nunca", "Sí, excepcionalmente", "Siempre"], "ok": "Sí, excepcionalmente"},
-    6: {"q": "¿La indignidad se purga con 3 años de posesión?", "op": ["Sí", "No", "Son 10 años"], "ok": "Sí"}
-}
-
-# --- 3. LÓG
