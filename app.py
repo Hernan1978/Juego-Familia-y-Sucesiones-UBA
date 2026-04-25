@@ -1,4 +1,5 @@
 import streamlit as st
+import pd
 import pandas as pd
 import os
 import time
@@ -34,12 +35,6 @@ def aplicar_estilo():
             background-color: #C0392B !important; color: white !important; font-size: 1.5rem !important; 
             height: 3.5rem; width: 100%; border: 1px solid #D4AF37;
         }}
-        /* Estilo para la lista de participantes inferior */
-        .lista-participantes {{
-            background-color: rgba(255, 255, 255, 0.1);
-            padding: 15px; border-radius: 10px; border: 1px solid #D4AF37;
-            margin-top: 30px;
-        }}
         [data-testid="stSidebar"] {{ background-color: rgba(26, 58, 90, 1) !important; }}
         </style>
         """, unsafe_allow_html=True)
@@ -49,10 +44,11 @@ aplicar_estilo()
 def leer(n, d="0"): return open(n, "r").read().strip() if os.path.exists(n) else d
 def escribir(n, v): open(n, "w").write(str(v))
 
-# --- 2. PANEL DOCENTE ---
+# --- 2. VARIABLES DE ESTADO ---
 fase_actual = int(leer("fase.txt"))
 tiempo_limite = leer("tiempo.txt", "OFF")
 
+# --- 3. PANEL DOCENTE ---
 if st.query_params.get("admin") == "true":
     with st.sidebar:
         st.title("⚖️ MANDO DEL JUEZ")
@@ -70,9 +66,9 @@ if st.query_params.get("admin") == "true":
             if 0 < fase_actual < 99:
                 seg = st.slider("Segundos:", 10, 60, 20)
                 if st.button("⏱️ INICIAR TIEMPO"):
-                    escribir("tiempo.txt", time.time() + seg); st.rerun()
+                    escribir("tiempo.txt", str(time.time() + seg)); st.rerun()
 
-# --- 3. LOGIN ---
+# --- 4. LOGIN ---
 if 'usuario' not in st.session_state: st.session_state.usuario = None
 if st.session_state.usuario is None:
     st.title("⚖️ REGISTRO DE LETRADOS")
@@ -87,13 +83,13 @@ if st.session_state.usuario is None:
             st.session_state.usuario = {"mail": m, "alias": a}; st.rerun()
     st.stop()
 
-# --- 4. LÓGICA DE JUEGO ---
+# --- 5. LÓGICA DE JUEGO ---
 ya_voto_alumno = False
 if os.path.exists("data.csv"):
     df_v = pd.read_csv("data.csv")
     ya_voto_alumno = not df_v[(df_v['Email'] == st.session_state.usuario['mail']) & (df_v['Fase'] == fase_actual)].empty
 
-# RELOJ
+# RELOJ (Aparece si hay tiempo activo y el alumno no votó)
 if 0 < fase_actual < 99 and not ya_voto_alumno and tiempo_limite != "OFF":
     seg_restantes = int(float(tiempo_limite) - time.time())
     if seg_restantes > 0:
@@ -103,4 +99,23 @@ if 0 < fase_actual < 99 and not ya_voto_alumno and tiempo_limite != "OFF":
 
 # CONTENIDO PRINCIPAL
 if fase_actual == 0:
-    st.header(f"🏛️
+    st.header("🏛️ Sala de Espera")
+    st.write(f"Abogado: **{st.session_state.usuario['alias']}**")
+    st.info("Aguarde a que el Juez inicie la sesión...")
+elif fase_actual == 99:
+    st.balloons(); st.header("🏆 SENTENCIA FINAL")
+    if os.path.exists("data.csv"):
+        df_res = pd.read_csv("data.csv")
+        st.table(df_res[df_res['Fase'] > 0].groupby("Alias")["Puntos"].sum().sort_values(ascending=False))
+else:
+    if ya_voto_alumno:
+        st.markdown('<div class="cartel-exito"><h1>✔️ ENVIADO</h1><p>Veredicto registrado. Espere a la siguiente ronda.</p></div>', unsafe_allow_html=True)
+    else:
+        banco = {1: {"q": "¿Porción legítima de los descendientes?", "op": ["1/2", "2/3", "4/5"], "ok": "2/3"},
+                 2: {"q": "¿Plazo máximo para aceptar la herencia?", "op": ["5 años", "10 años", "20 años"], "ok": "10 años"},
+                 3: {"q": "¿Es válido un testamento ológrafo escrito a máquina?", "op": ["Sí", "No"], "ok": "No"}}
+        p = banco[fase_actual]
+        st.header(f"RONDA {fase_actual}")
+        st.write(f"### {p['q']}")
+        rta = st.radio("Veredicto:", p['op'], key=f"p_{fase_actual}")
+        if st.button("ENVIAR VOTACIÓN
