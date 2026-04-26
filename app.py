@@ -11,11 +11,7 @@ def aplicar_estilo():
     st.markdown(f"""
         <style>
         header, [data-testid="stHeader"], [data-testid="stSidebar"] {{ visibility: hidden; position: absolute; }}
-        .stApp {{ 
-            background-image: url("{img}"); 
-            background-size: cover; 
-            background-attachment: fixed; 
-        }}
+        .stApp {{ background-image: url("{img}"); background-size: cover; background-attachment: fixed; }}
         .main .block-container {{ 
             background-color: #000000 !important; 
             padding: 2.5rem !important; 
@@ -35,10 +31,10 @@ def aplicar_estilo():
             text-shadow: 2px 2px 4px #000000 !important;
             font-weight: 800 !important;
         }}
-        input {{ background-color: #222222 !important; color: white !important; border: 1px solid #D4AF37 !important; }}
         .stButton>button {{ 
             background-color: #C0392B !important; color: white !important; 
             border: 2px solid #D4AF37 !important; font-weight: bold !important;
+            width: 100% !important; height: 3.5rem !important;
         }}
         .stExpander {{ border: 1px solid #D4AF37 !important; background-color: transparent !important; }}
         </style>
@@ -46,15 +42,16 @@ def aplicar_estilo():
 
 aplicar_estilo()
 
-# --- 2. FUNCIONES DE DATOS ---
+# --- 2. GESTIÓN DE PERSISTENCIA (SINCRONIZACIÓN) ---
 def leer_f():
     if os.path.exists("f.txt"):
-        try: return open("f.txt", "r").read().strip()
+        try:
+            with open("f.txt", "r") as x: return x.read().strip().split(",")
         except: pass
-    return "0"
+    return ["0", "0"] # fase, tiempo_limite
 
-def escribir_f(v):
-    with open("f.txt", "w") as x: x.write(str(v))
+def escribir_f(fase, t_limite):
+    with open("f.txt", "w") as x: x.write(f"{fase},{t_limite}")
 
 def cargar_datos():
     if os.path.exists("d.csv"):
@@ -64,36 +61,33 @@ def cargar_datos():
         except: pass
     return pd.DataFrame(columns=["E","A","F","P"])
 
-if "t_limite" not in st.session_state: st.session_state.t_limite = 0
-fase = int(leer_f())
+# Cargar estado actual del archivo
+fase_str, t_limite_str = leer_f()
+fase = int(fase_str)
+t_limite = float(t_limite_str)
 df_global = cargar_datos()
 
-# --- 3. PANEL JUEZ (SOLO APARECE SI LA URL TIENE ?admin=true) ---
-# ESTA ES LA CORRECCIÓN CLAVE
-es_admin = st.query_params.get("admin") == "true"
-
-if es_admin:
+# --- 3. PANEL JUEZ (SOLO CON ?admin=true) ---
+if st.query_params.get("admin") == "true":
     with st.expander("⚙️ PANEL DOCENTE EXCLUSIVO"):
-        clave = st.text_input("Contraseña de Mando:", type="password")
-        if clave == "derecho2024":
+        if st.text_input("Clave:", type="password") == "derecho2024":
             c1, c2, c3 = st.columns(3)
             with c1:
                 ops = ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Podio"]
-                sel = st.selectbox("Cambiar fase:", ops)
-                if st.button("🔄 ACTUALIZAR"):
+                sel = st.selectbox("Fase:", ops, index=0 if fase==0 else (4 if fase==99 else fase))
+                if st.button("🔄 CAMBIAR FASE"):
                     nv = 0 if "Esp" in sel else (99 if "Pod" in sel else int(sel.split(" ")[1]))
-                    escribir_f(str(nv)); st.session_state.t_limite = 0; st.rerun()
+                    escribir_f(nv, 0); st.rerun()
             with c2:
                 dur = st.number_input("Segundos:", 5, 60, 20)
-                if st.button("⏱️ INICIAR TIEMPO"):
-                    st.session_state.t_limite = time.time() + dur + 1
-                    st.rerun()
+                if st.button("⏱️ INICIAR RELOJ"):
+                    escribir_f(fase, time.time() + dur + 1); st.rerun()
             with c3:
-                if st.button("🗑️ RESETEAR TODO"):
+                if st.button("🗑️ RESET"):
                     if os.path.exists("d.csv"): os.remove("d.csv")
-                    escribir_f("0"); st.session_state.t_limite = 0; st.rerun()
+                    escribir_f(0, 0); st.rerun()
 
-# --- 4. REGISTRO ---
+# --- 4. REGISTRO / LOGIN ---
 if 'u' not in st.session_state: st.session_state.u = None
 if not st.session_state.u:
     st.title("🏛️ REGISTRO DE LETRADOS")
@@ -104,34 +98,27 @@ if not st.session_state.u:
             st.session_state.u = {"e": e, "a": a}; st.rerun()
     st.stop()
 
-# --- 5. LÓGICA JUEGO ---
-df_global = cargar_datos()
-v_ok = False
-if not df_global.empty:
-    m_u = st.session_state.u["e"]
-    v_ok = not df_global[(df_global["E"] == m_u) & (df_global["F"] == fase)].empty
-
+# --- 5. LÓGICA DE TIEMPO Y VOTO ---
 ahora = time.time()
-activo = False
-if 0 < fase < 99 and not v_ok and st.session_state.t_limite > ahora:
-    st.markdown(f'<div class="reloj-pantalla">⌛ {int(st.session_state.t_limite-ahora)}s</div>', unsafe_allow_html=True)
-    activo = True
+v_ok = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty if not df_global.empty else False
+activo = (0 < fase < 99) and (t_limite > ahora) and not v_ok
+
+if activo:
+    seg = int(t_limite - ahora)
+    st.markdown(f'<div class="reloj-pantalla">⌛ {seg}s</div>', unsafe_allow_html=True)
 
 # --- 6. PANTALLAS ---
 if fase == 0:
     st.header("⚖️ Sala de Espera")
-    st.write(f"Bienvenido Dr/a. **{st.session_state.u['a']}**, aguarde el inicio de la audiencia.")
+    st.write(f"Dr/a. **{st.session_state.u['a']}**, aguarde instrucciones.")
 elif fase == 99:
-    st.header("🏆 SENTENCIA FINAL")
-    st.balloons()
+    st.header("🏆 PODIO FINAL"); st.balloons()
     if not df_global.empty:
-        res = df_global[df_global["F"] > 0].groupby("A")["P"].sum().sort_values(ascending=False)
-        st.table(res)
+        st.table(df_global[df_global["F"] > 0].groupby("A")["P"].sum().sort_values(ascending=False))
 else:
     if v_ok:
         st.success("✅ Veredicto registrado.")
     else:
-        # ACÁ PODÉS CAMBIAR TUS PREGUNTAS
         banco = {
             1: {"q": "¿Cuál es la porción legítima de los descendientes?", "o": ["2/3", "1/2"], "k": "2/3"},
             2: {"q": "¿Cuál es el plazo máximo para aceptar la herencia?", "o": ["10 años", "5 años"], "k": "10 años"},
@@ -143,6 +130,8 @@ else:
             pts = 100 if rta == banco[fase]['k'] else 0
             pd.DataFrame([[st.session_state.u["e"], st.session_state.u["a"], fase, pts]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=False, index=False)
             st.rerun()
+        if not activo and t_limite <= ahora:
+            st.warning("⌛ El tiempo ha expirado o el Juez aún no inició la ronda.")
 
 # --- 7. MONITOR ---
 st.write("---")
@@ -153,5 +142,4 @@ if not df_global.empty:
         stt = "✅" if not df_global[(df_global["A"] == n) & (df_global["F"] == fase)].empty else "👤"
         cols[i % 4].write(f"{stt} {n}")
 
-if st.session_state.t_limite > ahora or fase == 0:
-    time.sleep(1); st.rerun()
+time.sleep(1); st.rerun()
