@@ -42,16 +42,22 @@ def aplicar_estilo():
 
 aplicar_estilo()
 
-# --- 2. GESTIÓN DE PERSISTENCIA (SINCRONIZACIÓN) ---
+# --- 2. GESTIÓN DE PERSISTENCIA (CON MANEJO DE ERRORES) ---
 def leer_f():
     if os.path.exists("f.txt"):
         try:
-            with open("f.txt", "r") as x: return x.read().strip().split(",")
+            with open("f.txt", "r") as x:
+                contenido = x.read().strip().split(",")
+                if len(contenido) == 2:
+                    return contenido
         except: pass
-    return ["0", "0"] # fase, tiempo_limite
+    return ["0", "0"] # Valor por defecto si el archivo falla
 
 def escribir_f(fase, t_limite):
-    with open("f.txt", "w") as x: x.write(f"{fase},{t_limite}")
+    try:
+        with open("f.txt", "w") as x:
+            x.write(f"{fase},{t_limite}")
+    except: pass
 
 def cargar_datos():
     if os.path.exists("d.csv"):
@@ -61,20 +67,22 @@ def cargar_datos():
         except: pass
     return pd.DataFrame(columns=["E","A","F","P"])
 
-# Cargar estado actual del archivo
+# Cargar estado actual
 fase_str, t_limite_str = leer_f()
 fase = int(fase_str)
 t_limite = float(t_limite_str)
 df_global = cargar_datos()
 
-# --- 3. PANEL JUEZ (SOLO CON ?admin=true) ---
+# --- 3. PANEL JUEZ ---
 if st.query_params.get("admin") == "true":
     with st.expander("⚙️ PANEL DOCENTE EXCLUSIVO"):
-        if st.text_input("Clave:", type="password") == "derecho2024":
+        pwd = st.text_input("Clave:", type="password")
+        if pwd == "derecho2024":
             c1, c2, c3 = st.columns(3)
             with c1:
                 ops = ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Podio"]
-                sel = st.selectbox("Fase:", ops, index=0 if fase==0 else (4 if fase==99 else fase))
+                idx = 0 if fase==0 else (4 if fase==99 else fase)
+                sel = st.selectbox("Fase:", ops, index=idx)
                 if st.button("🔄 CAMBIAR FASE"):
                     nv = 0 if "Esp" in sel else (99 if "Pod" in sel else int(sel.split(" ")[1]))
                     escribir_f(nv, 0); st.rerun()
@@ -85,9 +93,10 @@ if st.query_params.get("admin") == "true":
             with c3:
                 if st.button("🗑️ RESET"):
                     if os.path.exists("d.csv"): os.remove("d.csv")
-                    escribir_f(0, 0); st.rerun()
+                    if os.path.exists("f.txt"): os.remove("f.txt")
+                    st.rerun()
 
-# --- 4. REGISTRO / LOGIN ---
+# --- 4. REGISTRO ---
 if 'u' not in st.session_state: st.session_state.u = None
 if not st.session_state.u:
     st.title("🏛️ REGISTRO DE LETRADOS")
@@ -98,9 +107,12 @@ if not st.session_state.u:
             st.session_state.u = {"e": e, "a": a}; st.rerun()
     st.stop()
 
-# --- 5. LÓGICA DE TIEMPO Y VOTO ---
+# --- 5. LÓGICA TIEMPO Y VOTO ---
 ahora = time.time()
-v_ok = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty if not df_global.empty else False
+v_ok = False
+if not df_global.empty:
+    v_ok = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty
+
 activo = (0 < fase < 99) and (t_limite > ahora) and not v_ok
 
 if activo:
@@ -130,8 +142,6 @@ else:
             pts = 100 if rta == banco[fase]['k'] else 0
             pd.DataFrame([[st.session_state.u["e"], st.session_state.u["a"], fase, pts]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=False, index=False)
             st.rerun()
-        if not activo and t_limite <= ahora:
-            st.warning("⌛ El tiempo ha expirado o el Juez aún no inició la ronda.")
 
 # --- 7. MONITOR ---
 st.write("---")
