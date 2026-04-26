@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import time
 
-# --- 1. ESTÉTICA UBA (LIMPIEZA TOTAL) ---
+# --- 1. ESTÉTICA UBA ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
 def aplicar_estilo():
@@ -16,15 +16,13 @@ def aplicar_estilo():
             background-size: cover; 
             background-attachment: fixed; 
         }}
-        /* CONTENEDOR PRINCIPAL */
         .main .block-container {{ 
-            background-color: rgba(0, 0, 0, 0.85) !important; 
+            background-color: #000000 !important; 
             padding: 2.5rem !important; 
             border: 4px solid #D4AF37 !important; 
             margin-top: 20px !important;
             border-radius: 15px !important;
         }}
-        /* RELOJ */
         .reloj-pantalla {{
             position: fixed !important; top: 20px !important; right: 20px !important;
             background-color: #C0392B !important; color: white !important;
@@ -32,24 +30,17 @@ def aplicar_estilo():
             border: 3px solid #D4AF37 !important; z-index: 99999 !important;
             font-size: 2.5rem !important; font-family: monospace;
         }}
-        /* TEXTOS BLANCOS */
         h1, h2, h3, p, label, span, [data-testid="stWidgetLabel"] p {{ 
             color: #FFFFFF !important; 
-            text-shadow: 3px 3px 5px #000000 !important;
+            text-shadow: 2px 2px 4px #000000 !important;
             font-weight: 800 !important;
         }}
-        /* INPUTS */
-        input {{ background-color: #1A1A1A !important; color: white !important; border: 1px solid #D4AF37 !important; }}
+        input {{ background-color: #222222 !important; color: white !important; border: 1px solid #D4AF37 !important; }}
         .stButton>button {{ 
             background-color: #C0392B !important; color: white !important; 
             border: 2px solid #D4AF37 !important; font-weight: bold !important;
         }}
-        /* ESTILO PANEL DOCENTE (EXPANDER) */
-        .stExpander {{
-            background-color: transparent !important;
-            border: 1px solid #D4AF37 !important;
-            margin-bottom: 20px !important;
-        }}
+        .stExpander {{ border: 1px solid #D4AF37 !important; background-color: transparent !important; }}
         </style>
         """, unsafe_allow_html=True)
 
@@ -58,8 +49,7 @@ aplicar_estilo()
 # --- 2. FUNCIONES DE DATOS ---
 def leer_f():
     if os.path.exists("f.txt"):
-        try:
-            with open("f.txt", "r") as x: return x.read().strip()
+        try: return open("f.txt", "r").read().strip()
         except: pass
     return "0"
 
@@ -78,32 +68,32 @@ if "t_limite" not in st.session_state: st.session_state.t_limite = 0
 fase = int(leer_f())
 df_global = cargar_datos()
 
-# --- 3. PANEL JUEZ (LIMPIO Y DISCRETO) ---
-with st.expander("⚙️ PANEL DOCENTE"):
-    clave = st.text_input("Contraseña de Mando:", type="password")
-    if clave == "derecho2024":
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            ops = ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Podio"]
-            sel = st.selectbox("Cambiar fase:", ops)
-            if st.button("🔄 ACTUALIZAR"):
-                nv = 0 if "Esp" in sel else (99 if "Pod" in sel else int(sel.split(" ")[1]))
-                escribir_f(str(nv))
-                st.session_state.t_limite = 0
-                st.rerun()
-        with c2:
-            dur = st.number_input("Segundos:", 5, 60, 20)
-            if st.button("⏱️ INICIAR"):
-                st.session_state.t_limite = time.time() + dur + 1
-                st.rerun()
-        with c3:
-            if st.button("🗑️ RESET"):
-                if os.path.exists("d.csv"): os.remove("d.csv")
-                escribir_f("0")
-                st.session_state.t_limite = 0
-                st.rerun()
+# --- 3. PANEL JUEZ (SOLO APARECE SI LA URL TIENE ?admin=true) ---
+# ESTA ES LA CORRECCIÓN CLAVE
+es_admin = st.query_params.get("admin") == "true"
 
-# --- 4. LOGIN ---
+if es_admin:
+    with st.expander("⚙️ PANEL DOCENTE EXCLUSIVO"):
+        clave = st.text_input("Contraseña de Mando:", type="password")
+        if clave == "derecho2024":
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                ops = ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Podio"]
+                sel = st.selectbox("Cambiar fase:", ops)
+                if st.button("🔄 ACTUALIZAR"):
+                    nv = 0 if "Esp" in sel else (99 if "Pod" in sel else int(sel.split(" ")[1]))
+                    escribir_f(str(nv)); st.session_state.t_limite = 0; st.rerun()
+            with c2:
+                dur = st.number_input("Segundos:", 5, 60, 20)
+                if st.button("⏱️ INICIAR TIEMPO"):
+                    st.session_state.t_limite = time.time() + dur + 1
+                    st.rerun()
+            with c3:
+                if st.button("🗑️ RESETEAR TODO"):
+                    if os.path.exists("d.csv"): os.remove("d.csv")
+                    escribir_f("0"); st.session_state.t_limite = 0; st.rerun()
+
+# --- 4. REGISTRO ---
 if 'u' not in st.session_state: st.session_state.u = None
 if not st.session_state.u:
     st.title("🏛️ REGISTRO DE LETRADOS")
@@ -114,7 +104,7 @@ if not st.session_state.u:
             st.session_state.u = {"e": e, "a": a}; st.rerun()
     st.stop()
 
-# --- 5. LÓGICA VOTO ---
+# --- 5. LÓGICA JUEGO ---
 df_global = cargar_datos()
 v_ok = False
 if not df_global.empty:
@@ -124,14 +114,13 @@ if not df_global.empty:
 ahora = time.time()
 activo = False
 if 0 < fase < 99 and not v_ok and st.session_state.t_limite > ahora:
-    seg = int(st.session_state.t_limite - ahora)
-    st.markdown(f'<div class="reloj-pantalla">⌛ {seg}s</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="reloj-pantalla">⌛ {int(st.session_state.t_limite-ahora)}s</div>', unsafe_allow_html=True)
     activo = True
 
 # --- 6. PANTALLAS ---
 if fase == 0:
     st.header("⚖️ Sala de Espera")
-    st.write(f"Bienvenido Dr/a. **{st.session_state.u['a']}**, aguarde inicio de audiencia.")
+    st.write(f"Bienvenido Dr/a. **{st.session_state.u['a']}**, aguarde el inicio de la audiencia.")
 elif fase == 99:
     st.header("🏆 SENTENCIA FINAL")
     st.balloons()
@@ -142,10 +131,11 @@ else:
     if v_ok:
         st.success("✅ Veredicto registrado.")
     else:
+        # ACÁ PODÉS CAMBIAR TUS PREGUNTAS
         banco = {
-            1: {"q": "¿Porción legítima descendientes?", "o": ["2/3", "1/2"], "k": "2/3"},
-            2: {"q": "¿Plazo aceptación herencia?", "o": ["10 años", "5 años"], "k": "10 años"},
-            3: {"q": "¿Testamento a máquina es válido?", "o": ["No", "Sí"], "k": "No"}
+            1: {"q": "¿Cuál es la porción legítima de los descendientes?", "o": ["2/3", "1/2"], "k": "2/3"},
+            2: {"q": "¿Cuál es el plazo máximo para aceptar la herencia?", "o": ["10 años", "5 años"], "k": "10 años"},
+            3: {"q": "¿Es válido el testamento ológrafo hecho a máquina?", "o": ["No", "Sí"], "k": "No"}
         }
         st.header(f"RONDA {fase}"); st.write(f"### {banco[fase]['q']}")
         rta = st.radio("Veredicto:", banco[fase]['o'])
