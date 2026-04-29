@@ -35,6 +35,12 @@ def aplicar_estilo():
             background-color: #D4AF37 !important; color: #000000 !important; 
             font-weight: 900 !important; border: none !important; width: 100%;
         }}
+        
+        /* BOTÓN DE REINICIO (Rojo para advertir) */
+        div.stButton > button:first-child[aria-label="⚠️ REINICIAR TODO EL JUEGO"] {{
+            background-color: #C0392B !important;
+            color: white !important;
+        }}
 
         /* RELOJ IMPONENTE */
         .reloj-juez {{
@@ -46,12 +52,6 @@ def aplicar_estilo():
         }}
         </style>
         """, unsafe_allow_html=True)
-
-# Función para disparar audios
-def play_audio(url):
-    st.components.v1.html(f"""
-        <audio autoplay><source src="{url}" type="audio/mp3"></audio>
-    """, height=0)
 
 aplicar_estilo()
 
@@ -78,22 +78,33 @@ if st.query_params.get("admin") == "true":
     st.markdown("### ⚖️ MANDO DEL JUEZ")
     clave = st.text_input("Contraseña:", type="password")
     if clave == "derecho2024":
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
-            sel = st.selectbox("Fase:", ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Resultados", "Podio Final"])
-            if st.button("CAMBIAR FASE / MOSTRAR GANADORES"):
+            sel = st.selectbox("Fase Actual:", ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Resultados", "Podio Final"])
+            if st.button("ACTUALIZAR FASE"):
                 mapa = {"Espera":0, "Pregunta 1":1, "Pregunta 2":2, "Pregunta 3":3, "Resultados":10, "Podio Final":99}
                 escribir_f(mapa[sel], 0); st.rerun()
         with col2:
             dur = st.number_input("Segundos:", 5, 60, 15)
-            if st.button("LARGAR PREGUNTA"):
+            if st.button("LARGAR RELOJ"):
                 escribir_f(fase, time.time() + dur); st.rerun()
+        with col3:
+            st.write("") # Espaciador
+            if st.button("⚠️ REINICIAR TODO EL JUEGO"):
+                if os.path.exists("d.csv"): os.remove("d.csv")
+                if os.path.exists("f.txt"): os.remove("f.txt")
+                st.rerun()
         
         st.write("---")
-        st.write("**👤 INTEGRANTES EN SALA:**")
+        st.write("**👤 INTEGRANTES CONECTADOS:**")
         if not df_global.empty:
-            participantes = df_global["A"].unique()
-            st.write(", ".join(participantes))
+            # Mostramos a los que están en Fase 0 (los que se registraron)
+            participantes = df_global[df_global["F"] == 0]["A"].unique()
+            if len(participantes) > 0:
+                for p in participantes:
+                    st.caption(f"✅ {p}")
+            else:
+                st.write("Esperando ingresos...")
     st.write("---")
 
 # --- 4. LÓGICA DE USUARIO ---
@@ -103,31 +114,32 @@ if not st.session_state.u:
     nombre = st.text_input("Nombre y Apellido:")
     if st.button("CONECTAR"):
         if nombre:
+            # Guardamos el registro con Fase 0
             pd.DataFrame([["-", nombre, 0, 0]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=not os.path.exists("d.csv"), index=False)
             st.session_state.u = {"a": nombre}; st.rerun()
     st.stop()
 
 ahora = time.time()
+# Verificar si el usuario ya votó en esta fase
 voto_realizado = not df_global[(df_global["A"] == st.session_state.u["a"]) & (df_global["F"] == fase)].empty if not df_global.empty else False
 
 # --- 5. PANTALLAS ---
 
-# RELOJ (Solo si la fase es pregunta y el usuario no votó)
+# RELOJ
 if (0 < fase < 10) and (t_limite > ahora) and not voto_realizado:
     st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-    # Sonido de tic-tac (opcional, poner link a mp3 corto)
-    # play_audio("URL_TIC_TAC")
 
 # FASE 0: ESPERA
 if fase == 0:
     st.header("⚖️ Sala de Espera")
-    st.write("Aguarde a que el Juez abra el debate...")
+    st.write(f"Dr/a. **{st.session_state.u['a']}**, su presencia ha sido registrada. Aguarde el inicio de la audiencia.")
 
 # FASE 10: RESULTADOS INTERMEDIOS
 elif fase == 10:
     st.header("📊 POSICIONES PARCIALES")
     if not df_global.empty:
-        puntos = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(5)
+        # Sumamos puntos de todas las fases de preguntas (>0 y <10)
+        puntos = df_global[df_global["F"] < 10].groupby("A")["P"].sum().sort_values(ascending=False).head(5)
         st.table(puntos)
     st.write("Prepárense para la siguiente ronda...")
 
@@ -136,17 +148,19 @@ elif fase == 99:
     st.header("🏆 SENTENCIA DEFINITIVA")
     st.balloons()
     if not df_global.empty:
-        ganador = df_global.groupby("A")["P"].sum().idxmax()
-        puntos_ganador = df_global.groupby("A")["P"].sum().max()
+        total_puntos = df_global.groupby("A")["P"].sum()
+        ganador = total_puntos.idxmax()
+        puntos_ganador = total_puntos.max()
         st.markdown(f"<h1 style='text-align: center; font-size: 5rem; color: #D4AF37;'>🥇 {ganador}</h1>", unsafe_allow_html=True)
-        st.write(f"Con un total de {puntos_ganador} puntos.")
-        # play_audio("URL_FANFARRIA")
+        st.write(f"<p style='text-align: center; font-size: 1.5rem;'>DICTAMEN: Excelencia Académica con {puntos_ganador} puntos.</p>", unsafe_allow_html=True)
 
 # FASES DE PREGUNTA
 else:
     st.header(f"RONDA N° {fase}")
-    if voto_realizado or (t_limite < ahora and t_limite != 0):
-        st.success("⚖️ Veredicto cerrado. Esperando al Juez para ver resultados...")
+    if voto_realizado:
+        st.success("⚖️ Voto registrado. El reloj se ha detenido para usted. Aguarde los resultados.")
+    elif t_limite < ahora and t_limite != 0:
+        st.error("⌛ Tiempo agotado para esta ronda.")
     else:
         banco = {
             1: {"q": "¿Cuál es la legítima de los descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
@@ -154,11 +168,10 @@ else:
             3: {"q": "¿Es válido el testamento por sobre cerrado?", "o": ["Sí", "No"], "k": "Sí"}
         }
         st.write(f"### {banco[fase]['q']}")
-        rta = st.radio("Su decisión:", banco[fase]['o'])
+        rta = st.radio("Su decisión legal:", banco[fase]['o'])
         if st.button("ENVIAR VOTO"):
             pts = 100 if rta == banco[fase]['k'] else 0
             pd.DataFrame([["-", st.session_state.u["a"], fase, pts]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=False, index=False)
-            # play_audio("URL_CORRECTO" if pts > 0 else "URL_ERROR")
             st.rerun()
 
 time.sleep(1); st.rerun()
