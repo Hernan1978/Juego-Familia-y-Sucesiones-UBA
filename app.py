@@ -108,4 +108,15 @@ if (0 < fase < 99) and (t_limite > ahora):
 
 if fase == 0:
     st.header("⚖️ Sala de Espera")
-    st.write(f"Bien
+    st.write(f"Bienvenido/a Dr/a. **{st.session_state.u['a']}**. Aguarde a que el Juez inicie la sesión.")
+elif fase == 99:
+    st.header("🏆 PODIO FINAL"); st.balloons()
+    st.write("La audiencia ha finalizado.")
+else:
+    st.header(f"RONDA {fase}")
+    st.write("### Pregunta de Examen")
+    st.radio("Seleccione la opción correcta:", ["Opción A", "Opción B", "Opción C"])
+    if st.button("ENVIAR VEREDICTO", disabled=not (t_limite > ahora)):
+        st.success("Respuesta recibida correctamente.")
+
+time.sleep(1); st.rerun()
