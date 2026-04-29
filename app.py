@@ -3,108 +3,86 @@ import pandas as pd
 import os
 import time
 
-# --- 1. ESTÉTICA REFORZADA (ATAQUE TOTAL A BORDES) ---
+# --- 1. ESTÉTICA SIN ERRORES (SELECTOR ESPECÍFICO) ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
 def aplicar_estilo():
-    # La misma imagen de fondo elegante
     img = "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"
     st.markdown(f"""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        
-        /* 1. OCULTAR INTERFAZ DE STREAMLIT (Nube, Menú, etc.) */
-        header, [data-testid="stHeader"], [data-testid="stSidebar"], [data-testid="stStatusWidget"] {{ 
-            visibility: hidden !important; 
-            position: absolute !important; 
+        /* 1. ELIMINAR LA BARRA MALDITA (EL SELECTOR REAL) */
+        /* Streamlit usa un ::before en los bloques para esa línea superior */
+        [data-testid="stVerticalBlockBorderWrapper"] > div:nth-child(1) > div {{
+            border-top: none !important;
+        }}
+        [data-testid="stVerticalBlock"] > div > div:nth-child(1) > div::before {{
             display: none !important;
+            content: none !important;
+            height: 0px !important;
+        }}
+        div[data-testid="stVerticalBlock"] > div:first-child {{
+            border-top: none !important;
         }}
         
-        /* 2. FONDO Y FUENTE */
+        /* Ocultar todo lo de Streamlit */
+        header, [data-testid="stHeader"], [data-testid="stSidebar"] {{ visibility: hidden !important; }}
+        
+        /* Fondo */
         .stApp {{ 
             background-image: url("{img}") !important; 
             background-size: cover !important; 
             background-attachment: fixed !important; 
-            font-family: 'Inter', sans-serif !important; 
         }}
         
-        /* --- 3. OPERACIÓN "BARRA CERO" (ANTI-DORADO) --- */
-        /* Esta es la parte clave. Matamos CUALQUIER borde superior en CUALQUIER contenedor. */
-        
-        /* Mata los bordes de los bloques verticales */
-        [data-testid="stVerticalBlock"] > div {{ border: none !important; border-top: none !important; }}
-        [data-testid="stVerticalBlock"] {{ gap: 0rem !important; }}
-        
-        /* Mata los bordes de las filas de widgets */
-        [data-testid="stHorizontalBlock"] > div {{ border: none !important; border-top: none !important; }}
-        
-        /* Mata las líneas horizontales (HR) */
-        hr {{ display: none !important; border: none !important; }}
-        
-        /* Mata los bordes de los Expanders */
-        .stExpander {{ border: none !important; box-shadow: none !important; }}
-        
-        /* Mata los bordes que Streamlit pone arriba de los inputs */
-        .stTextInput, .stSelectbox, .stNumberInput, .stRadio {{ border-top: none !important; }}
-        
-        /* Asegura que el contenedor principal no tenga bordes */
-        [data-testid="stAppViewContainer"] {{ border: none !important; }}
-        
-        /* 4. CONTENEDOR PRINCIPAL NEGRO (Vidrio) */
+        /* Contenedor Principal con Blur */
         .main .block-container {{ 
             background: rgba(0, 0, 0, 0.88) !important;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(12px);
             padding: 3rem !important; 
-            margin-top: 30px !important;
+            margin-top: 50px !important;
             border-radius: 20px !important;
-            border: none !important; /* Forzamos NO borde aquí */
-            box-shadow: 0 15px 40px rgba(0,0,0,0.8);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+            border: none !important;
         }}
 
-        /* 5. PANEL DEL JUEZ (MODERNO) */
+        /* Panel Juez */
         .panel-juez {{
             background: rgba(212, 175, 55, 0.1) !important;
             padding: 25px !important;
             border-radius: 15px !important;
             border: 2px solid #D4AF37 !important;
-            margin-bottom: 30px !important;
-            border-top: 2px solid #D4AF37 !important; /* Este borde SÍ lo queremos */
+            margin-bottom: 40px !important;
         }}
 
-        /* 6. RELOJ */
+        /* Reloj */
         .reloj-pantalla {{
-            position: fixed !important; top: 25px !important; right: 25px !important;
+            position: fixed !important; top: 20px !important; right: 20px !important;
             background: #C0392B !important; color: white !important;
-            padding: 12px 28px !important; border-radius: 10px !important;
-            z-index: 99999 !important; font-size: 3rem !important; 
-            font-weight: 900;
+            padding: 15px 30px !important; border-radius: 12px !important;
+            z-index: 99999 !important; font-size: 3.5rem !important; 
+            font-weight: 900; font-family: monospace;
         }}
 
-        /* 7. TIPOGRAFÍAS Y BOTONES Alumno */
-        h1, h2, h3, h4, h5, h6 {{ color: #D4AF37 !important; font-weight: 900 !important; text-transform: uppercase; letter-spacing: -1px; text-align: center; }}
-        p, span, label, [data-testid="stWidgetLabel"] p {{ color: #FFFFFF !important; }}
+        h1, h2, h3 {{ color: #D4AF37 !important; text-align: center; font-weight: 900 !important; }}
+        p, label, span {{ color: white !important; }}
         
         .stButton>button {{ 
-            background-color: #D4AF37 !important; color: #000000 !important; 
-            font-weight: 700 !important; text-transform: uppercase; 
-            border: none !important; border-radius: 8px !important;
-            transition: 0.2s;
+            background-color: #D4AF37 !important; color: black !important; 
+            font-weight: bold !important; border: none !important;
+            width: 100% !important; height: 3.5rem !important;
         }}
-        .stButton>button:hover {{ background-color: #FFFFFF !important; transform: translateY(-2px); }}
         
-        /* ESTILO DE LOS INPUTS */
-        .stTextInput input, .stSelectbox div, .stNumberInput input {{
-            background-color: rgba(255,255,255,0.06) !important;
-            color: white !important; 
-            border: 1px solid rgba(212, 175, 55, 0.3) !important;
-            border-radius: 8px !important;
+        /* Inputs */
+        .stTextInput input, .stSelectbox div {{
+            background-color: rgba(255,255,255,0.1) !important;
+            color: white !important; border: 1px solid #D4AF37 !important;
         }}
         </style>
         """, unsafe_allow_html=True)
 
 aplicar_estilo()
 
-# --- 2. LÓGICA DE DATOS Y ESTADO ---
+# --- 2. LÓGICA ---
 def leer_f():
     if os.path.exists("f.txt"):
         try:
@@ -121,103 +99,67 @@ def cargar_datos():
         except: pass
     return pd.DataFrame(columns=["E","A","F","P"])
 
-# Forzamos refresco del estado
-if 'refrescador' not in st.session_state: st.session_state.refrescador = False
-
-fase_str, t_limite_str = leer_f()
-fase = int(fase_str)
-t_limite = float(t_limite_str)
+f_str, t_str = leer_f()
+fase, t_limite = int(f_str), float(t_str)
 df_global = cargar_datos()
 
-# --- 3. PANEL JUEZ CON CLAVE (SÓLO SI ?admin=true) ---
+# --- 3. PANEL ADMIN ---
 if st.query_params.get("admin") == "true":
     st.markdown('<div class="panel-juez">', unsafe_allow_html=True)
-    st.markdown("#### ⚙️ CONTROL SUPERIOR DE AUDIENCIA")
-    clave = st.text_input("Ingrese la Clave Maestra:", type="password", key="admin_pwd_main")
-    
+    st.subheader("🔑 PANEL DE CONTROL")
+    clave = st.text_input("Clave Maestra:", type="password")
     if clave == "derecho2024":
-        c1, c2, c3 = st.columns([1.5, 1, 1])
+        c1, c2, c3 = st.columns(3)
         with c1:
-            ops = ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Podio Final"]
-            idx = 0 if fase==0 else (4 if fase==99 else fase)
-            sel = st.selectbox("Seleccione Fase:", ops, index=idx)
-            if st.button("🔄 ACTUALIZAR ETAPA"):
+            sel = st.selectbox("Fase:", ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Podio"])
+            if st.button("CAMBIAR FASE"):
                 nv = 0 if "Esp" in sel else (99 if "Pod" in sel else int(sel.split(" ")[1]))
-                escribir_f(nv, 0); st.session_state.refrescador = not st.session_state.refrescador; st.rerun()
+                escribir_f(nv, 0); st.rerun()
         with c2:
-            dur = st.number_input("Segundos Ronda:", 5, 120, 20)
-            if st.button("⏱️ LARGAR RELOJ"):
-                escribir_f(fase, time.time() + dur); st.session_state.refrescador = not st.session_state.refrescador; st.rerun()
+            dur = st.number_input("Segundos:", 5, 60, 20)
+            if st.button("INICIAR RELOJ"):
+                escribir_f(fase, time.time() + dur); st.rerun()
         with c3:
-            if st.button("🗑️ REINICIAR DATOS"):
+            if st.button("RESET DATOS"):
                 if os.path.exists("d.csv"): os.remove("d.csv")
-                escribir_f(0, 0); st.session_state.refrescador = not st.session_state.refrescador; st.rerun()
-    elif clave != "":
-        st.error("Clave incorrecta, colega.")
+                escribir_f(0, 0); st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 4. REGISTRO ---
+# --- 4. REGISTRO / JUEGO ---
 if 'u' not in st.session_state: st.session_state.u = None
 if not st.session_state.u:
-    st.title("🏛️ LEXPLAY UBA")
-    st.write("#### Identifíquese para la audiencia de Familia y Sucesiones")
-    st.write("")
-    e = st.text_input("Email Institucional:")
-    a = st.text_input("Nombre / Alias:")
-    st.write("")
-    if st.button("INGRESAR AL TRIBUNAL"):
+    st.title("🏛️ REGISTRO DE LETRADOS")
+    e, a = st.text_input("Email:"), st.text_input("Nombre:")
+    if st.button("INGRESAR"):
         if e and a:
             pd.DataFrame([[e, a, 0, 0]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=not os.path.exists("d.csv"), index=False)
             st.session_state.u = {"e": e, "a": a}; st.rerun()
     st.stop()
 
-# --- 5. LÓGICA DE TIEMPO Y VOTO ---
 ahora = time.time()
 v_ok = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty if not df_global.empty else False
+
 if (0 < fase < 99) and (t_limite > ahora) and not v_ok:
     st.markdown(f'<div class="reloj-pantalla">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
 
-# --- 6. PANTALLAS DE JUEGO ---
-st.write("") # Espaciador
 if fase == 0:
     st.header("⚖️ Sala de Espera")
-    st.write(f"Estimado/a Dr/a. **{st.session_state.u['a']}**, aguarde a que el Juez inicie la audiencia.")
-    st.write("Su presencia ha sido registrada.")
-    
+    st.write(f"Dr/a. {st.session_state.u['a']}, aguarde al Juez.")
 elif fase == 99:
-    st.header("🏆 SENTENCIA FINAL: EL PODIO"); st.balloons()
+    st.header("🏆 PODIO"); st.balloons()
     if not df_global.empty:
-        st.table(df_global[df_global["F"] > 0].groupby("A")["P"].sum().sort_values(ascending=False).head(10))
-
+        st.table(df_global[df_global["F"] > 0].groupby("A")["P"].sum().sort_values(ascending=False))
 else:
     st.header(f"RONDA {fase}")
     if v_ok:
-        st.success("✅ Su veredicto ha sido enviado correctamente. Aguarde la resolución.")
-        if not df_global.empty:
-            st.write("---")
-            st.write("**Top 3 actual:**")
-            st.write(df_global[df_global["F"] > 0].groupby("A")["P"].sum().sort_values(ascending=False).head(3))
+        st.success("Voto enviado.")
     else:
-        banco = {
-            1: {"q": "¿Cuál es la porción legítima de los descendientes?", "o": ["2/3", "1/2"], "k": "2/3"},
-            2: {"q": "¿Cuál es el plazo máximo para aceptar la herencia?", "o": ["10 años", "5 años"], "k": "10 años"},
-            3: {"q": "¿Es válido el testamento ológrafo hecho a máquina?", "o": ["No", "Sí"], "k": "No"}
-        }
+        banco = {1:{"q":"Pregunta 1", "o":["A","B"], "k":"A"}, 2:{"q":"Pregunta 2", "o":["C","D"], "k":"C"}, 3:{"q":"Pregunta 3", "o":["E","F"], "k":"E"}}
         st.subheader(banco[fase]['q'])
-        rta = st.radio("Su veredicto, Dr/a:", banco[fase]['o'], key=f"radio_{fase}")
-        st.write("")
-        if st.button("ENVIAR VOTACIÓN", disabled=not ((0 < fase < 99) and (t_limite > ahora)), key=f"btn_{fase}"):
+        rta = st.radio("Veredicto:", banco[fase]['o'])
+        if st.button("VOTAR", disabled=not (t_limite > ahora)):
             pts = 100 if rta == banco[fase]['k'] else 0
             pd.DataFrame([[st.session_state.u["e"], st.session_state.u["a"], fase, pts]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=False, index=False)
             st.rerun()
-
-# --- 7. MONITOR DOCENTE (PIE) ---
-st.write("---")
-if not df_global.empty:
-    al = df_global[df_global["F"] == 0]["A"].unique()
-    cols = st.columns(10)
-    for i, n in enumerate(al):
-        stt = "🟢" if not df_global[(df_global["A"] == n) & (df_global["F"] == fase)].empty else "⚪"
-        cols[i % 10].caption(f"{stt} {n}")
 
 time.sleep(1); st.rerun()
