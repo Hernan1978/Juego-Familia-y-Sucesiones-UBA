@@ -110,4 +110,75 @@ if st.query_params.get("admin") == "true":
         idx = 0 if fase==0 else (4 if fase==99 else fase)
         sel = st.selectbox("Fase actual:", ops, index=idx)
         if st.button("ACTUALIZAR FASE"):
-            nv = 0 if "Esp" in sel else (99 if "
+            nv = 0 if "Esp" in sel else (99 if "Pod" in sel else int(sel.split(" ")[1]))
+            escribir_f(nv, 0); st.rerun()
+    with c2:
+        dur = st.number_input("Segundos:", 5, 120, 20)
+        if st.button("LARGAR RELOJ"):
+            escribir_f(fase, time.time() + dur); st.rerun()
+    with c3:
+        if st.button("REINICIAR TODO"):
+            if os.path.exists("d.csv"): os.remove("d.csv")
+            escribir_f(0, 0); st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- 4. REGISTRO ---
+if 'u' not in st.session_state: st.session_state.u = None
+if not st.session_state.u:
+    st.title("🏛️ LEXPLAY UBA")
+    st.write("Ingrese sus datos para comenzar")
+    e = st.text_input("Email:")
+    a = st.text_input("Nombre:")
+    if st.button("INGRESAR"):
+        if e and a:
+            pd.DataFrame([[e, a, 0, 0]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=not os.path.exists("d.csv"), index=False)
+            st.session_state.u = {"e": e, "a": a}; st.rerun()
+    st.stop()
+
+# --- 5. TIEMPO Y ESTADO ---
+ahora = time.time()
+v_ok = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty if not df_global.empty else False
+activo = (0 < fase < 99) and (t_limite > ahora) and not v_ok
+
+if activo:
+    st.markdown(f'<div class="reloj-pantalla">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
+
+# --- 6. PANTALLAS ---
+if fase == 0:
+    st.header("⚖️ Sala de Espera")
+    st.info(f"Registrado como: {st.session_state.u['a']}. Aguarde el inicio de la audiencia.")
+elif fase == 99:
+    st.header("🏆 RESULTADOS FINALES"); st.balloons()
+    if not df_global.empty:
+        st.table(df_global[df_global["F"] > 0].groupby("A")["P"].sum().sort_values(ascending=False).head(10))
+else:
+    st.header(f"PREGUNTA {fase}")
+    if v_ok:
+        st.success("Veredicto enviado. Esperando a los demás colegas...")
+        # Ranking parcial discreto
+        st.write("---")
+        st.write("**Top 3 actual:**")
+        st.write(df_global[df_global["F"] > 0].groupby("A")["P"].sum().sort_values(ascending=False).head(3))
+    else:
+        banco = {
+            1: {"q": "¿Cuál es la porción legítima de los descendientes?", "o": ["2/3", "1/2"], "k": "2/3"},
+            2: {"q": "¿Cuál es el plazo máximo para aceptar la herencia?", "o": ["10 años", "5 años"], "k": "10 años"},
+            3: {"q": "¿Es válido el testamento ológrafo hecho a máquina?", "o": ["No", "Sí"], "k": "No"}
+        }
+        st.subheader(banco[fase]['q'])
+        rta = st.radio("Su veredicto:", banco[fase]['o'])
+        if st.button("ENVIAR RESPUESTA", disabled=not activo):
+            pts = 100 if rta == banco[fase]['k'] else 0
+            pd.DataFrame([[st.session_state.u["e"], st.session_state.u["a"], fase, pts]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=False, index=False)
+            st.rerun()
+
+# --- 7. MONITOR (PIE DE PÁGINA) ---
+st.write("---")
+if not df_global.empty:
+    al = df_global[df_global["F"] == 0]["A"].unique()
+    cols = st.columns(8)
+    for i, n in enumerate(al):
+        stt = "🟢" if not df_global[(df_global["A"] == n) & (df_global["F"] == fase)].empty else "⚪"
+        cols[i % 8].caption(f"{stt} {n}")
+
+time.sleep(1); st.rerun()
