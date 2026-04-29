@@ -74,3 +74,59 @@ def aplicar_estilo():
         }}
         </style>
         """, unsafe_allow_html=True)
+
+aplicar_estilo()
+
+# --- 2. LÓGICA DE PERSISTENCIA ---
+def leer_f():
+    if os.path.exists("f.txt"):
+        with open("f.txt", "r") as x: return x.read().strip().split(",")
+    return ["0", "0"]
+
+def escribir_f(fase, t_limite):
+    with open("f.txt", "w") as x: x.write(f"{fase},{t_limite}")
+
+f_str, t_str = leer_f()
+fase, t_limite = int(f_str), float(t_str)
+
+# --- 3. PANEL ADMINISTRADOR ---
+if st.query_params.get("admin") == "true":
+    st.markdown("### 🔑 PANEL DEL JUEZ")
+    clave = st.text_input("Contraseña de Mando:", type="password")
+    if clave == "derecho2024":
+        sel = st.selectbox("Cambiar Etapa de la Audiencia:", ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Podio"])
+        if st.button("EJECUTAR CAMBIO"):
+            nv = 0 if "Esp" in sel else (99 if "Pod" in sel else int(sel.split(" ")[1]))
+            escribir_f(nv, 0); st.rerun()
+        
+        dur = st.number_input("Establecer Segundos:", 5, 60, 20)
+        if st.button("LARGAR CRONÓMETRO"):
+            escribir_f(fase, time.time() + dur); st.rerun()
+    st.write("---")
+
+# --- 4. REGISTRO Y PANTALLAS ---
+if 'u' not in st.session_state: st.session_state.u = None
+if not st.session_state.u:
+    st.title("🏛️ AUDIENCIA VIRTUAL UBA")
+    a = st.text_input("Ingrese su Nombre Completo:")
+    if st.button("ENTRAR A LA SALA"):
+        if a: st.session_state.u = {"a": a}; st.rerun()
+    st.stop()
+
+ahora = time.time()
+if (0 < fase < 99) and (t_limite > ahora):
+    st.markdown(f'<div class="reloj-pantalla">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
+
+if fase == 0:
+    st.header("⚖️ Sala de Espera")
+    st.write(f"Doctor/a **{st.session_state.u['a']}**, por favor aguarde el inicio del proceso.")
+elif fase == 99:
+    st.header("🏆 SENTENCIA FINAL"); st.balloons()
+else:
+    st.header(f"RONDA N° {fase}")
+    st.write("### Dictamine su veredicto:")
+    st.radio("Opciones legales:", ["Opción A", "Opción B", "Opción C"])
+    if st.button("PRESENTAR VOTO", disabled=not (t_limite > ahora)):
+        st.success("Dictamen recibido.")
+
+time.sleep(1); st.rerun()
