@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import time
 
-# --- 1. CONFIGURACIÓN ---
+# --- 1. CONFIGURACIÓN Y ESTÉTICA ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
 SOUNDS = {
@@ -30,13 +30,15 @@ def aplicar_estilo():
         h1, h2, h3, h4, p, label, span {{ color: #FFFFFF !important; font-weight: 700 !important; }}
         .stButton>button {{ background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; width: 100%; height: 3.5rem; }}
         .reloj-juez {{ position: fixed; top: 30px; right: 30px; background: #C0392B; color: white !important; padding: 20px 40px; border-radius: 15px; font-size: 4.5rem; border: 4px solid #D4AF37; z-index: 9999; }}
-        .oro {{ color: #FFD700 !important; font-size: 5rem !important; text-transform: uppercase; }}
+        .oro {{ color: #FFD700 !important; font-size: 5rem !important; text-transform: uppercase; text-shadow: 0 0 15px gold; }}
+        .plata {{ color: #C0C0C0 !important; font-size: 3.5rem !important; text-transform: uppercase; }}
+        .bronce {{ color: #CD7F32 !important; font-size: 2.5rem !important; text-transform: uppercase; }}
         </style>
         """, unsafe_allow_html=True)
 
 aplicar_estilo()
 
-# --- 2. GESTIÓN DE ESTADO ---
+# --- 2. GESTIÓN DE ARCHIVOS ---
 def leer_f():
     if os.path.exists("f.txt"):
         with open("f.txt", "r") as x:
@@ -53,14 +55,13 @@ def cargar_datos():
         except: return pd.DataFrame(columns=["E","A","F","P"])
     return pd.DataFrame(columns=["E","A","F","P"])
 
-# Carga de variables críticas
 f_str, t_str = leer_f()
 fase = int(f_str)
 t_limite = float(t_str)
 df_global = cargar_datos()
 ahora = time.time()
 
-# --- 3. PANEL ADMINISTRADOR ---
+# --- 3. PANEL ADMINISTRADOR (MONITOR) ---
 if st.query_params.get("admin") == "true":
     st.markdown("### ⚖️ MONITOR DEL JUEZ")
     clave = st.text_input("Clave:", type="password")
@@ -107,14 +108,9 @@ if st.session_state.u is None:
             st.rerun()
     st.stop()
 
-# --- 5. LÓGICA DE JUEGO (REFORZADA) ---
-# Un alumno ya votó si su email figura en el CSV para la fase actual
+# --- 5. LÓGICA DE JUEGO ---
 ya_voto = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty if not df_global.empty else False
-
-# El reloj está corriendo si el t_limite guardado es mayor al ahora
 reloj_activo = (t_limite > ahora)
-
-# El botón se desbloquea SOLO si es una fase de pregunta (1-9), el reloj está activo y NO votó todavía
 puedo_votar = (0 < fase < 10) and reloj_activo and not ya_voto
 
 if reloj_activo and not ya_voto:
@@ -129,21 +125,27 @@ if fase == 0:
 elif fase == 10:
     st.header("📊 POSICIONES ACTUALES")
     if not df_global.empty:
-        # Puntos acumulados de todas las fases
         top = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(10)
         st.table(top)
 
 elif fase == 99:
-    st.header("🏆 SENTENCIA FINAL")
+    st.header("🏆 SENTENCIA DEFINITIVA")
     st.balloons(); play_audio(SOUNDS["ganador"])
     if not df_global.empty:
         total = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(3)
         res = total.index.tolist()
-        if len(res) >= 1: st.markdown(f"<div style='text-align:center;'><p class='oro'>🥇 {res[0].upper()}</p></div>", unsafe_allow_html=True)
+        
+        if len(res) >= 1: 
+            st.markdown(f"<div style='text-align:center;'><p class='oro'>🥇 {res[0].upper()}</p></div>", unsafe_allow_html=True)
+        
+        c1, c2 = st.columns(2)
+        if len(res) >= 2: 
+            c1.markdown(f"<div style='text-align:center;'><p class='plata'>🥈 {res[1]}</p></div>", unsafe_allow_html=True)
+        if len(res) >= 3: 
+            c2.markdown(f"<div style='text-align:center;'><p class='bronce'>🥉 {res[2]}</p></div>", unsafe_allow_html=True)
 
 else:
     st.header(f"RONDA N° {fase}")
-    
     if ya_voto:
         st.success("✅ Dictamen registrado. Aguarde el cierre de la ronda.")
     
@@ -156,15 +158,11 @@ else:
     st.write(f"### {banco[fase]['q']}")
     rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_activo)
     
-    # El botón se habilita físicamente solo cuando 'puedo_votar' es True
     if st.button("DICTAMINAR", disabled=not puedo_votar):
         t_restante = int(t_limite - ahora)
         puntos = (100 + (t_restante * 2)) if rta == banco[fase]['k'] else 0
-        
-        # Guardar voto
         pd.DataFrame([[st.session_state.u['e'], st.session_state.u['a'], fase, puntos]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=False, index=False)
         play_audio(SOUNDS["exito"] if puntos > 0 else SOUNDS["error"])
         st.rerun()
 
-# Refresco rápido para detectar el cambio del Juez
 time.sleep(1); st.rerun()
