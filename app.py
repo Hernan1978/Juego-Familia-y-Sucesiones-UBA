@@ -38,7 +38,9 @@ def aplicar_estilo():
 
 aplicar_estilo()
 
-# --- 2. GESTIÓN DE ARCHIVOS (VERSION VELOZ) ---
+# --- 2. GESTIÓN DE ARCHIVOS (ANTI-ERRORES) ---
+COLUMNAS = ["E", "A", "F", "P"]
+
 def leer_f():
     if os.path.exists("f.txt"):
         with open("f.txt", "r") as x: return x.read().strip().split(",")
@@ -48,10 +50,17 @@ def escribir_f(fase, t_limite):
     with open("f.txt", "w") as x: x.write(f"{fase},{t_limite}")
 
 def cargar_datos():
-    if os.path.exists("d.csv"): 
-        try: return pd.read_csv("d.csv", on_bad_lines='skip')
-        except: return pd.DataFrame(columns=["E","A","F","P"])
-    return pd.DataFrame(columns=["E","A","F","P"])
+    if not os.path.exists("d.csv"):
+        return pd.DataFrame(columns=COLUMNAS)
+    try:
+        # Cargamos y nos aseguramos de que no haya líneas corruptas
+        df = pd.read_csv("d.csv", on_bad_lines='skip')
+        # Si por alguna razón faltan columnas, devolvemos un DF vacío con las columnas correctas
+        if not all(col in df.columns for col in COLUMNAS):
+            return pd.DataFrame(columns=COLUMNAS)
+        return df
+    except:
+        return pd.DataFrame(columns=COLUMNAS)
 
 f_str, t_str = leer_f()
 fase, t_limite = int(f_str), float(t_str)
@@ -86,7 +95,7 @@ if st.query_params.get("admin") == "true":
                 alumnos = df_global[df_global["F"] == 0]["A"].unique()
                 votos = df_global[df_global["F"] == fase]["A"].unique()
                 faltan = [a for a in alumnos if a not in votos]
-                st.subheader(f"Votaron {len(votos)} de {len(alumnos)}")
+                st.subheader(f"Votos: {len(votos)} / {len(alumnos)}")
                 col1, col2 = st.columns(2)
                 col1.success("VOTARON:\n" + "\n".join(votos))
                 col2.warning("FALTAN:\n" + "\n".join(faltan))
@@ -100,18 +109,24 @@ if st.session_state.u is None:
     n_in = st.text_input("Nombre:")
     if st.button("INGRESAR"):
         if m_in and n_in:
-            with open("d.csv", "a") as f: f.write(f"{m_in},{n_in},0,0\n")
+            # Escribimos con encabezado si el archivo no existe
+            headers = not os.path.exists("d.csv")
+            df_nuevo = pd.DataFrame([[m_in, n_in, 0, 0]], columns=COLUMNAS)
+            df_nuevo.to_csv("d.csv", mode='a', header=headers, index=False)
             st.session_state.u = {"e": m_in, "a": n_in}
             st.rerun()
     st.stop()
 
 # --- 5. LÓGICA ---
-ya_voto = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty if not df_global.empty else False
+# Verificación blindada de voto
+ya_voto = False
+if not df_global.empty and "E" in df_global.columns:
+    ya_voto = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty
+
 reloj_on = (t_limite > ahora)
 
 if reloj_on and not ya_voto:
     st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-    # play_audio(SOUNDS["reloj"]) # Desactivado para evitar lag en votos masivos
 
 # --- 6. PANTALLAS ---
 if fase == 0:
@@ -148,13 +163,11 @@ else:
         st.write(f"### {banco[fase]['q']}")
         rta = st.radio("Veredicto:", banco[fase]['o'], key=f"r{fase}")
         
-        # EL BOTON AHORA SE DESBLOQUEA BIEN
         if st.button("DICTAMINAR", disabled=not (reloj_on and not ya_voto)):
             t_rest = int(t_limite - ahora)
             pts = (100 + (t_rest * 2)) if rta == banco[fase]['k'] else 0
-            # ESCRITURA RAPIDA QUE NO BLOQUEA
-            with open("d.csv", "a") as f:
-                f.write(f"{st.session_state.u['e']},{st.session_state.u['a']},{fase},{pts}\n")
+            # Guardado usando Pandas para asegurar consistencia de columnas
+            pd.DataFrame([[st.session_state.u['e'], st.session_state.u['a'], fase, pts]], columns=COLUMNAS).to_csv("d.csv", mode='a', header=False, index=False)
             play_audio(SOUNDS["exito"] if pts > 0 else SOUNDS["error"])
             st.rerun()
 
