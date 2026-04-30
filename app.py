@@ -6,7 +6,6 @@ import time
 # --- 1. CONFIGURACIÓN Y ESTÉTICA ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# LIBRERÍA DE SONIDOS (URLs de archivos MP3 directos)
 SOUNDS = {
     "reloj": "https://www.soundjay.com/clock/sounds/clock-ticking-2.mp3",
     "exito": "https://www.soundjay.com/buttons/sounds/button-37.mp3",
@@ -15,12 +14,7 @@ SOUNDS = {
 }
 
 def play_audio(url):
-    """Inyecta un componente invisible que reproduce el audio una vez."""
-    st.components.v1.html(f"""
-        <audio autoplay>
-            <source src="{url}" type="audio/mp3">
-        </audio>
-    """, height=0)
+    st.components.v1.html(f"<audio autoplay><source src='{url}' type='audio/mp3'></audio>", height=0)
 
 def aplicar_estilo():
     img = "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"
@@ -56,7 +50,7 @@ def aplicar_estilo():
 
 aplicar_estilo()
 
-# --- 2. LÓGICA DE DATOS ---
+# --- 2. GESTIÓN DE ARCHIVOS ---
 def leer_f():
     if os.path.exists("f.txt"):
         with open("f.txt", "r") as x: return x.read().strip().split(",")
@@ -66,11 +60,15 @@ def escribir_f(fase, t_limite):
     with open("f.txt", "w") as x: x.write(f"{fase},{t_limite}")
 
 def cargar_datos():
-    if os.path.exists("d.csv"): return pd.read_csv("d.csv")
+    if os.path.exists("d.csv"): 
+        try: return pd.read_csv("d.csv")
+        except: return pd.DataFrame(columns=["E","A","F","P"])
     return pd.DataFrame(columns=["E","A","F","P"])
 
+# --- CARGA INICIAL DE ESTADO ---
 f_str, t_str = leer_f()
-fase, t_limite = int(f_str), float(t_str)
+fase = int(f_str)
+t_limite = float(t_str)
 df_global = cargar_datos()
 ahora = time.time()
 
@@ -84,45 +82,54 @@ if st.query_params.get("admin") == "true":
             sel = st.selectbox("Fase:", ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Resultados Parciales", "Podio Final"])
             if st.button("ACTUALIZAR FASE"):
                 m = {"Espera":0, "Pregunta 1":1, "Pregunta 2":2, "Pregunta 3":3, "Resultados Parciales":10, "Podio Final":99}
-                escribir_f(m[sel], 0); st.rerun()
+                escribir_f(m[sel], 0)
+                st.rerun()
         with c2:
             dur = st.number_input("Segundos:", 5, 60, 20)
             if st.button("LARGAR RELOJ"):
-                escribir_f(fase, time.time() + dur); st.rerun()
+                escribir_f(fase, time.time() + dur)
+                st.rerun()
         with c3:
             st.write("")
-            if st.button("⚠️ REINICIAR"):
+            if st.button("⚠️ REINICIAR TODO"):
+                # 1. Borrar archivos físicos
                 if os.path.exists("d.csv"): os.remove("d.csv")
                 if os.path.exists("f.txt"): os.remove("f.txt")
+                # 2. Limpiar el estado de sesión de TODOS los que estén viendo la web
+                for key in st.session_state.keys():
+                    del st.session_state[key]
+                # 3. Forzar reinicio inmediato
                 st.rerun()
     st.write("---")
 
-# --- 4. REGISTRO ---
-if 'u' not in st.session_state: st.session_state.u = None
-if not st.session_state.u:
+# --- 4. REGISTRO DE USUARIO ---
+if 'u' not in st.session_state:
+    st.session_state.u = None
+
+if st.session_state.u is None:
     st.title("🏛️ LEXPLAY UBA")
     n = st.text_input("Nombre y Apellido:")
     if st.button("INGRESAR"):
         if n:
+            # Crear el registro inicial en el CSV
             pd.DataFrame([["-", n, 0, 0]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=not os.path.exists("d.csv"), index=False)
-            st.session_state.u = {"a": n}; st.rerun()
+            st.session_state.u = {"a": n}
+            st.rerun()
     st.stop()
 
-# --- 5. LÓGICA DE RONDA Y AUDIO ---
+# --- 5. LÓGICA DE JUEGO ---
 voto_ok = not df_global[(df_global["A"] == st.session_state.u["a"]) & (df_global["F"] == fase)].empty if not df_global.empty else False
 reloj_on = (t_limite > ahora)
 puede_votar = (0 < fase < 10) and reloj_on and not voto_ok
 
-# Si el reloj está activo y el usuario aún no votó, suena el Tic-Tac
 if puede_votar:
     st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-    # El sonido del reloj suena una vez por cada segundo de recarga
     play_audio(SOUNDS["reloj"])
 
 # --- 6. PANTALLAS ---
 if fase == 0:
     st.header("⚖️ Sala de Espera")
-    st.info("Aguarde a que el Juez inicie el debate...")
+    st.info(f"Dr/a. {st.session_state.u['a']}, su presencia ha sido registrada. Aguarde al Juez.")
 
 elif fase == 10:
     st.header("📊 POSICIONES PARCIALES")
@@ -133,7 +140,7 @@ elif fase == 10:
 elif fase == 99:
     st.header("🏆 SENTENCIA DEFINITIVA")
     st.balloons()
-    play_audio(SOUNDS["ganador"]) # Sonido de aplausos/éxito final
+    play_audio(SOUNDS["ganador"])
     if not df_global.empty:
         total = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(3)
         res = total.index.tolist()
@@ -146,7 +153,7 @@ elif fase == 99:
 else:
     st.header(f"RONDA N° {fase}")
     if voto_ok:
-        st.success("✅ Veredicto recibido. El tiempo se ha detenido para usted.")
+        st.success("✅ Veredicto recibido. Aguarde resultados.")
     else:
         banco = {
             1: {"q": "¿Cuál es la legítima de los descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
@@ -159,11 +166,9 @@ else:
         if st.button("ENVIAR VOTO", disabled=not puede_votar):
             pts = 100 if rta == banco[fase]['k'] else 0
             pd.DataFrame([["-", st.session_state.u["a"], fase, pts]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=False, index=False)
-            
-            # Sonido instantáneo al votar
             if pts > 0: play_audio(SOUNDS["exito"])
             else: play_audio(SOUNDS["error"])
-            
             st.rerun()
 
-time.sleep(1); st.rerun()
+time.sleep(1)
+st.rerun()
