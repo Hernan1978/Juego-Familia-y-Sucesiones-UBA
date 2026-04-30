@@ -3,8 +3,24 @@ import pandas as pd
 import os
 import time
 
-# --- 1. ESTÉTICA "JUEZ PRO" Y MULTIMEDIA ---
+# --- 1. CONFIGURACIÓN Y ESTÉTICA ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
+
+# LIBRERÍA DE SONIDOS (URLs de archivos MP3 directos)
+SOUNDS = {
+    "reloj": "https://www.soundjay.com/clock/sounds/clock-ticking-2.mp3",
+    "exito": "https://www.soundjay.com/buttons/sounds/button-37.mp3",
+    "error": "https://www.soundjay.com/buttons/sounds/button-10.mp3",
+    "ganador": "https://www.soundjay.com/human/sounds/applause-01.mp3"
+}
+
+def play_audio(url):
+    """Inyecta un componente invisible que reproduce el audio una vez."""
+    st.components.v1.html(f"""
+        <audio autoplay>
+            <source src="{url}" type="audio/mp3">
+        </audio>
+    """, height=0)
 
 def aplicar_estilo():
     img = "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"
@@ -13,24 +29,18 @@ def aplicar_estilo():
         [data-testid="stVerticalBlockBorderWrapper"] > div:nth-child(1) {{ border: none !important; }}
         header, [data-testid="stHeader"] {{ visibility: hidden !important; }}
         .stApp {{ background-image: url("{img}"); background-size: cover; background-attachment: fixed; }}
-        
         .main .block-container {{ 
             background: rgba(0, 0, 0, 0.9) !important;
             backdrop-filter: blur(12px); padding: 3rem !important; margin-top: 40px !important; border-radius: 15px !important;
         }}
-
         h1, h2, h3, h4, p, label, span {{ color: #FFFFFF !important; font-weight: 700 !important; }}
         input, select, .stSelectbox div, .stNumberInput input, .stTextInput input {{
             background-color: #FFFFFF !important; color: #000000 !important; font-weight: bold !important;
         }}
-
         .stButton>button {{ 
             background-color: #D4AF37 !important; color: #000000 !important; 
             font-weight: 900 !important; border: none !important; width: 100%; height: 3.5rem;
         }}
-        .stButton>button:disabled {{ background-color: #444444 !important; color: #888888 !important; }}
-
-        /* RELOJ IMPONENTE */
         .reloj-juez {{
             position: fixed; top: 30px; right: 30px;
             background: #C0392B; color: white !important;
@@ -38,9 +48,7 @@ def aplicar_estilo():
             z-index: 99999; font-size: 4.5rem; font-family: 'Courier New', monospace;
             border: 4px solid #D4AF37; box-shadow: 0 0 25px rgba(212, 175, 55, 0.6);
         }}
-
-        /* ESTILOS DEL PODIO */
-        .oro {{ color: #FFD700 !important; font-size: 5rem !important; text-transform: uppercase; text-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }}
+        .oro {{ color: #FFD700 !important; font-size: 5rem !important; text-transform: uppercase; }}
         .plata {{ color: #C0C0C0 !important; font-size: 3.5rem !important; }}
         .bronce {{ color: #CD7F32 !important; font-size: 2.5rem !important; }}
         </style>
@@ -68,13 +76,13 @@ ahora = time.time()
 
 # --- 3. PANEL ADMINISTRADOR ---
 if st.query_params.get("admin") == "true":
-    st.markdown("### ⚖️ PANEL DE MANDO: JUEZ PRESIDENTE")
-    clave = st.text_input("Clave de Seguridad:", type="password")
+    st.markdown("### ⚖️ PANEL DE MANDO")
+    clave = st.text_input("Clave:", type="password")
     if clave == "derecho2024":
         c1, c2, c3 = st.columns([2, 1, 1])
         with c1:
-            sel = st.selectbox("Fase Actual:", ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Resultados Parciales", "Podio Final"])
-            if st.button("ACTUALIZAR ESTADO"):
+            sel = st.selectbox("Fase:", ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Resultados Parciales", "Podio Final"])
+            if st.button("ACTUALIZAR FASE"):
                 m = {"Espera":0, "Pregunta 1":1, "Pregunta 2":2, "Pregunta 3":3, "Resultados Parciales":10, "Podio Final":99}
                 escribir_f(m[sel], 0); st.rerun()
         with c2:
@@ -87,36 +95,34 @@ if st.query_params.get("admin") == "true":
                 if os.path.exists("d.csv"): os.remove("d.csv")
                 if os.path.exists("f.txt"): os.remove("f.txt")
                 st.rerun()
-        
-        st.write("---")
-        if not df_global.empty:
-            p = df_global[df_global["F"] == 0]["A"].unique()
-            st.write(f"**👤 INTEGRANTES EN AUDIENCIA ({len(p)}):** " + ", ".join(p))
     st.write("---")
 
 # --- 4. REGISTRO ---
 if 'u' not in st.session_state: st.session_state.u = None
 if not st.session_state.u:
     st.title("🏛️ LEXPLAY UBA")
-    n = st.text_input("Ingrese su Nombre y Apellido:")
-    if st.button("CONECTAR AL TRIBUNAL"):
+    n = st.text_input("Nombre y Apellido:")
+    if st.button("INGRESAR"):
         if n:
             pd.DataFrame([["-", n, 0, 0]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=not os.path.exists("d.csv"), index=False)
             st.session_state.u = {"a": n}; st.rerun()
     st.stop()
 
-# --- 5. LÓGICA DE RONDA ---
+# --- 5. LÓGICA DE RONDA Y AUDIO ---
 voto_ok = not df_global[(df_global["A"] == st.session_state.u["a"]) & (df_global["F"] == fase)].empty if not df_global.empty else False
 reloj_on = (t_limite > ahora)
 puede_votar = (0 < fase < 10) and reloj_on and not voto_ok
 
+# Si el reloj está activo y el usuario aún no votó, suena el Tic-Tac
 if puede_votar:
     st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
+    # El sonido del reloj suena una vez por cada segundo de recarga
+    play_audio(SOUNDS["reloj"])
 
 # --- 6. PANTALLAS ---
 if fase == 0:
     st.header("⚖️ Sala de Espera")
-    st.info(f"Dr/a. {st.session_state.u['a']}, su presencia ha sido registrada.")
+    st.info("Aguarde a que el Juez inicie el debate...")
 
 elif fase == 10:
     st.header("📊 POSICIONES PARCIALES")
@@ -125,38 +131,39 @@ elif fase == 10:
         st.table(top)
 
 elif fase == 99:
-    st.header("🏆 SENTENCIA DEFINITIVA: EL PODIO")
+    st.header("🏆 SENTENCIA DEFINITIVA")
     st.balloons()
+    play_audio(SOUNDS["ganador"]) # Sonido de aplausos/éxito final
     if not df_global.empty:
         total = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(3)
         res = total.index.tolist()
-        # PODIO ORO
         if len(res) >= 1:
-            st.markdown(f"<div style='text-align:center;'><p class='oro'>🥇 {res[0].upper()}</p><p>CAMPEÓN DE LA AUDIENCIA</p></div>", unsafe_allow_html=True)
-        # PLATA Y BRONCE
+            st.markdown(f"<div style='text-align:center;'><p class='oro'>🥇 {res[0].upper()}</p></div>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        if len(res) >= 2:
-            c1.markdown(f"<div style='text-align:center;'><p class='plata'>🥈 {res[1]}</p></div>", unsafe_allow_html=True)
-        if len(res) >= 3:
-            c2.markdown(f"<div style='text-align:center;'><p class='bronce'>🥉 {res[2]}</p></div>", unsafe_allow_html=True)
+        if len(res) >= 2: c1.markdown(f"<div style='text-align:center;'><p class='plata'>🥈 {res[1]}</p></div>", unsafe_allow_html=True)
+        if len(res) >= 3: c2.markdown(f"<div style='text-align:center;'><p class='bronce'>🥉 {res[2]}</p></div>", unsafe_allow_html=True)
 
 else:
     st.header(f"RONDA N° {fase}")
     if voto_ok:
-        st.success("✅ Veredicto recibido. El tiempo se ha detenido para usted. Aguarde resultados.")
-    elif not reloj_on:
-        st.warning("⏳ Aguarde a que el Juez habilite el cronómetro para dictaminar.")
-    
-    banco = {
-        1: {"q": "¿Cuál es la legítima de los descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
-        2: {"q": "¿Plazo para aceptar herencia?", "o": ["5 años", "10 años", "20 años"], "k": "10 años"},
-        3: {"q": "¿Es válido el testamento ológrafo hecho a máquina?", "o": ["No", "Sí"], "k": "No"}
-    }
-    st.write(f"### {banco[fase]['q']}")
-    rta = st.radio("Veredicto:", banco[fase]['o'], disabled=not puede_votar)
-    if st.button("ENVIAR VOTO", disabled=not puede_votar):
-        pts = 100 if rta == banco[fase]['k'] else 0
-        pd.DataFrame([["-", st.session_state.u["a"], fase, pts]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=False, index=False)
-        st.rerun()
+        st.success("✅ Veredicto recibido. El tiempo se ha detenido para usted.")
+    else:
+        banco = {
+            1: {"q": "¿Cuál es la legítima de los descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
+            2: {"q": "¿Plazo para aceptar herencia?", "o": ["5 años", "10 años", "20 años"], "k": "10 años"},
+            3: {"q": "¿Es válido el testamento ológrafo hecho a máquina?", "o": ["No", "Sí"], "k": "No"}
+        }
+        st.write(f"### {banco[fase]['q']}")
+        rta = st.radio("Veredicto:", banco[fase]['o'], disabled=not puede_votar)
+        
+        if st.button("ENVIAR VOTO", disabled=not puede_votar):
+            pts = 100 if rta == banco[fase]['k'] else 0
+            pd.DataFrame([["-", st.session_state.u["a"], fase, pts]], columns=["E","A","F","P"]).to_csv("d.csv", mode='a', header=False, index=False)
+            
+            # Sonido instantáneo al votar
+            if pts > 0: play_audio(SOUNDS["exito"])
+            else: play_audio(SOUNDS["error"])
+            
+            st.rerun()
 
 time.sleep(1); st.rerun()
