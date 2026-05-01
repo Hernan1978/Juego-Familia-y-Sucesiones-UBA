@@ -8,11 +8,12 @@ import base64
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
 def play_audio(file_path):
+    """Bypass de bloqueo de navegador usando Iframe invisible"""
     if os.path.exists(file_path):
         with open(file_path, "rb") as f:
             data = f.read()
             b64 = base64.b64encode(data).decode()
-            # Usamos un iframe oculto que suele saltar mejor las restricciones de recarga
+            # El iframe con allow="autoplay" es la técnica más fuerte contra el bloqueo
             md = f"""
                 <iframe src="data:audio/mp3;base64,{b64}" allow="autoplay" style="display:none" id="iframeAudio"></iframe>
                 """
@@ -32,12 +33,12 @@ def aplicar_estilo():
             text-shadow: 2px 2px 4px #000000 !important;
         }
         .titulo-oro { color: #D4AF37 !important; font-size: 3rem !important; text-align: center; text-transform: uppercase; }
-        .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; border: 2px solid #FFFFFF !important; }
+        .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; border: 2px solid #FFFFFF !important; height: 3em !important; width: 100% !important; }
         .reloj-juez { position: fixed; top: 30px; right: 30px; background: #C0392B; color: white !important; padding: 20px 40px; border-radius: 15px; font-size: 5rem; border: 4px solid #D4AF37; z-index: 9999; }
         .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; text-align: right; margin-bottom: 20px; }
-        .oro { color: #FFD700 !important; font-size: 4rem !important; text-shadow: 0 0 15px gold; text-align: center; margin-bottom: 0px; }
-        .plata { color: #C0C0C0 !important; font-size: 2.5rem !important; text-align: center; margin-bottom: 0px; }
-        .bronce { color: #CD7F32 !important; font-size: 2rem !important; text-align: center; margin-bottom: 0px; }
+        .oro { color: #FFD700 !important; font-size: 4rem !important; text-shadow: 0 0 15px gold; text-align: center; margin: 0; }
+        .plata { color: #C0C0C0 !important; font-size: 2.5rem !important; text-align: center; margin: 0; }
+        .bronce { color: #CD7F32 !important; font-size: 2rem !important; text-align: center; margin: 0; }
         </style>
         """, unsafe_allow_html=True)
 
@@ -81,32 +82,29 @@ if st.query_params.get("admin") == "true":
                 if os.path.exists("f.txt"): os.remove("f.txt")
                 st.rerun()
 
-# --- 4. ACCESO ---
+# --- 4. ACCESO Y BYPASS DE AUDIO ---
 if 'u' not in st.session_state: st.session_state.u = None
-
-# Variable para saber si ya "activó" el audio
-if 'audio_activado' not in st.session_state: st.session_state.audio_activado = False
+if 'audio_ok' not in st.session_state: st.session_state.audio_ok = False
 
 if st.session_state.u is None:
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
     
-    if not st.session_state.audio_activado:
-        st.markdown("<p style='text-align:center;'>Bienvenido, Dr/a. Haga clic debajo para ingresar al Tribunal.</p>", unsafe_allow_html=True)
-        if st.button("⚖️ ENTRAR AL ESTRADO"):
-            st.session_state.audio_activado = True
+    if not st.session_state.audio_ok:
+        st.write("### Bienvenido al Sistema de Sentencias")
+        st.write("Para activar el sistema de audio y notificaciones, presione el botón:")
+        if st.button("⚖️ ENTRAR AL TRIBUNAL"):
+            st.session_state.audio_ok = True
             st.rerun()
     else:
-        # Una vez que hizo clic, ya tenemos permiso. Disparamos música.
         play_audio("bienvenida.mp3") 
         m_in = st.text_input("Email:")
-        n_in = st.text_input("Nombre y Apellido:")
+        n_in = st.text_input("Nombre:")
         if st.button("INGRESAR") and m_in and n_in:
             h = not os.path.exists("d.csv")
             with open("d.csv", "a") as f:
                 if h: f.write("E,A,F,P\n")
                 f.write(f"{m_in.replace(',','')},{n_in.replace(',','')},0,0\n")
-            st.session_state.u = {"e": m_in, "a": n_in}
-            st.rerun()
+            st.session_state.u = {"e": m_in, "a": n_in}; st.rerun()
     st.stop()
 
 # --- 5. LÓGICA DE USUARIO ---
@@ -156,7 +154,7 @@ else:
     }
     
     if ya_voto:
-        st.success("✅ Veredicto registrado. Aguarde...")
+        st.success("✅ Veredicto registrado.")
         play_audio("votado.mp3")
     elif reloj_on:
         st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
@@ -165,7 +163,7 @@ else:
     st.write(f"### {banco[fase]['q']}")
     rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
     
-    if not ya_voto and st.button("RESPONDER", disabled=not reloj_on):
+    if not ya_voto and st.button("DICTAMINAR", disabled=not reloj_on):
         correcta = (rta == banco[fase]['k'])
         pts = (100 + (max(0, int(t_limite - ahora)) * 2)) if correcta else 0
         with open("d.csv", "a") as f:
