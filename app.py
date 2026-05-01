@@ -16,15 +16,10 @@ SOUNDS = {
 }
 
 def play_audio(url):
-    """Inyecta JavaScript para reproducir audio de forma efectiva"""
-    st.components.v1.html(
-        f"""
-        <script>
-            var audio = new Audio("{url}");
-            audio.play().catch(function(e) {{ console.log("Bloqueo de audio"); }});
-        </script>
-        """,
-        height=0,
+    # Usamos una clave única basada en la URL para que no se bloquee
+    st.markdown(
+        f'<iframe src="{url}" allow="autoplay" style="display:none;" id="audio-iframe"></iframe>',
+        unsafe_allow_html=True
     )
 
 def aplicar_estilo():
