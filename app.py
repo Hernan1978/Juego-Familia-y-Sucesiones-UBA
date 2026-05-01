@@ -4,8 +4,9 @@ import os
 import time
 import base64
 
-# --- 1. FUNCIÓN DE AUDIO (HTML PURO) ---
+# --- 1. FUNCIÓN DE AUDIO (HTML PURO - INVISIBLE) ---
 def play_audio(file_path):
+    """Reproduce audio de forma invisible"""
     if os.path.exists(file_path):
         with open(file_path, "rb") as f:
             data = f.read()
@@ -30,7 +31,11 @@ def aplicar_estilo():
         .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; border: 2px solid #FFFFFF !important; width: 100% !important; }
         .reloj-juez { position: fixed; top: 30px; right: 30px; background: #C0392B; color: white !important; padding: 20px 40px; border-radius: 15px; font-size: 5rem; border: 4px solid #D4AF37; z-index: 9999; }
         .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; text-align: right; margin-bottom: 20px; }
+        
+        /* ESTILOS DEL PODIO DORADO */
         .oro { color: #FFD700 !important; font-size: 4rem !important; text-shadow: 0 0 15px gold; text-align: center; }
+        .plata { color: #C0C0C0 !important; font-size: 2.5rem !important; text-align: center; }
+        .bronce { color: #CD7F32 !important; font-size: 2rem !important; text-align: center; }
         </style>
         """, unsafe_allow_html=True)
 
@@ -86,6 +91,7 @@ if st.query_params.get("admin") == "true":
 if st.session_state.u is None:
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
     if not st.session_state.audio_ok:
+        st.write("Bienvenido al Sistema de Sentencias. Presione para habilitar el audio:")
         if st.button("⚖️ ENTRAR AL TRIBUNAL"):
             st.session_state.audio_ok = True; st.rerun()
     else:
@@ -108,22 +114,40 @@ reloj_on = (t_limite > ahora)
 # --- 7. PANTALLAS ---
 if fase == 0:
     st.header("⚖️ Sala de Espera")
+    st.write("Aguarde a que el Juez inicie la sesión.")
+    
 elif fase == 10:
     st.header("📊 POSICIONES ACTUALES")
     if not df_global.empty:
         top = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(10)
         st.table(top)
+        
 elif fase == 99:
     st.header("🏆 SENTENCIA FINAL")
     if not df_global.empty:
         total = df_global.groupby("A")["P"].sum().sort_values(ascending=False)
         idx = total.index.tolist()
+        votos = total.values.tolist()
+        
+        # --- LÓGICA DE GLOBOS Y SONIDO DEL PODIO (DEVUELTA) ---
         if st.session_state.u['a'] in idx:
-            if idx.index(st.session_state.u['a']) < 3:
-                st.balloons(); play_audio("ganador.mp3")
-            else: play_audio("bart.mp3")
-        st.write(total.head(5))
+            puesto = idx.index(st.session_state.u['a']) + 1
+            if puesto <= 3:
+                st.balloons() # ¡GLOBOS!
+                play_audio("ganador.mp3") # ¡FESTEJO!
+            else:
+                play_audio("bart.mp3") # ¡BART!
+        else:
+            play_audio("bart.mp3")
+
+        # --- PODIO VISUAL DORADO (DEVUELTO) ---
+        st.markdown("<br>", unsafe_allow_html=True)
+        if len(idx) >= 1: st.markdown(f"<p class='oro'>🥇 {idx[0].upper()} ({int(votos[0])} pts)</p>", unsafe_allow_html=True)
+        if len(idx) >= 2: st.markdown(f"<p class='plata'>🥈 {idx[1]} ({int(votos[1])} pts)</p>", unsafe_allow_html=True)
+        if len(idx) >= 3: st.markdown(f"<p class='bronce'>🥉 {idx[2]} ({int(votos[2])} pts)</p>", unsafe_allow_html=True)
+
 else:
+    # --- BANCO DE PREGUNTAS ---
     banco = {1: {"q": "¿Cuál es la legítima de descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
              2: {"q": "¿Plazo para aceptar herencia?", "o": ["5 años", "10 años", "20 años"], "k": "10 años"},
              3: {"q": "¿Válido testamento ológrafo a máquina?", "o": ["No", "Sí"], "k": "No"}}
@@ -132,14 +156,15 @@ else:
         st.success("✅ Veredicto registrado."); play_audio("votado.mp3")
     elif reloj_on:
         st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        if int(t_limite - ahora) > 15: play_audio("suspenso.mp3")
+        if int(t_limite - ahora) > 10: play_audio("suspenso.mp3")
     
     st.write(f"### {banco[fase]['q']}")
     rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
     if not ya_voto and st.button("RESPONDER", disabled=not reloj_on):
-        pts = (100 + int(t_limite - ahora)*2) if rta == banco[fase]['k'] else 0
+        correcta = (rta == banco[fase]['k'])
+        pts = (100 + int(t_limite - ahora)*2) if correcta else 0
         with open("d.csv", "a") as f: f.write(f"{st.session_state.u['e']},{st.session_state.u['a']},{fase},{pts}\n")
-        play_audio("exito.mp3" if pts > 0 else "error.mp3")
+        play_audio("exito.mp3" if correcta else "error.mp3")
         time.sleep(0.5); st.rerun()
 
 time.sleep(1)
