@@ -13,22 +13,17 @@ SOUNDS = {
 }
 
 def play_audio(url):
-    # Usamos un timestamp para que el navegador crea que es un componente nuevo cada vez
-    ts = int(time.time())
     st.components.v1.html(
         f"""
-        <div id="audio-{ts}">
-            <audio autoplay>
-                <source src="{url}" type="audio/mp3">
-            </audio>
-        </div>
         <script>
-            console.log("Reproduciendo audio: {url}");
+            var audio = new Audio("{url}");
+            audio.play().catch(function(error) {{
+                console.log("El navegador bloqueó el audio hasta que el usuario haga clic: ", error);
+            }});
         </script>
         """,
         height=0,
     )
-
 def aplicar_estilo():
     st.markdown(f"""
         <style>
