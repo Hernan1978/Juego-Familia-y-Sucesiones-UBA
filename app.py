@@ -146,15 +146,14 @@ st.markdown(f"<div class='usuario-badge'>👤 Dr/a. <b>{st.session_state.u['a']}
 ya_voto = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty if not df_global.empty else False
 reloj_on = (t_limite > ahora)
 
-# --- 6. PANTALLAS CON AUDIO DINÁMICO ---
-
+# --- 6. PANTALLAS ---
 if fase == 0:
     st.header("⚖️ Sala de Espera")
-    st.write("Aguarde a que el Juez inicie la ronda.")
+    st.write("Aguarde las instrucciones del Juez.")
 
 elif fase == 10:
     st.header("📊 POSICIONES ACTUALES")
-    play_audio(SOUNDS["votado"]) # Música de fondo mientras ven la tabla
+    play_audio(SOUNDS["votado"])
     if not df_global.empty:
         top = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(10)
         st.table(top)
@@ -164,34 +163,42 @@ elif fase == 99:
     if not df_global.empty:
         total = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(3)
         idx = total.index.tolist()
-        
-        # Lógica de sonido para el podio
-        # Si el usuario actual es el ganador:
-        if st.session_state.u['a'] == idx[0]:
+        # Lógica de audio personalizada
+        if len(idx) > 0 and st.session_state.u['a'] == idx[0]:
             st.balloons()
             play_audio(SOUNDS["ganador"])
         else:
-            play_audio(SOUNDS["bart"]) # Sonido de Bart para el resto
+            play_audio(SOUNDS["bart"])
+        # (Aquí pones el código del podio vertical que ya tenías)
 
-        # (Aquí va tu código de mostrar el podio vertical que ya pusimos)
-
-else:
-    # --- DENTRO DE UNA PREGUNTA ---
+else:  # <--- ESTA ES TU LÍNEA 209
     if ya_voto:
         st.success("✅ Veredicto registrado. Aguarde...")
-        play_audio(SOUNDS["votado"]) # Ya votó: música relajada
+        play_audio(SOUNDS["votado"])
     elif reloj_on:
         st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        play_audio(SOUNDS["suspenso"]) # No votó y hay tiempo: SUSPENSO
+        play_audio(SOUNDS["suspenso"])
     
-    # ... resto del código de la pregunta (banco, radio, botón dictaminar) ...
+    # BANCO DE PREGUNTAS (Asegurate que esté adentro del else)
+    banco = {
+        1: {"q": "¿Cuál es la porción legítima de los descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
+        2: {"q": "¿Cuál es el plazo para aceptar la herencia?", "o": ["5 años", "10 años", "20 años"], "k": "10 años"},
+        3: {"q": "¿Es válido el testamento ológrafo hecho a máquina?", "o": ["No", "Sí"], "k": "No"}
+    }
     
-    if not df_global.empty:
-        # Obtenemos los 3 mejores
-        total = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(3)
-        idx = total.index.tolist()
-        votos = total.values.tolist()
-
+    st.write(f"### {banco[fase]['q']}")
+    rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
+    
+    if not ya_voto:
+        if st.button("DICTAMINAR", disabled=not reloj_on):
+            t_rest = int(t_limite - ahora)
+            correcta = (rta == banco[fase]['k'])
+            pts = (100 + (max(0, t_rest) * 2)) if correcta else 0
+            with open("d.csv", "a") as f:
+                f.write(f"{st.session_state.u['e']},{st.session_state.u['a']},{fase},{pts}\n")
+            play_audio(SOUNDS["exito"] if correcta else SOUNDS["error"])
+            time.sleep(0.5)
+            st.rerun()
         st.markdown("<br>", unsafe_allow_html=True) # Espacio extra
         
         # Puesto 1
