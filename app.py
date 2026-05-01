@@ -8,16 +8,24 @@ import base64
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
 def play_audio(file_path):
-    """Bypass de bloqueo de navegador usando Iframe invisible"""
     if os.path.exists(file_path):
         with open(file_path, "rb") as f:
             data = f.read()
             b64 = base64.b64encode(data).decode()
-            # El iframe con allow="autoplay" es la técnica más fuerte contra el bloqueo
-            md = f"""
-                <iframe src="data:audio/mp3;base64,{b64}" allow="autoplay" style="display:none" id="iframeAudio"></iframe>
-                """
-            st.markdown(md, unsafe_allow_html=True)
+            # Esta versión usa st.components para inyectar el script directamente
+            st.components.v1.html(
+                f"""
+                <audio autoplay="true">
+                    <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+                </audio>
+                <script>
+                    var audio = document.querySelector("audio");
+                    audio.volume = 1.0;
+                    audio.play();
+                </script>
+                """,
+                height=0,
+            )
 
 def aplicar_estilo():
     st.markdown("""
