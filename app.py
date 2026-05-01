@@ -167,7 +167,7 @@ else:
         st.success("✅ Veredicto registrado. Aguarde...")
     else:
         # El botón solo se habilita si el reloj está activo.
-        if st.button("DICTAMINAR", disabled=not reloj_on):
+        if st.button("RESPONDER", disabled=not reloj_on):
             t_rest = int(t_limite - ahora)
             pts = (100 + (max(0, t_rest) * 2)) if rta == banco[fase]['k'] else 0
             
