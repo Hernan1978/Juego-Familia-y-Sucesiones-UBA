@@ -8,15 +8,13 @@ import base64
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
 def play_audio(file_path):
-    """Carga un archivo local y lo reproduce por base64"""
     if os.path.exists(file_path):
         with open(file_path, "rb") as f:
             data = f.read()
             b64 = base64.b64encode(data).decode()
+            # Usamos un iframe oculto que suele saltar mejor las restricciones de recarga
             md = f"""
-                <audio autoplay="true">
-                <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
-                </audio>
+                <iframe src="data:audio/mp3;base64,{b64}" allow="autoplay" style="display:none" id="iframeAudio"></iframe>
                 """
             st.markdown(md, unsafe_allow_html=True)
 
@@ -85,17 +83,30 @@ if st.query_params.get("admin") == "true":
 
 # --- 4. ACCESO ---
 if 'u' not in st.session_state: st.session_state.u = None
+
+# Variable para saber si ya "activó" el audio
+if 'audio_activado' not in st.session_state: st.session_state.audio_activado = False
+
 if st.session_state.u is None:
-    play_audio("bienvenida.mp3") 
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
-    m_in = st.text_input("Email:")
-    n_in = st.text_input("Nombre y Apellido:")
-    if st.button("INGRESAR") and m_in and n_in:
-        h = not os.path.exists("d.csv")
-        with open("d.csv", "a") as f:
-            if h: f.write("E,A,F,P\n")
-            f.write(f"{m_in.replace(',','')},{n_in.replace(',','')},0,0\n")
-        st.session_state.u = {"e": m_in, "a": n_in}; st.rerun()
+    
+    if not st.session_state.audio_activado:
+        st.markdown("<p style='text-align:center;'>Bienvenido, Dr/a. Haga clic debajo para ingresar al Tribunal.</p>", unsafe_allow_html=True)
+        if st.button("⚖️ ENTRAR AL ESTRADO"):
+            st.session_state.audio_activado = True
+            st.rerun()
+    else:
+        # Una vez que hizo clic, ya tenemos permiso. Disparamos música.
+        play_audio("bienvenida.mp3") 
+        m_in = st.text_input("Email:")
+        n_in = st.text_input("Nombre y Apellido:")
+        if st.button("INGRESAR") and m_in and n_in:
+            h = not os.path.exists("d.csv")
+            with open("d.csv", "a") as f:
+                if h: f.write("E,A,F,P\n")
+                f.write(f"{m_in.replace(',','')},{n_in.replace(',','')},0,0\n")
+            st.session_state.u = {"e": m_in, "a": n_in}
+            st.rerun()
     st.stop()
 
 # --- 5. LÓGICA DE USUARIO ---
