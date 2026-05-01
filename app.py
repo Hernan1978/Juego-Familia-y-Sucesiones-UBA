@@ -6,10 +6,12 @@ import base64
 
 # --- 1. FUNCIONES DE AUDIO (AL PRINCIPIO PARA EVITAR ERRORES) ---
 def play_audio(file_path):
-    """Reproduce audio de forma invisible"""
+    """Reproduce audio de forma invisible con ID único para evitar errores"""
     if os.path.exists(file_path):
+        # Usamos el tiempo actual para que cada 'reproductor' tenga un ID distinto
+        unique_id = f"audio_{int(time.time())}"
         st.markdown("<style>audio {display: none;}</style>", unsafe_allow_html=True)
-        st.audio(file_path, format="audio/mp3", autoplay=True)
+        st.audio(file_path, format="audio/mp3", autoplay=True, key=unique_id)
 
 # --- 2. CONFIGURACIÓN E INICIALIZACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
@@ -157,12 +159,11 @@ else:
         # ESTA LÍNEA HACE QUE SUENE EN CUALQUIER PREGUNTA (1, 2 o 3)
         play_audio("suspenso.mp3") 
     
-    if ya_voto:
-        st.success("✅ Veredicto registrado.")
-        play_audio("votado.mp3")
-    elif reloj_on:
+   if not ya_voto and reloj_on:
         st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        play_audio("suspenso.mp3")
+        # Solo disparamos el audio si el tiempo es par, para no saturar el servidor
+        if int(ahora) % 2 == 0: 
+            play_audio("suspenso.mp3")
     
     st.write(f"### {banco[fase]['q']}")
     rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
