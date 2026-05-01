@@ -4,29 +4,20 @@ import os
 import time
 import base64
 
-# --- 1. CONFIGURACIÓN ---
+# --- 1. FUNCIONES DE AUDIO (AL PRINCIPIO PARA EVITAR ERRORES) ---
+def play_audio(file_path):
+    """Reproduce audio de forma invisible"""
+    if os.path.exists(file_path):
+        st.markdown("<style>audio {display: none;}</style>", unsafe_allow_html=True)
+        st.audio(file_path, format="audio/mp3", autoplay=True)
+
+# --- 2. CONFIGURACIÓN E INICIALIZACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# INICIALIZACIÓN DE VARIABLES (Esto evita el AttributeError)
 if 'u' not in st.session_state:
     st.session_state.u = None
 if 'audio_ok' not in st.session_state:
     st.session_state.audio_ok = False
-
-def play_audio(file_path):
-    """Reproduce audio de forma invisible para no romper la estética"""
-    if os.path.exists(file_path):
-        st.markdown(
-            """
-            <style>
-                audio {
-                    display: none;
-                }
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
-        st.audio(file_path, format="audio/mp3", autoplay=True)
 
 def aplicar_estilo():
     st.markdown("""
@@ -45,15 +36,15 @@ def aplicar_estilo():
         .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; border: 2px solid #FFFFFF !important; height: 3em !important; width: 100% !important; }
         .reloj-juez { position: fixed; top: 30px; right: 30px; background: #C0392B; color: white !important; padding: 20px 40px; border-radius: 15px; font-size: 5rem; border: 4px solid #D4AF37; z-index: 9999; }
         .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; text-align: right; margin-bottom: 20px; }
-        .oro { color: #FFD700 !important; font-size: 4rem !important; text-shadow: 0 0 15px gold; text-align: center; margin: 0; }
-        .plata { color: #C0C0C0 !important; font-size: 2.5rem !important; text-align: center; margin: 0; }
-        .bronce { color: #CD7F32 !important; font-size: 2rem !important; text-align: center; margin: 0; }
+        .oro { color: #FFD700 !important; font-size: 4rem !important; text-shadow: 0 0 15px gold; text-align: center; }
+        .plata { color: #C0C0C0 !important; font-size: 2.5rem !important; text-align: center; }
+        .bronce { color: #CD7F32 !important; font-size: 2rem !important; text-align: center; }
         </style>
         """, unsafe_allow_html=True)
 
 aplicar_estilo()
 
-# --- 2. GESTIÓN DE DATOS ---
+# --- 3. GESTIÓN DE DATOS ---
 def leer_f():
     if os.path.exists("f.txt"):
         with open("f.txt", "r") as x: return x.read().strip().split(",")
@@ -71,10 +62,11 @@ fase, t_limite = int(f_str), float(t_str)
 df_global = cargar_datos()
 ahora = time.time()
 
-# --- 3. PANEL ADMIN ---
+# --- 4. PANEL ADMIN ---
 if st.query_params.get("admin") == "true":
     st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DEL JUEZ</h1>", unsafe_allow_html=True)
-    if st.text_input("Clave:", type="password") == "derecho2024":
+    clave = st.text_input("Clave:", type="password")
+    if clave == "derecho2024":
         c1, c2, c3 = st.columns([2, 1, 1])
         with c1:
             sel = st.selectbox("Fase:", ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Resultados Parciales", "Podio Final"])
@@ -91,63 +83,50 @@ if st.query_params.get("admin") == "true":
                 if os.path.exists("f.txt"): os.remove("f.txt")
                 st.rerun()
 
-# --- 4. ACCESO ---
+# --- 5. ACCESO ---
 if st.session_state.u is None:
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
-    
     if not st.session_state.audio_ok:
         st.write("### Bienvenido al Sistema de Sentencias")
-        st.write("Para activar el sistema de audio y notificaciones, presione el botón:")
+        st.write("Presione el botón para habilitar el audio del Tribunal:")
         if st.button("⚖️ ENTRAR AL TRIBUNAL"):
             st.session_state.audio_ok = True
             st.rerun()
-   def play_audio(file_path):
-    """Reproduce audio de forma invisible para no romper la estética"""
-    if os.path.exists(file_path):
-        # Creamos un contenedor vacío para el audio
-        placeholder = st.empty()
-        with placeholder.container():
-            st.markdown(
-                f"""
-                <style>
-                    /* Esconde todos los reproductores de audio de la página */
-                    audio {{
-                        display: none;
-                    }}
-                </style>
-                """,
-                unsafe_allow_html=True
-            )
-            # El autoplay sigue funcionando aunque el control esté oculto
-            st.audio(file_path, format="audio/mp3", autoplay=True)
+    else:
+        play_audio("bienvenida.mp3") 
+        m_in = st.text_input("Email:")
+        n_in = st.text_input("Nombre:")
+        if st.button("INGRESAR") and m_in and n_in:
+            h = not os.path.exists("d.csv")
+            with open("d.csv", "a") as f:
+                if h: f.write("E,A,F,P\n")
+                f.write(f"{m_in.replace(',','')},{n_in.replace(',','')},0,0\n")
+            st.session_state.u = {"e": m_in, "a": n_in}; st.rerun()
+    st.stop()
 
-# --- 5. LÓGICA DE USUARIO ---
+# --- 6. LÓGICA DE USUARIO ---
 st.markdown(f"<div class='usuario-badge'>👤 Dr/a. <b>{st.session_state.u['a']}</b></div>", unsafe_allow_html=True)
 ya_voto = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty if not df_global.empty else False
 reloj_on = (t_limite > ahora)
 
-# --- 6. PANTALLAS ---
+# --- 7. PANTALLAS ---
 if fase == 0:
     st.header("⚖️ Sala de Espera")
-    st.write("Aguarde a que el Juez inicie la sesión.")
+    st.write("Aguarde el inicio de la sesión judicial.")
 
 elif fase == 10:
     st.header("📊 POSICIONES ACTUALES")
+    play_audio("votado.mp3")
     if not df_global.empty:
         top = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(10)
         st.table(top)
 
 elif fase == 99:
     st.header("🏆 SENTENCIA FINAL")
-    # ... (tu lógica de puntos igual) ...
-    
-    if puesto <= 3:
-        st.balloons()
-        st.markdown("### ¡SOS DE LOS MEJORES! 🥇")
-        st.audio("ganador.mp3", autoplay=True)
-    else:
-        st.markdown("### Fin de la jornada judicial")
-        st.audio("bart.mp3", autoplay=True)
+    if not df_global.empty:
+        total = df_global.groupby("A")["P"].sum().sort_values(ascending=False)
+        idx = total.index.tolist()
+        votos = total.values.tolist()
         
         # --- LÓGICA DE SONIDO DEL PODIO ---
         if st.session_state.u['a'] in idx:
@@ -159,15 +138,11 @@ elif fase == 99:
                 play_audio("bart.mp3")
         else:
             play_audio("bart.mp3")
-        # ----------------------------------
 
         st.markdown("<br>", unsafe_allow_html=True)
-        if len(idx) >= 1: 
-            st.markdown(f"<p class='oro'>🥇 {idx[0].upper()}</p><p style='text-align:center;'>{int(votos[0])} pts</p>", unsafe_allow_html=True)
-        if len(idx) >= 2: 
-            st.markdown(f"<p class='plata'>🥈 {idx[1]}</p><p style='text-align:center;'>{int(votos[1])} pts</p>", unsafe_allow_html=True)
-        if len(idx) >= 3: 
-            st.markdown(f"<p class='bronce'>🥉 {idx[2]}</p><p style='text-align:center;'>{int(votos[2])} pts</p>", unsafe_allow_html=True)
+        if len(idx) >= 1: st.markdown(f"<p class='oro'>🥇 {idx[0].upper()} ({int(votos[0])} pts)</p>", unsafe_allow_html=True)
+        if len(idx) >= 2: st.markdown(f"<p class='plata'>🥈 {idx[1]} ({int(votos[1])} pts)</p>", unsafe_allow_html=True)
+        if len(idx) >= 3: st.markdown(f"<p class='bronce'>🥉 {idx[2]} ({int(votos[2])} pts)</p>", unsafe_allow_html=True)
 
 else:
     banco = {
@@ -185,7 +160,6 @@ else:
     
     st.write(f"### {banco[fase]['q']}")
     rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
-    
     if not ya_voto and st.button("RESPONDER", disabled=not reloj_on):
         correcta = (rta == banco[fase]['k'])
         pts = (100 + (max(0, int(t_limite - ahora)) * 2)) if correcta else 0
@@ -195,6 +169,6 @@ else:
         time.sleep(0.5)
         st.rerun()
 
-# --- 7. REFRESH ---
+# --- 8. REFRESH ---
 time.sleep(1)
 st.rerun()
