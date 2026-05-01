@@ -7,9 +7,12 @@ import time
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
 SOUNDS = {
+    "suspenso": "https://www.soundjay.com/misc/sounds/heartbeat-01.mp3", # Latido o tensión
+    "votado": "https://www.soundjay.com/free-music/sounds/iron-man-01.mp3", # Música de fondo tranquila
+    "ganador": "https://www.myinstants.com/media/sounds/tada_6.mp3", # Alegría
+    "bart": "https://www.myinstants.com/media/sounds/sad-tromp-tromp-tromp.mp3", # El "uou-uou-uouuu" de derrota
     "exito": "https://www.soundjay.com/buttons/sounds/button-37a.mp3",
-    "error": "https://www.soundjay.com/communication/sounds/beeper-error-3.mp3",
-    "ganador": "https://www.soundjay.com/human/sounds/applause-01.mp3"
+    "error": "https://www.soundjay.com/communication/sounds/beeper-error-3.mp3"
 }
 
 def play_audio(url):
@@ -143,21 +146,45 @@ st.markdown(f"<div class='usuario-badge'>👤 Dr/a. <b>{st.session_state.u['a']}
 ya_voto = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty if not df_global.empty else False
 reloj_on = (t_limite > ahora)
 
-# --- 6. PANTALLAS ---
+# --- 6. PANTALLAS CON AUDIO DINÁMICO ---
+
 if fase == 0:
     st.header("⚖️ Sala de Espera")
     st.write("Aguarde a que el Juez inicie la ronda.")
 
 elif fase == 10:
     st.header("📊 POSICIONES ACTUALES")
+    play_audio(SOUNDS["votado"]) # Música de fondo mientras ven la tabla
     if not df_global.empty:
-        top = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(15)
+        top = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(10)
         st.table(top)
 
 elif fase == 99:
     st.header("🏆 SENTENCIA FINAL")
-    st.balloons()
-    play_audio(SOUNDS["ganador"])
+    if not df_global.empty:
+        total = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(3)
+        idx = total.index.tolist()
+        
+        # Lógica de sonido para el podio
+        # Si el usuario actual es el ganador:
+        if st.session_state.u['a'] == idx[0]:
+            st.balloons()
+            play_audio(SOUNDS["ganador"])
+        else:
+            play_audio(SOUNDS["bart"]) # Sonido de Bart para el resto
+
+        # (Aquí va tu código de mostrar el podio vertical que ya pusimos)
+
+else:
+    # --- DENTRO DE UNA PREGUNTA ---
+    if ya_voto:
+        st.success("✅ Veredicto registrado. Aguarde...")
+        play_audio(SOUNDS["votado"]) # Ya votó: música relajada
+    elif reloj_on:
+        st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
+        play_audio(SOUNDS["suspenso"]) # No votó y hay tiempo: SUSPENSO
+    
+    # ... resto del código de la pregunta (banco, radio, botón dictaminar) ...
     
     if not df_global.empty:
         # Obtenemos los 3 mejores
