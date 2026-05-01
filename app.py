@@ -2,25 +2,23 @@ import streamlit as st
 import pandas as pd
 import os
 import time
+import base64
 
-# --- 1. CONFIGURACIÓN Y SONIDOS ---
+# --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-SOUNDS = {
-    "suspenso": "https://www.soundjay.com/misc/sounds/heartbeat-01.mp3",
-    "votado": "https://www.soundjay.com/free-music/sounds/iron-man-01.mp3",
-    "ganador": "https://www.myinstants.com/media/sounds/tada_6.mp3",
-    "bart": "https://www.myinstants.com/media/sounds/sad-tromp-tromp-tromp.mp3",
-    "exito": "https://www.soundjay.com/buttons/sounds/button-37a.mp3",
-    "error": "https://www.soundjay.com/communication/sounds/beeper-error-3.mp3"
-}
-
-def play_audio(url):
-    # Usamos una clave única basada en la URL para que no se bloquee
-    st.markdown(
-        f'<iframe src="{url}" allow="autoplay" style="display:none;" id="audio-iframe"></iframe>',
-        unsafe_allow_html=True
-    )
+def play_audio(file_path):
+    """Carga un archivo local y lo reproduce por base64"""
+    if os.path.exists(file_path):
+        with open(file_path, "rb") as f:
+            data = f.read()
+            b64 = base64.b64encode(data).decode()
+            md = f"""
+                <audio autoplay="true">
+                <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+                </audio>
+                """
+            st.markdown(md, unsafe_allow_html=True)
 
 def aplicar_estilo():
     st.markdown("""
@@ -39,9 +37,9 @@ def aplicar_estilo():
         .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; border: 2px solid #FFFFFF !important; }
         .reloj-juez { position: fixed; top: 30px; right: 30px; background: #C0392B; color: white !important; padding: 20px 40px; border-radius: 15px; font-size: 5rem; border: 4px solid #D4AF37; z-index: 9999; }
         .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; text-align: right; margin-bottom: 20px; }
-        .oro { color: #FFD700 !important; font-size: 4rem !important; text-shadow: 0 0 15px gold; text-align: center; }
-        .plata { color: #C0C0C0 !important; font-size: 2.5rem !important; text-align: center; }
-        .bronce { color: #CD7F32 !important; font-size: 2rem !important; text-align: center; }
+        .oro { color: #FFD700 !important; font-size: 4rem !important; text-shadow: 0 0 15px gold; text-align: center; margin-bottom: 0px; }
+        .plata { color: #C0C0C0 !important; font-size: 2.5rem !important; text-align: center; margin-bottom: 0px; }
+        .bronce { color: #CD7F32 !important; font-size: 2rem !important; text-align: center; margin-bottom: 0px; }
         </style>
         """, unsafe_allow_html=True)
 
@@ -88,8 +86,10 @@ if st.query_params.get("admin") == "true":
 # --- 4. ACCESO ---
 if 'u' not in st.session_state: st.session_state.u = None
 if st.session_state.u is None:
+    play_audio("bienvenida.mp3") 
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
-    m_in, n_in = st.text_input("Email:"), st.text_input("Nombre:")
+    m_in = st.text_input("Email:")
+    n_in = st.text_input("Nombre y Apellido:")
     if st.button("INGRESAR") and m_in and n_in:
         h = not os.path.exists("d.csv")
         with open("d.csv", "a") as f:
@@ -106,11 +106,11 @@ reloj_on = (t_limite > ahora)
 # --- 6. PANTALLAS ---
 if fase == 0:
     st.header("⚖️ Sala de Espera")
-    st.write("Aguarde las instrucciones del Juez para iniciar la sesión.")
+    st.write("Aguarde a que el Juez inicie la sesión.")
 
 elif fase == 10:
     st.header("📊 POSICIONES ACTUALES")
-    play_audio(SOUNDS["votado"])
+    play_audio("votado.mp3")
     if not df_global.empty:
         top = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(10)
         st.table(top)
@@ -125,15 +125,15 @@ elif fase == 99:
         if len(idx) > 0:
             if st.session_state.u['a'] == idx[0]:
                 st.balloons()
-                play_audio(SOUNDS["ganador"])
+                play_audio("ganador.mp3")
             else:
-                play_audio(SOUNDS["bart"])
+                play_audio("bart.mp3")
 
         st.markdown("<br>", unsafe_allow_html=True)
         if len(idx) >= 1: 
             st.markdown(f"<p class='oro'>🥇 {idx[0].upper()}</p><p style='text-align:center;'>{int(votos[0])} pts</p>", unsafe_allow_html=True)
         if len(idx) >= 2: 
-            st.markdown(f" <p class='plata'>🥈 {idx[1]}</p><p style='text-align:center;'>{int(votos[1])} pts</p>", unsafe_allow_html=True)
+            st.markdown(f"<p class='plata'>🥈 {idx[1]}</p><p style='text-align:center;'>{int(votos[1])} pts</p>", unsafe_allow_html=True)
         if len(idx) >= 3: 
             st.markdown(f"<p class='bronce'>🥉 {idx[2]}</p><p style='text-align:center;'>{int(votos[2])} pts</p>", unsafe_allow_html=True)
 
@@ -145,21 +145,21 @@ else:
     }
     
     if ya_voto:
-        st.success("✅ Veredicto registrado. Aguarde a sus colegas.")
-        play_audio(SOUNDS["votado"])
+        st.success("✅ Veredicto registrado. Aguarde...")
+        play_audio("votado.mp3")
     elif reloj_on:
         st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        play_audio(SOUNDS["suspenso"])
+        play_audio("suspenso.mp3")
     
     st.write(f"### {banco[fase]['q']}")
-    rta = st.radio("Elija su veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
+    rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
     
     if not ya_voto and st.button("RESPONDER", disabled=not reloj_on):
         correcta = (rta == banco[fase]['k'])
         pts = (100 + (max(0, int(t_limite - ahora)) * 2)) if correcta else 0
         with open("d.csv", "a") as f:
             f.write(f"{st.session_state.u['e']},{st.session_state.u['a']},{fase},{pts}\n")
-        play_audio(SOUNDS["exito"] if correcta else SOUNDS["error"])
+        play_audio("exito.mp3" if correcta else "error.mp3")
         time.sleep(0.5)
         st.rerun()
 
