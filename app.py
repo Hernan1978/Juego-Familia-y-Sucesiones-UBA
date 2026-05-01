@@ -115,7 +115,6 @@ if fase == 0:
 
 elif fase == 10:
     st.header("📊 POSICIONES ACTUALES")
-    play_audio("votado.mp3")
     if not df_global.empty:
         top = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(10)
         st.table(top)
