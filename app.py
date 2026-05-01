@@ -4,14 +4,19 @@ import os
 import time
 import base64
 
-# --- 1. FUNCIONES DE AUDIO (AL PRINCIPIO PARA EVITAR ERRORES) ---
+# --- 1. FUNCIÓN DE AUDIO (HTML PURO - INVISIBLE Y SIN ERRORES) ---
 def play_audio(file_path):
-    """Reproduce audio de forma invisible con ID único para evitar errores"""
+    """Reproduce audio de forma invisible y compatible con refrescos rápidos"""
     if os.path.exists(file_path):
-        # Usamos el tiempo actual para que cada 'reproductor' tenga un ID distinto
-        unique_id = f"audio_{int(time.time())}"
-        st.markdown("<style>audio {display: none;}</style>", unsafe_allow_html=True)
-        st.audio(file_path, format="audio/mp3", autoplay=True, key=unique_id)
+        with open(file_path, "rb") as f:
+            data = f.read()
+            b64 = base64.b64encode(data).decode()
+            md = f"""
+                <audio autoplay="true" style="display:none;">
+                    <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+                </audio>
+            """
+            st.markdown(md, unsafe_allow_html=True)
 
 # --- 2. CONFIGURACIÓN E INICIALIZACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
@@ -130,7 +135,6 @@ elif fase == 99:
         idx = total.index.tolist()
         votos = total.values.tolist()
         
-        # --- LÓGICA DE SONIDO DEL PODIO ---
         if st.session_state.u['a'] in idx:
             puesto = idx.index(st.session_state.u['a']) + 1
             if puesto <= 3:
@@ -143,34 +147,4 @@ elif fase == 99:
 
         st.markdown("<br>", unsafe_allow_html=True)
         if len(idx) >= 1: st.markdown(f"<p class='oro'>🥇 {idx[0].upper()} ({int(votos[0])} pts)</p>", unsafe_allow_html=True)
-        if len(idx) >= 2: st.markdown(f"<p class='plata'>🥈 {idx[1]} ({int(votos[1])} pts)</p>", unsafe_allow_html=True)
-        if len(idx) >= 3: st.markdown(f"<p class='bronce'>🥉 {idx[2]} ({int(votos[2])} pts)</p>", unsafe_allow_html=True)
-
-else:
-    banco = {
-        1: {"q": "¿Cuál es la porción legítima de los descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
-        2: {"q": "¿Cuál es el plazo para aceptar la herencia?", "o": ["5 años", "10 años", "20 años"], "k": "10 años"},
-        3: {"q": "¿Es válido el testamento ológrafo hecho a máquina?", "o": ["No", "Sí"], "k": "No"}
-    }
-    
-    # SI TODAVÍA NO VOTÓ Y EL RELOJ ESTÁ CORRIENDO...
-    if not ya_voto and reloj_on:
-        st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        # Solo disparamos el audio si el tiempo es par, para no saturar el servidor
-        if int(ahora) % 2 == 0: 
-            play_audio("suspenso.mp3")
-    
-    st.write(f"### {banco[fase]['q']}")
-    rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
-    if not ya_voto and st.button("RESPONDER", disabled=not reloj_on):
-        correcta = (rta == banco[fase]['k'])
-        pts = (100 + (max(0, int(t_limite - ahora)) * 2)) if correcta else 0
-        with open("d.csv", "a") as f:
-            f.write(f"{st.session_state.u['e']},{st.session_state.u['a']},{fase},{pts}\n")
-        play_audio("exito.mp3" if correcta else "error.mp3")
-        time.sleep(0.5)
-        st.rerun()
-
-# --- 8. REFRESH ---
-time.sleep(1)
-st.rerun()
+        if len(idx) >= 2: st.markdown(f"<p class='plata'>🥈 {idx[1]} ({int(votos[1])} pts)</p>", unsafe_allow
