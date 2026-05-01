@@ -7,10 +7,15 @@ import base64
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
+# INICIALIZACIÓN DE VARIABLES (Esto evita el AttributeError)
+if 'u' not in st.session_state:
+    st.session_state.u = None
+if 'audio_ok' not in st.session_state:
+    st.session_state.audio_ok = False
+
 def play_audio(file_path):
     """Reproduce audio usando el componente oficial de Streamlit (más compatible)"""
     if os.path.exists(file_path):
-        # El componente st.audio es el que mejor salta los bloqueos
         st.audio(file_path, format="audio/mp3", autoplay=True)
 
 def aplicar_estilo():
@@ -78,10 +83,6 @@ if st.query_params.get("admin") == "true":
 
 # --- 4. ACCESO ---
 if st.session_state.u is None:
-    play_audio("bienvenida.mp3") # <--- Agregá esto aquí
-    st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
-    # ... resto de tu código de ingreso ...
-if st.session_state.u is None:
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
     
     if not st.session_state.audio_ok:
@@ -122,54 +123,5 @@ elif fase == 10:
 elif fase == 99:
     st.header("🏆 SENTENCIA FINAL")
     if not df_global.empty:
-        total = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(10)
+        total = df_global.groupby("A")["P"].sum().sort_values(ascending=False)
         idx = total.index.tolist()
-        
-        # --- LÓGICA DE SONIDO DEL PODIO ---
-        if st.session_state.u['a'] in idx:
-            puesto = idx.index(st.session_state.u['a']) + 1 # 1 para el primero, 2 segundo...
-            if puesto <= 3:
-                st.balloons()
-                play_audio("ganador.mp3") # Sonido de alegría para el podio
-            else:
-                play_audio("bart.mp3") # Sonido de Bart para el resto
-        else:
-            play_audio("bart.mp3") # Si ni aparece en el top 10, Bart también
-        # ----------------------------------
-        st.markdown("<br>", unsafe_allow_html=True)
-        if len(idx) >= 1: 
-            st.markdown(f"<p class='oro'>🥇 {idx[0].upper()}</p><p style='text-align:center;'>{int(votos[0])} pts</p>", unsafe_allow_html=True)
-        if len(idx) >= 2: 
-            st.markdown(f"<p class='plata'>🥈 {idx[1]}</p><p style='text-align:center;'>{int(votos[1])} pts</p>", unsafe_allow_html=True)
-        if len(idx) >= 3: 
-            st.markdown(f"<p class='bronce'>🥉 {idx[2]}</p><p style='text-align:center;'>{int(votos[2])} pts</p>", unsafe_allow_html=True)
-
-else:
-    banco = {
-        1: {"q": "¿Cuál es la porción legítima de los descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
-        2: {"q": "¿Cuál es el plazo para aceptar la herencia?", "o": ["5 años", "10 años", "20 años"], "k": "10 años"},
-        3: {"q": "¿Es válido el testamento ológrafo hecho a máquina?", "o": ["No", "Sí"], "k": "No"}
-    }
-    
-    if ya_voto:
-        st.success("✅ Veredicto registrado.")
-        play_audio("votado.mp3")
-    elif reloj_on:
-        st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        play_audio("suspenso.mp3")
-    
-    st.write(f"### {banco[fase]['q']}")
-    rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
-    
-    if not ya_voto and st.button("RESPONDER", disabled=not reloj_on):
-        correcta = (rta == banco[fase]['k'])
-        pts = (100 + (max(0, int(t_limite - ahora)) * 2)) if correcta else 0
-        with open("d.csv", "a") as f:
-            f.write(f"{st.session_state.u['e']},{st.session_state.u['a']},{fase},{pts}\n")
-        play_audio("exito.mp3" if correcta else "error.mp3")
-        time.sleep(0.5)
-        st.rerun()
-
-# --- 7. REFRESH ---
-time.sleep(1)
-st.rerun()
