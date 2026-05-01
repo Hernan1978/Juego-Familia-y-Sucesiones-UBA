@@ -152,11 +152,13 @@ elif fase == 99:
     if not df_global.empty:
         total = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(3)
         idx = total.index.tolist()
-        if len(idx) >= 1: st.markdown(f"<p class='oro' style='text-align:center;'>🥇 {idx[0].upper()}</p>", unsafe_allow_html=True)
-        if len(idx) >= 2: st.markdown(f"<p class='plata' style='text-align:center;'>🥈 {idx[1]}</p>", unsafe_allow_html=True)
-        if len(idx) >= 3: st.markdown(f"<p class='bronce' style='text-align:center;'>🥉 {idx[2]}</p>", unsafe_allow_html=True)
-        elif fase == 99:
-        play_audio(SOUNDS["ganador"]) # 
+        if len(idx) >= 1: 
+            st.markdown(f"<div style='text-align:center;'><p class='oro'>🥇 {idx[0].upper()}</p></div>", unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        if len(idx) >= 2: 
+            c1.markdown(f"<div style='text-align:center;'><p class='plata'>🥈 {idx[1]}</p></div>", unsafe_allow_html=True)
+        if len(idx) >= 3: 
+            c2.markdown(f"<div style='text-align:center;'><p class='bronce'>🥉 {idx[2]}</p></div>", unsafe_allow_html=True)
 
 else:
     if reloj_on and not ya_voto:
