@@ -151,6 +151,12 @@ else:
         3: {"q": "¿Es válido el testamento ológrafo hecho a máquina?", "o": ["No", "Sí"], "k": "No"}
     }
     
+    # SI TODAVÍA NO VOTÓ Y EL RELOJ ESTÁ CORRIENDO...
+    if not ya_voto and reloj_on:
+        st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
+        # ESTA LÍNEA HACE QUE SUENE EN CUALQUIER PREGUNTA (1, 2 o 3)
+        play_audio("suspenso.mp3") 
+    
     if ya_voto:
         st.success("✅ Veredicto registrado.")
         play_audio("votado.mp3")
