@@ -74,8 +74,9 @@ if st.query_params.get("admin") == "true":
     st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DEL JUEZ</h1>", unsafe_allow_html=True)
     clave = st.text_input("Clave:", type="password")
     if clave == "derecho2024":
-        c1, c2, c3 = st.columns([2, 1, 1])
-        with c1:
+        st.write(f"### 👥 Alumnos en sala: {len(df_global['E'].unique()) if not df_global.empty else 0}")
+        if not df_global.empty:
+            st.dataframe(df_global[["A", "E"]].drop_duplicates())
             sel = st.selectbox("Fase:", ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Resultados Parciales", "Podio Final"])
             if st.button("CAMBIAR FASE"):
                 m = {"Espera":0, "Pregunta 1":1, "Pregunta 2":2, "Pregunta 3":3, "Resultados Parciales":10, "Podio Final":99}
@@ -162,8 +163,10 @@ else:
         play_audio("votado.mp3")
     elif reloj_on:
         st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        # Disparamos el suspenso solo al inicio del reloj para no saturar
-        if int(t_limite - ahora) >= dur - 1:
+        
+        # Si el reloj acaba de empezar (faltan más de 5 segundos), suena el suspenso
+        # Esto reemplaza al 'dur' que daba error
+        if int(t_limite - ahora) > 5:
             play_audio("suspenso.mp3")
     
     st.write(f"### {banco[fase]['q']}")
