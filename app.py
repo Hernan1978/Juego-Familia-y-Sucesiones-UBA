@@ -14,8 +14,18 @@ if 'audio_ok' not in st.session_state:
     st.session_state.audio_ok = False
 
 def play_audio(file_path):
-    """Reproduce audio usando el componente oficial de Streamlit (más compatible)"""
+    """Reproduce audio de forma invisible para no romper la estética"""
     if os.path.exists(file_path):
+        st.markdown(
+            """
+            <style>
+                audio {
+                    display: none;
+                }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
         st.audio(file_path, format="audio/mp3", autoplay=True)
 
 def aplicar_estilo():
