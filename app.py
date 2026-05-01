@@ -149,16 +149,26 @@ elif fase == 99:
     st.header("🏆 SENTENCIA FINAL")
     st.balloons()
     play_audio(SOUNDS["ganador"])
+    
     if not df_global.empty:
+        # Obtenemos los 3 mejores
         total = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(3)
         idx = total.index.tolist()
+        votos = total.values.tolist()
+
+        st.markdown("<br>", unsafe_allow_html=True) # Espacio extra
+        
+        # Puesto 1
         if len(idx) >= 1: 
-            st.markdown(f"<div style='text-align:center;'><p class='oro'>🥇 {idx[0].upper()}</p></div>", unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
+            st.markdown(f"<div style='text-align:center; margin-bottom:20px;'><p class='oro'>🥇 {idx[0].upper()}</p><p style='color:white;'>{int(votos[0])} puntos</p></div>", unsafe_allow_html=True)
+        
+        # Puesto 2
         if len(idx) >= 2: 
-            c1.markdown(f"<div style='text-align:center;'><p class='plata'>🥈 {idx[1]}</p></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='text-align:center; margin-bottom:20px;'><p class='plata'>🥈 {idx[1]}</p><p style='color:white;'>{int(votos[1])} puntos</p></div>", unsafe_allow_html=True)
+        
+        # Puesto 3
         if len(idx) >= 3: 
-            c2.markdown(f"<div style='text-align:center;'><p class='bronce'>🥉 {idx[2]}</p></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='text-align:center;'><p class='bronce'>🥉 {idx[2]}</p><p style='color:white;'>{int(votos[2])} puntos</p></div>", unsafe_allow_html=True)
 
 else:
     if reloj_on and not ya_voto:
