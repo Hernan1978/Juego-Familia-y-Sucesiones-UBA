@@ -39,7 +39,11 @@ def aplicar_estilo():
         """, unsafe_allow_html=True)
 
 aplicar_estilo()
-
+def play_audio(url):
+    st.components.v1.html(
+        f"""<audio autoplay style="display:none;"><source src="{url}" type="audio/mp3"></audio>""",
+        height=0,
+    )
 # --- 2. GESTIÓN DE DATOS DE ALTA VELOCIDAD ---
 COLUMNAS = ["E", "A", "F", "P"]
 
@@ -150,6 +154,8 @@ elif fase == 99:
         if len(idx) >= 1: st.markdown(f"<p class='oro' style='text-align:center;'>🥇 {idx[0].upper()}</p>", unsafe_allow_html=True)
         if len(idx) >= 2: st.markdown(f"<p class='plata' style='text-align:center;'>🥈 {idx[1]}</p>", unsafe_allow_html=True)
         if len(idx) >= 3: st.markdown(f"<p class='bronce' style='text-align:center;'>🥉 {idx[2]}</p>", unsafe_allow_html=True)
+        elif fase == 99:
+        play_audio(SOUNDS["ganador"]) # <--- Agregá solo esta línea
 
 else:
     if reloj_on and not ya_voto:
@@ -164,12 +170,25 @@ else:
     rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"r{fase}")
     
     if ya_voto:
-        st.success("✅ Veredicto registrado. Aguarde...")
+        st.success("✅ Dictamen registrado. Espere al Juez.")
     else:
-        # El botón solo se habilita si el reloj está activo.
+        # AQUÍ PEGAS EL BLOQUE NUEVO:
         if st.button("RESPONDER", disabled=not reloj_on):
             t_rest = int(t_limite - ahora)
-            pts = (100 + (max(0, t_rest) * 2)) if rta == banco[fase]['k'] else 0
+            # 1. Verificamos si es correcta
+            correcta = (rta == banco[fase]['k'])
+            pts = (100 + (max(0, t_rest) * 2)) if correcta else 0
+            
+            # 2. Guardamos (Escritura atómica para los 60 alumnos)
+            with open("d.csv", "a") as f:
+                f.write(f"{st.session_state.u['e']},{st.session_state.u['a']},{fase},{pts}\n")
+            
+            # 3. DISPARAMOS EL SONIDO AQUÍ
+            play_audio(SOUNDS["exito"] if correcta else SOUNDS["error"])
+            
+            # 4. Esperamos medio segundo para que se oiga el inicio del audio y refrescamos
+            time.sleep(0.5)
+            st.rerun()
             
             # ESCRITURA ATÓMICA: La más rápida de Python. 
             # 60 alumnos pueden hacer esto casi en simultáneo sin bloquearse.
