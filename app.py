@@ -156,11 +156,6 @@ else:
     # SI TODAVÍA NO VOTÓ Y EL RELOJ ESTÁ CORRIENDO...
     if not ya_voto and reloj_on:
         st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        # ESTA LÍNEA HACE QUE SUENE EN CUALQUIER PREGUNTA (1, 2 o 3)
-        play_audio("suspenso.mp3") 
-    
-   if not ya_voto and reloj_on:
-        st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
         # Solo disparamos el audio si el tiempo es par, para no saturar el servidor
         if int(ahora) % 2 == 0: 
             play_audio("suspenso.mp3")
