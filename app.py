@@ -163,7 +163,7 @@ else:
     st.write(f"### {banco[fase]['q']}")
     rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
     
-    if not ya_voto and st.button("DICTAMINAR", disabled=not reloj_on):
+    if not ya_voto and st.button("RESPONDER", disabled=not reloj_on):
         correcta = (rta == banco[fase]['k'])
         pts = (100 + (max(0, int(t_limite - ahora)) * 2)) if correcta else 0
         with open("d.csv", "a") as f:
