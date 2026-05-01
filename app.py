@@ -121,10 +121,15 @@ elif fase == 10:
 
 elif fase == 99:
     st.header("🏆 SENTENCIA FINAL")
-    if not df_global.empty:
-        total = df_global.groupby("A")["P"].sum().sort_values(ascending=False)
-        idx = total.index.tolist()
-        votos = total.values.tolist()
+    # ... (tu lógica de puntos igual) ...
+    
+    if puesto <= 3:
+        st.balloons()
+        st.markdown("### ¡SOS DE LOS MEJORES! 🥇")
+        st.audio("ganador.mp3", autoplay=True)
+    else:
+        st.markdown("### Fin de la jornada judicial")
+        st.audio("bart.mp3", autoplay=True)
         
         # --- LÓGICA DE SONIDO DEL PODIO ---
         if st.session_state.u['a'] in idx:
