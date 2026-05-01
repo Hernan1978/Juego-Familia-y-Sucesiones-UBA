@@ -91,17 +91,25 @@ if st.session_state.u is None:
         if st.button("⚖️ ENTRAR AL TRIBUNAL"):
             st.session_state.audio_ok = True
             st.rerun()
-    else:
-        play_audio("bienvenida.mp3") 
-        m_in = st.text_input("Email:")
-        n_in = st.text_input("Nombre:")
-        if st.button("INGRESAR") and m_in and n_in:
-            h = not os.path.exists("d.csv")
-            with open("d.csv", "a") as f:
-                if h: f.write("E,A,F,P\n")
-                f.write(f"{m_in.replace(',','')},{n_in.replace(',','')},0,0\n")
-            st.session_state.u = {"e": m_in, "a": n_in}; st.rerun()
-    st.stop()
+   def play_audio(file_path):
+    """Reproduce audio de forma invisible para no romper la estética"""
+    if os.path.exists(file_path):
+        # Creamos un contenedor vacío para el audio
+        placeholder = st.empty()
+        with placeholder.container():
+            st.markdown(
+                f"""
+                <style>
+                    /* Esconde todos los reproductores de audio de la página */
+                    audio {{
+                        display: none;
+                    }}
+                </style>
+                """,
+                unsafe_allow_html=True
+            )
+            # El autoplay sigue funcionando aunque el control esté oculto
+            st.audio(file_path, format="audio/mp3", autoplay=True)
 
 # --- 5. LÓGICA DE USUARIO ---
 st.markdown(f"<div class='usuario-badge'>👤 Dr/a. <b>{st.session_state.u['a']}</b></div>", unsafe_allow_html=True)
