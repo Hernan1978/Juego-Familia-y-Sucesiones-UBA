@@ -7,9 +7,9 @@ import time
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
 SOUNDS = {
-    "exito": "https://www.myinstants.com/media/sounds/correct-answer.mp3",
-    "error": "https://www.myinstants.com/media/sounds/eso-tuvo-que-doler-oficina.mp3",
-    "ganador": "https://www.myinstants.com/media/sounds/tada_6.mp3"
+    "exito": "https://www.soundjay.com/buttons/sounds/button-37a.mp3",
+    "error": "https://www.soundjay.com/communication/sounds/beeper-error-3.mp3",
+    "ganador": "https://www.soundjay.com/human/sounds/applause-01.mp3"
 }
 
 def play_audio(url):
