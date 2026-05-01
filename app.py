@@ -147,7 +147,8 @@ elif fase == 10:
 
 elif fase == 99:
     st.header("🏆 SENTENCIA FINAL")
-    st.balloons(); play_audio(SOUNDS["ganador"])
+    st.balloons()
+    play_audio(SOUNDS["ganador"])
     if not df_global.empty:
         total = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(3)
         idx = total.index.tolist()
@@ -155,7 +156,7 @@ elif fase == 99:
         if len(idx) >= 2: st.markdown(f"<p class='plata' style='text-align:center;'>🥈 {idx[1]}</p>", unsafe_allow_html=True)
         if len(idx) >= 3: st.markdown(f"<p class='bronce' style='text-align:center;'>🥉 {idx[2]}</p>", unsafe_allow_html=True)
         elif fase == 99:
-        play_audio(SOUNDS["ganador"]) # <--- Agregá solo esta línea
+        play_audio(SOUNDS["ganador"]) # 
 
 else:
     if reloj_on and not ya_voto:
