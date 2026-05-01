@@ -8,24 +8,10 @@ import base64
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
 def play_audio(file_path):
+    """Reproduce audio usando el componente oficial de Streamlit (más compatible)"""
     if os.path.exists(file_path):
-        with open(file_path, "rb") as f:
-            data = f.read()
-            b64 = base64.b64encode(data).decode()
-            # Esta versión usa st.components para inyectar el script directamente
-            st.components.v1.html(
-                f"""
-                <audio autoplay="true">
-                    <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
-                </audio>
-                <script>
-                    var audio = document.querySelector("audio");
-                    audio.volume = 1.0;
-                    audio.play();
-                </script>
-                """,
-                height=0,
-            )
+        # El componente st.audio es el que mejor salta los bloqueos
+        st.audio(file_path, format="audio/mp3", autoplay=True)
 
 def aplicar_estilo():
     st.markdown("""
@@ -90,10 +76,11 @@ if st.query_params.get("admin") == "true":
                 if os.path.exists("f.txt"): os.remove("f.txt")
                 st.rerun()
 
-# --- 4. ACCESO Y BYPASS DE AUDIO ---
-if 'u' not in st.session_state: st.session_state.u = None
-if 'audio_ok' not in st.session_state: st.session_state.audio_ok = False
-
+# --- 4. ACCESO ---
+if st.session_state.u is None:
+    play_audio("bienvenida.mp3") # <--- Agregá esto aquí
+    st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
+    # ... resto de tu código de ingreso ...
 if st.session_state.u is None:
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
     
@@ -135,17 +122,20 @@ elif fase == 10:
 elif fase == 99:
     st.header("🏆 SENTENCIA FINAL")
     if not df_global.empty:
-        total = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(3)
+        total = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(10)
         idx = total.index.tolist()
-        votos = total.values.tolist()
         
-        if len(idx) > 0:
-            if st.session_state.u['a'] == idx[0]:
+        # --- LÓGICA DE SONIDO DEL PODIO ---
+        if st.session_state.u['a'] in idx:
+            puesto = idx.index(st.session_state.u['a']) + 1 # 1 para el primero, 2 segundo...
+            if puesto <= 3:
                 st.balloons()
-                play_audio("ganador.mp3")
+                play_audio("ganador.mp3") # Sonido de alegría para el podio
             else:
-                play_audio("bart.mp3")
-
+                play_audio("bart.mp3") # Sonido de Bart para el resto
+        else:
+            play_audio("bart.mp3") # Si ni aparece en el top 10, Bart también
+        # ----------------------------------
         st.markdown("<br>", unsafe_allow_html=True)
         if len(idx) >= 1: 
             st.markdown(f"<p class='oro'>🥇 {idx[0].upper()}</p><p style='text-align:center;'>{int(votos[0])} pts</p>", unsafe_allow_html=True)
