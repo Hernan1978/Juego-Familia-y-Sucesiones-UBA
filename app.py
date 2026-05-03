@@ -156,7 +156,7 @@ reloj_on = (t_limite > ahora)
 if fase == 0:
     st.header("⚖️ Sala de Espera")
     st.markdown('<div class="lista-competencia">', unsafe_allow_html=True)
-    st.subheader("👥 POSTULANTES EN SALA")
+    st.subheader("👥 PARTICIPANTES EN LA SALA")
     if not df_global.empty:
         nombres = df_global["A"].unique()
         st.write(", ".join(nombres))
@@ -191,7 +191,7 @@ else:
              2: {"q": "¿Plazo para aceptar herencia?", "o": ["5 años", "10 años", "20 años"], "k": "10 años"},
              3: {"q": "¿Válido testamento ológrafo a máquina?", "o": ["No", "Sí"], "k": "No"}}
     if ya_voto:
-        st.success("✅ Veredicto registrado."); play_audio("votado.mp3")
+        st.success("✅ Voto registrado."); play_audio("votado.mp3")
     elif reloj_on:
         st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
         if int(t_limite - ahora) > 10: play_audio("suspenso.mp3")
