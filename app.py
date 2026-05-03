@@ -52,10 +52,10 @@ df_global = cargar_datos()
 ahora = time.time()
 
 def aplicar_estilo():
-    # Estilos CSS generales
+    # Estilos CSS generales y específicos para el podio centrado
     st.markdown("""
         <style>
-        header, [data-testid="stHeader"] { visibility: hidden !important; }
+        header, [data-testid="stHeader"] { visibility: hidden !hidden !important; }
         .stApp { background-image: url("https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"); background-size: cover; background-attachment: fixed; }
         .main .block-container { background: rgba(0, 0, 0, 0.94) !important; backdrop-filter: blur(15px); padding: 3rem !important; border-radius: 20px !important; border: 2px solid #D4AF37; }
         h1, h2, h3, h4, p, label, span, .stMarkdown { color: #FFFFFF !important; font-weight: 800 !important; text-shadow: 2px 2px 4px #000000 !important; }
@@ -64,20 +64,24 @@ def aplicar_estilo():
         .reloj-juez { position: fixed; top: 30px; right: 30px; background: #C0392B; color: white !important; padding: 20px 40px; border-radius: 15px; font-size: 5rem; border: 4px solid #D4AF37; z-index: 9999; }
         .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; text-align: right; margin-bottom: 20px; }
         
-        /* Estilos específicos para el Podio Grande y Centrado */
-        .podio-final-container {
+        /* Contenedor Flexbox para centrar totalmente el podio vertical y horizontalmente */
+        .podio-final-full-center {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
-            margin-top: 50px;
+            min-height: 70vh; /* Ocupa la mayor parte del alto visible */
+            width: 100%;
         }
-        .podio-item { margin: 15px 0; }
-        .oro-podio { color: #FFD700 !important; font-size: 5rem !important; text-shadow: 0 0 20px gold; font-weight: 900 !important; }
-        .plata-podio { color: #C0C0C0 !important; font-size: 3.5rem !important; text-shadow: 0 0 10px silver; }
-        .bronce-podio { color: #CD7F32 !important; font-size: 3rem !important; }
-        .sentencia-final-titulo { color: #D4AF37 !important; font-size: 4rem !important; text-transform: uppercase; font-weight: 900 !important; margin-bottom: 30px;}
+        .sentencia-final-titulo { color: #D4AF37 !important; font-size: 5rem !important; text-transform: uppercase; font-weight: 900 !important; margin-bottom: 50px; text-shadow: 0 0 15px rgba(212, 175, 55, 0.7);}
+        .podio-item { margin: 20px 0; width: 100%;}
+        .oro-podio { color: #FFD700 !important; font-size: 6rem !important; text-shadow: 0 0 30px gold; font-weight: 900 !important; text-transform: uppercase;}
+        .plata-podio { color: #C0C0C0 !important; font-size: 4.5rem !important; text-shadow: 0 0 15px silver; }
+        .bronce-podio { color: #CD7F32 !important; font-size: 3.5rem !important; }
+        .podio-points { font-size: 2.5rem; opacity: 0.8; margin-left: 15px;}
+        .plata-podio .podio-points { font-size: 2rem; }
+        .bronce-podio .podio-points { font-size: 1.8rem; }
         </style>
         """, unsafe_allow_html=True)
 
@@ -150,9 +154,12 @@ reloj_on = (t_limite > ahora)
 # --- 7. PANTALLAS ---
 if fase == 0:
     st.header("⚖️ Sala de Espera")
+    st.write("Aguarde a que el Juez inicie la sesión.")
+    # --- LISTA DE COMPETIDORES VISIBLE PARA ESTUDIANTES ---
     st.subheader("👥 POSTULANTES EN SALA")
     if not df_global.empty:
-        st.write(", ".join(df_global["A"].unique()))
+        nombres_sala = df_global["A"].unique()
+        st.write(", ".join(nombres_sala))
     else:
         st.write("Esperando colegas...")
 
@@ -163,30 +170,30 @@ elif fase == 10:
         st.table(top)
         
 elif fase == 99:
-    # --- PANTALLA DE PODIO FINAL CORREGIDA (GRANDE Y CENTRADA) ---
-    st.markdown('<div class="podio-final-container">', unsafe_allow_html=True)
-    st.markdown('<div class="sentencia-final-titulo">🏆 SENTENCIA FINAL</div>', unsafe_allow_html=True)
+    # --- PANTALLA DE PODIO FINAL TOTALMENTE CENTRADA ---
+    st.markdown('<div class="podio-final-full-center">', unsafe_allow_html=True)
+    st.markdown('<div class="sentencia-final-titulo">🏆 SENTENCIA FINAL🏆</div>', unsafe_allow_html=True)
     
     if not df_global.empty:
         total = df_global.groupby("A")["P"].sum().sort_values(ascending=False)
         idx = total.index.tolist()
         votos = total.values.tolist()
         
-        # Globos y sonidos finales
+        # Sonido de triunfo (ganador.mp3) para el top 3
         if st.session_state.u['a'] in idx:
             puesto = idx.index(st.session_state.u['a']) + 1
             if puesto <= 3:
-                st.balloons(); play_audio("ganador.mp3")
+                st.balloons(); play_audio("ganador.mp3") # Sonido de triunfo
             else: play_audio("bart.mp3")
         else: play_audio("bart.mp3")
         
-        # Renderizado del podio centralizado
+        # Renderizado imponente del podio centrado
         if len(idx) >= 1: 
-            st.markdown(f'<div class="podio-item oro-podio">🥇 {idx[0].upper()} <span style="font-size:2.5rem;">({int(votos[0])} pts)</span></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="podio-item oro-podio">🥇 {idx[0].upper()} <span class="podio-points">({int(votos[0])} pts)</span></div>', unsafe_allow_html=True)
         if len(idx) >= 2: 
-            st.markdown(f'<div class="podio-item plata-podio">🥈 {idx[1]} <span style="font-size:1.8rem;">({int(votos[1])} pts)</span></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="podio-item plata-podio">🥈 {idx[1]} <span class="podio-points">({int(votos[1])} pts)</span></div>', unsafe_allow_html=True)
         if len(idx) >= 3: 
-            st.markdown(f'<div class="podio-item bronce-podio">🥉 {idx[2]} <span style="font-size:1.5rem;">({int(votos[2])} pts)</span></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="podio-item bronce-podio">🥉 {idx[2]} <span class="podio-points">({int(votos[2])} pts)</span></div>', unsafe_allow_html=True)
             
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -199,21 +206,19 @@ else:
         st.success("✅ Veredicto registrado."); play_audio("votado.mp3") # Sonido de voto confirmado (neutro)
     elif reloj_on:
         st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        # El sonido de suspenso se mantiene
         if int(t_limite - ahora) > 10: play_audio("suspenso.mp3")
     
     st.write(f"### {banco[fase]['q']}")
     rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
     
-    # --- AJUSTE DE SONIDO AL RESPONDER (SIN PISTAS) ---
+    # --- RESPONDER SIN PISTAS SONORAS ---
     if not ya_voto and st.button("RESPONDER", disabled=not reloj_on):
         correcta = (rta == banco[fase]['k'])
         puntos = (100 + int(t_limite - ahora)*2) if correcta else 0
         with open("d.csv", "a") as f: 
             f.write(f"{st.session_state.u['e']},{st.session_state.u['a']},{fase},{puntos}\n")
         
-        # Eliminados los sonidos de exito.mp3 y error.mp3
-        # El rerun cargará la pantalla de 'Veredicto registrado' con su sonido neutro.
+        # Sin sonidos de exito.mp3 o error.mp3 al responder
         time.sleep(0.5); st.rerun()
 
 time.sleep(1)
