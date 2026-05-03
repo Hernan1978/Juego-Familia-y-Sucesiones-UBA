@@ -42,23 +42,33 @@ def aplicar_estilo():
 
 aplicar_estilo()
 
-# --- 3. DATOS ---
-def leer_f():
-    if os.path.exists("f.txt"):
-        with open("f.txt", "r") as x: return x.read().strip().split(",")
-    return ["0", "0"]
-
-def escribir_f(fase, t_limite):
-    with open("f.txt", "w") as x: x.write(f"{fase},{t_limite}")
-
+# --- 3. DATOS (CORREGIDO) ---
 def cargar_datos():
-    if not os.path.exists("d.csv"): return pd.DataFrame(columns=["E", "A", "F", "P"])
-    return pd.read_csv("d.csv", on_bad_lines='skip', engine='c')
+    cols = ["E", "A", "F", "P"]
+    if not os.path.exists("d.csv"): 
+        return pd.DataFrame(columns=cols)
+    try:
+        df = pd.read_csv("d.csv", on_bad_lines='skip', engine='c')
+        # Si por alguna razón el CSV no tiene las columnas, las creamos vacías
+        for c in cols:
+            if c not in df.columns:
+                df[c] = None
+        return df
+    except:
+        return pd.DataFrame(columns=cols)
 
-f_str, t_str = leer_f()
-fase, t_limite = int(f_str), float(t_str)
-df_global = cargar_datos()
-ahora = time.time()
+# ... (en la parte de ACCESO, donde se guarda el archivo) ...
+
+        if st.button("INGRESAR") and m_in and n_in:
+            email_limpio = m_in.strip().replace(',', '')
+            nombre_limpio = n_in.strip().replace(',', '')
+            
+            # GUARDADO LOCAL CON CABECERA SEGURA
+            archivo_existe = os.path.exists("d.csv")
+            with open("d.csv", "a") as f:
+                if not archivo_existe or os.stat("d.csv").st_size == 0:
+                    f.write("E,A,F,P\n")
+                f.write(f"{email_limpio},{nombre_limpio},0,0\n")
 
 # --- 4. PANEL ADMIN ---
 if st.query_params.get("admin") == "true":
