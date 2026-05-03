@@ -49,8 +49,7 @@ ahora = time.time()
 def aplicar_estilo():
     st.markdown("""
         <style>
-        /* ELIMINAR BARRA BLANCA Y ELEMENTOS DE STREAMLIT */
-        header, [data-testid="stHeader"], .st-emotion-cache-18ni7ve, [data-testid="stToolbar"] {
+        header, [data-testid="stHeader"], [data-testid="stToolbar"] {
             visibility: hidden !important;
             display: none !important;
         }
@@ -64,35 +63,35 @@ def aplicar_estilo():
         .main .block-container { 
             background: rgba(0, 0, 0, 0.92) !important; 
             backdrop-filter: blur(15px); 
-            padding: 3rem !important; 
+            padding: 2rem 3rem !important; 
             border-radius: 20px !important; 
             border: 2px solid #D4AF37; 
-            margin-top: 20px;
+            margin-top: 10px;
         }
 
         h1, h2, h3, h4, p, label, span, .stMarkdown { color: #FFFFFF !important; font-weight: 800 !important; text-shadow: 2px 2px 4px #000000 !important; }
         .titulo-oro { color: #D4AF37 !important; font-size: 3rem !important; text-align: center; text-transform: uppercase; }
         .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; border: 2px solid #FFFFFF !important; width: 100% !important; }
         
-        /* PODIO FULL CENTER */
+        /* PODIO ELEVADO */
         .podio-final-full-center {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start; /* Sube el contenido */
             text-align: center;
-            min-height: 60vh;
+            min-height: 80vh;
             width: 100%;
+            padding-top: 20px;
         }
-        .sentencia-final-titulo { color: #D4AF37 !important; font-size: 5rem !important; text-transform: uppercase; font-weight: 900 !important; margin-bottom: 40px; }
-        .oro-podio { color: #FFD700 !important; font-size: 6rem !important; text-shadow: 0 0 30px gold; font-weight: 900 !important; }
-        .plata-podio { color: #C0C0C0 !important; font-size: 4.5rem !important; text-shadow: 0 0 15px silver; margin: 20px 0; }
-        .bronce-podio { color: #CD7F32 !important; font-size: 3.5rem !important; }
+        .sentencia-final-titulo { color: #D4AF37 !important; font-size: 4.5rem !important; text-transform: uppercase; font-weight: 900 !important; margin-bottom: 20px; }
+        .oro-podio { color: #FFD700 !important; font-size: 5.5rem !important; text-shadow: 0 0 30px gold; font-weight: 900 !important; margin-bottom: 10px; }
+        .plata-podio { color: #C0C0C0 !important; font-size: 4rem !important; text-shadow: 0 0 15px silver; margin: 10px 0; }
+        .bronce-podio { color: #CD7F32 !important; font-size: 3rem !important; margin-top: 5px; }
         
         .reloj-juez { position: fixed; top: 30px; right: 30px; background: #C0392B; color: white !important; padding: 20px 40px; border-radius: 15px; font-size: 5rem; border: 4px solid #D4AF37; z-index: 9999; }
-        .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; text-align: right; margin-bottom: 20px; }
+        .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; text-align: right; margin-bottom: 15px; }
         
-        /* LISTADO DE ALUMNOS COMPETENCIA */
         .lista-competencia {
             background: rgba(255, 255, 255, 0.05);
             padding: 15px;
@@ -146,65 +145,3 @@ if st.session_state.u is None:
             with open("d.csv", "a") as f: f.write(f"{e_l},{n_l},0,0\n")
             try: requests.get(f"{URL_APPS_SCRIPT}?email={e_l}", timeout=5)
             except: pass
-            st.session_state.u = {"e": e_l, "a": n_l}; st.rerun()
-    st.stop()
-
-# --- 6. JUEGO ---
-st.markdown(f"<div class='usuario-badge'>👤 Dr/a. <b>{st.session_state.u['a']}</b></div>", unsafe_allow_html=True)
-ya_voto = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty if not df_global.empty else False
-reloj_on = (t_limite > ahora)
-
-if fase == 0:
-    st.header("⚖️ Sala de Espera")
-    st.write("Aguarde a que el Juez inicie la sesión.")
-    
-    # --- LISTADO RESTAURADO ---
-    st.markdown('<div class="lista-competencia">', unsafe_allow_html=True)
-    st.subheader("👥 POSTULANTES EN SALA")
-    if not df_global.empty:
-        nombres = df_global["A"].unique()
-        st.write(", ".join(nombres))
-    else:
-        st.write("Esperando colegas...")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-elif fase == 10:
-    st.header("📊 POSICIONES ACTUALES")
-    if not df_global.empty:
-        top = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(10)
-        st.table(top)
-        
-elif fase == 99:
-    st.markdown('<div class="podio-final-full-center">', unsafe_allow_html=True)
-    st.markdown('<div class="sentencia-final-titulo">🏆 SENTENCIA FINAL 🏆</div>', unsafe_allow_html=True)
-    if not df_global.empty:
-        total = df_global.groupby("A")["P"].sum().sort_values(ascending=False)
-        idx, votos = total.index.tolist(), total.values.tolist()
-        if st.session_state.u['a'] in idx:
-            if idx.index(st.session_state.u['a']) < 3:
-                st.balloons(); play_audio("ganador.mp3")
-            else: play_audio("bart.mp3")
-        if len(idx) >= 1: st.markdown(f'<div class="oro-podio">🥇 {idx[0].upper()} ({int(votos[0])} pts)</div>', unsafe_allow_html=True)
-        if len(idx) >= 2: st.markdown(f'<div class="plata-podio">🥈 {idx[1]} ({int(votos[1])} pts)</div>', unsafe_allow_html=True)
-        if len(idx) >= 3: st.markdown(f'<div class="bronce-podio">🥉 {idx[2]} ({int(votos[2])} pts)</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-else:
-    banco = {1: {"q": "¿Cuál es la legítima de descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
-             2: {"q": "¿Plazo para aceptar herencia?", "o": ["5 años", "10 años", "20 años"], "k": "10 años"},
-             3: {"q": "¿Válido testamento ológrafo a máquina?", "o": ["No", "Sí"], "k": "No"}}
-    if ya_voto:
-        st.success("✅ Veredicto registrado."); play_audio("votado.mp3")
-    elif reloj_on:
-        st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        if int(t_limite - ahora) > 10: play_audio("suspenso.mp3")
-    st.write(f"### {banco[fase]['q']}")
-    rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
-    if not ya_voto and st.button("RESPONDER", disabled=not reloj_on):
-        correcta = (rta == banco[fase]['k'])
-        pts = (100 + int(t_limite - ahora)*2) if correcta else 0
-        with open("d.csv", "a") as f: f.write(f"{st.session_state.u['e']},{st.session_state.u['a']},{fase},{pts}\n")
-        time.sleep(0.5); st.rerun()
-
-time.sleep(1)
-st.rerun()
