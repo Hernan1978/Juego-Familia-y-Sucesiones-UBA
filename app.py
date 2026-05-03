@@ -114,7 +114,7 @@ if st.session_state.u is None:
             
             # ASISTENCIA AUTOMÁTICA A GOOGLE (GRATIS)
             try:
-                requests.get(f"{URL_APPS_SCRIPT}?email={m_in.strip()}")
+                requests.get(f"{"https://script.google.com/macros/s/AKfycbw2lL020VODloofb-og7k7ERWXBYo5oa3axf5fRkX_e3JgA7lLs9PObfxHWw-T88lg_/exec"}?email={m_in.strip()}")
             except:
                 pass # Si falla el wifi no bloquea el ingreso del alumno
 
@@ -165,7 +165,7 @@ else:
              2: {"q": "¿Plazo para aceptar herencia?", "o": ["5 años", "10 años", "20 años"], "k": "10 años"},
              3: {"q": "¿Válido testamento ológrafo a máquina?", "o": ["No", "Sí"], "k": "No"}}
     if ya_voto:
-        st.success("✅ Veredicto registrado."); play_audio("votado.mp3")
+        st.success("✅ Opcion registrada."); play_audio("votado.mp3")
     elif reloj_on:
         st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
         if int(t_limite - ahora) > 10: play_audio("suspenso.mp3")
