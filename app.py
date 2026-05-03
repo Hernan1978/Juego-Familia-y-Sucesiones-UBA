@@ -3,10 +3,10 @@ import pandas as pd
 import os
 import time
 import base64
+import requests # Necesaria para avisarle a Google Sheets
 
-# --- 1. FUNCIÓN DE AUDIO (HTML PURO - INVISIBLE) ---
+# --- 1. FUNCIÓN DE AUDIO (HTML PURO) ---
 def play_audio(file_path):
-    """Reproduce audio de forma invisible"""
     if os.path.exists(file_path):
         with open(file_path, "rb") as f:
             data = f.read()
@@ -16,6 +16,9 @@ def play_audio(file_path):
 
 # --- 2. CONFIGURACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
+
+# COLOCÁ AQUÍ LA URL QUE TE DIO GOOGLE APPS SCRIPT
+URL_APPS_SCRIPT = "TU_URL_DE_APPS_SCRIPT_AQUI"
 
 if 'u' not in st.session_state: st.session_state.u = None
 if 'audio_ok' not in st.session_state: st.session_state.audio_ok = False
@@ -31,8 +34,6 @@ def aplicar_estilo():
         .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; border: 2px solid #FFFFFF !important; width: 100% !important; }
         .reloj-juez { position: fixed; top: 30px; right: 30px; background: #C0392B; color: white !important; padding: 20px 40px; border-radius: 15px; font-size: 5rem; border: 4px solid #D4AF37; z-index: 9999; }
         .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; text-align: right; margin-bottom: 20px; }
-        
-        /* ESTILOS DEL PODIO DORADO */
         .oro { color: #FFD700 !important; font-size: 4rem !important; text-shadow: 0 0 15px gold; text-align: center; }
         .plata { color: #C0C0C0 !important; font-size: 2.5rem !important; text-align: center; }
         .bronce { color: #CD7F32 !important; font-size: 2rem !important; text-align: center; }
@@ -64,12 +65,9 @@ if st.query_params.get("admin") == "true":
     st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DEL JUEZ</h1>", unsafe_allow_html=True)
     clave = st.text_input("Clave:", type="password")
     if clave == "derecho2024":
-        # Ver alumnos inscriptos
-        inscriptos = df_global["A"].unique() if not df_global.empty else []
-        st.write(f"### 👥 Alumnos en sala: {len(inscriptos)}")
-        if len(inscriptos) > 0:
-            st.write(", ".join(inscriptos))
-            
+        inscriptos_list = df_global["A"].unique() if not df_global.empty else []
+        st.write(f"### 👥 Alumnos en sala: {len(inscriptos_list)}")
+        
         col1, col2, col3 = st.columns(3)
         with col1:
             sel = st.selectbox("Fase:", ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Resultados Parciales", "Podio Final"])
@@ -87,23 +85,30 @@ if st.query_params.get("admin") == "true":
                 st.rerun()
     st.divider()
 
-# --- 5. ACCESO ---
+# --- 5. ACCESO Y ASISTENCIA ---
 if st.session_state.u is None:
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
     if not st.session_state.audio_ok:
-        st.write("Bienvenido al Sistema de Sentencias. Presione para habilitar el audio:")
+        st.write("### Bienvenido al Sistema de Sentencias")
         if st.button("⚖️ ENTRAR AL TRIBUNAL"):
             st.session_state.audio_ok = True; st.rerun()
     else:
         play_audio("bienvenida.mp3") 
-        m_in = st.text_input("Email:")
-        n_in = st.text_input("Nombre:")
+        m_in = st.text_input("Email Académico:")
+        n_in = st.text_input("Nombre y Apellido:")
         if st.button("INGRESAR") and m_in and n_in:
-            h = not os.path.exists("d.csv")
+            # GUARDADO LOCAL
             with open("d.csv", "a") as f:
-                if h: f.write("E,A,F,P\n")
-                f.write(f"{m_in.replace(',','')},{n_in.replace(',','')},0,0\n")
-            st.session_state.u = {"e": m_in, "a": n_in}; st.rerun()
+                if not os.path.exists("d.csv"): f.write("E,A,F,P\n")
+                f.write(f"{m_in.strip()},{n_in.strip()},0,0\n")
+            
+            # ASISTENCIA AUTOMÁTICA A GOOGLE (GRATIS)
+            try:
+                requests.get(f"{URL_APPS_SCRIPT}?email={m_in.strip()}")
+            except:
+                pass # Si falla el wifi no bloquea el ingreso del alumno
+
+            st.session_state.u = {"e": m_in.strip(), "a": n_in.strip()}; st.rerun()
     st.stop()
 
 # --- 6. LÓGICA DE USUARIO ---
@@ -115,7 +120,13 @@ reloj_on = (t_limite > ahora)
 if fase == 0:
     st.header("⚖️ Sala de Espera")
     st.write("Aguarde a que el Juez inicie la sesión.")
-    
+    # MOSTRAR COMPETIDORES A TODOS LOS ALUMNOS
+    st.subheader("👥 POSTULANTES EN SALA")
+    if not df_global.empty:
+        st.write(", ".join(df_global["A"].unique()))
+    else:
+        st.write("Esperando colegas...")
+
 elif fase == 10:
     st.header("📊 POSICIONES ACTUALES")
     if not df_global.empty:
@@ -128,36 +139,26 @@ elif fase == 99:
         total = df_global.groupby("A")["P"].sum().sort_values(ascending=False)
         idx = total.index.tolist()
         votos = total.values.tolist()
-        
-        # --- LÓGICA DE GLOBOS Y SONIDO DEL PODIO (DEVUELTA) ---
         if st.session_state.u['a'] in idx:
             puesto = idx.index(st.session_state.u['a']) + 1
             if puesto <= 3:
-                st.balloons() # ¡GLOBOS!
-                play_audio("ganador.mp3") # ¡FESTEJO!
-            else:
-                play_audio("bart.mp3") # ¡BART!
-        else:
-            play_audio("bart.mp3")
-
-        # --- PODIO VISUAL DORADO (DEVUELTO) ---
+                st.balloons(); play_audio("ganador.mp3")
+            else: play_audio("bart.mp3")
+        else: play_audio("bart.mp3")
         st.markdown("<br>", unsafe_allow_html=True)
         if len(idx) >= 1: st.markdown(f"<p class='oro'>🥇 {idx[0].upper()} ({int(votos[0])} pts)</p>", unsafe_allow_html=True)
         if len(idx) >= 2: st.markdown(f"<p class='plata'>🥈 {idx[1]} ({int(votos[1])} pts)</p>", unsafe_allow_html=True)
         if len(idx) >= 3: st.markdown(f"<p class='bronce'>🥉 {idx[2]} ({int(votos[2])} pts)</p>", unsafe_allow_html=True)
 
 else:
-    # --- BANCO DE PREGUNTAS ---
     banco = {1: {"q": "¿Cuál es la legítima de descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
              2: {"q": "¿Plazo para aceptar herencia?", "o": ["5 años", "10 años", "20 años"], "k": "10 años"},
              3: {"q": "¿Válido testamento ológrafo a máquina?", "o": ["No", "Sí"], "k": "No"}}
-    
     if ya_voto:
         st.success("✅ Veredicto registrado."); play_audio("votado.mp3")
     elif reloj_on:
         st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
         if int(t_limite - ahora) > 10: play_audio("suspenso.mp3")
-    
     st.write(f"### {banco[fase]['q']}")
     rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
     if not ya_voto and st.button("RESPONDER", disabled=not reloj_on):
