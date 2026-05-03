@@ -3,9 +3,9 @@ import pandas as pd
 import os
 import time
 import base64
-import requests # Necesaria para avisarle a Google Sheets
+import requests
 
-# --- 1. FUNCIÓN DE AUDIO (HTML PURO) ---
+# --- 1. FUNCIÓN DE AUDIO ---
 def play_audio(file_path):
     if os.path.exists(file_path):
         with open(file_path, "rb") as f:
@@ -14,14 +14,41 @@ def play_audio(file_path):
             md = f'<audio autoplay="true" style="display:none;"><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>'
             st.markdown(md, unsafe_allow_html=True)
 
-# --- 2. CONFIGURACIÓN ---
+# --- 2. CONFIGURACIÓN Y URL ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# COLOCÁ AQUÍ LA URL QUE TE DIO GOOGLE APPS SCRIPT
-URL_APPS_SCRIPT = "TU_URL_DE_APPS_SCRIPT_AQUI"
+# TU LINK DE GOOGLE APPS SCRIPT
+URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw2lL020VODloofb-og7k7ERWXBYo5oa3axf5fRkX_e3JgA7lLs9PObfxHWw-T88lg_/exec"
 
 if 'u' not in st.session_state: st.session_state.u = None
 if 'audio_ok' not in st.session_state: st.session_state.audio_ok = False
+
+# --- 3. GESTIÓN DE DATOS (ARRIBA PARA EVITAR NAMEERROR) ---
+def cargar_datos():
+    cols = ["E", "A", "F", "P"]
+    if not os.path.exists("d.csv"): 
+        return pd.DataFrame(columns=cols)
+    try:
+        df = pd.read_csv("d.csv", on_bad_lines='skip', engine='c')
+        for c in cols:
+            if c not in df.columns: df[c] = None
+        return df
+    except:
+        return pd.DataFrame(columns=cols)
+
+def leer_f():
+    if os.path.exists("f.txt"):
+        with open("f.txt", "r") as x: return x.read().strip().split(",")
+    return ["0", "0"]
+
+def escribir_f(fase, t_limite):
+    with open("f.txt", "w") as x: x.write(f"{fase},{t_limite}")
+
+# INICIALIZAMOS VARIABLES GLOBALES
+f_str, t_str = leer_f()
+fase, t_limite = int(f_str), float(t_str)
+df_global = cargar_datos()
+ahora = time.time()
 
 def aplicar_estilo():
     st.markdown("""
@@ -35,46 +62,17 @@ def aplicar_estilo():
         .reloj-juez { position: fixed; top: 30px; right: 30px; background: #C0392B; color: white !important; padding: 20px 40px; border-radius: 15px; font-size: 5rem; border: 4px solid #D4AF37; z-index: 9999; }
         .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; text-align: right; margin-bottom: 20px; }
         .oro { color: #FFD700 !important; font-size: 4rem !important; text-shadow: 0 0 15px gold; text-align: center; }
-        .plata { color: #C0C0C0 !important; font-size: 2.5rem !important; text-align: center; }
-        .bronce { color: #CD7F32 !important; font-size: 2rem !important; text-align: center; }
         </style>
         """, unsafe_allow_html=True)
 
 aplicar_estilo()
-
-# --- 3. DATOS (CORREGIDO) ---
-def cargar_datos():
-    cols = ["E", "A", "F", "P"]
-    if not os.path.exists("d.csv"): 
-        return pd.DataFrame(columns=cols)
-    try:
-        df = pd.read_csv("d.csv", on_bad_lines='skip', engine='c')
-        # Si por alguna razón el CSV no tiene las columnas, las creamos vacías
-        for c in cols:
-            if c not in df.columns:
-                df[c] = None
-        return df
-    except:
-        return pd.DataFrame(columns=cols)
-
-# ... (en la parte de ACCESO, donde se guarda el archivo) ...
-
-        if st.button("INGRESAR") and m_in and n_in:
-            email_limpio = m_in.strip().replace(',', '')
-            nombre_limpio = n_in.strip().replace(',', '')
-            
-            # GUARDADO LOCAL CON CABECERA SEGURA
-            archivo_existe = os.path.exists("d.csv")
-            with open("d.csv", "a") as f:
-                if not archivo_existe or os.stat("d.csv").st_size == 0:
-                    f.write("E,A,F,P\n")
-                f.write(f"{email_limpio},{nombre_limpio},0,0\n")
 
 # --- 4. PANEL ADMIN ---
 if st.query_params.get("admin") == "true":
     st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DEL JUEZ</h1>", unsafe_allow_html=True)
     clave = st.text_input("Clave:", type="password")
     if clave == "derecho2024":
+        # Evitamos NameError verificando que df_global exista
         inscriptos_list = df_global["A"].unique() if not df_global.empty else []
         st.write(f"### 👥 Alumnos en sala: {len(inscriptos_list)}")
         
@@ -99,7 +97,6 @@ if st.query_params.get("admin") == "true":
 if st.session_state.u is None:
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
     if not st.session_state.audio_ok:
-        st.write("### Bienvenido al Sistema de Sentencias")
         if st.button("⚖️ ENTRAR AL TRIBUNAL"):
             st.session_state.audio_ok = True; st.rerun()
     else:
@@ -107,18 +104,21 @@ if st.session_state.u is None:
         m_in = st.text_input("Email Académico:")
         n_in = st.text_input("Nombre y Apellido:")
         if st.button("INGRESAR") and m_in and n_in:
-            # GUARDADO LOCAL
-            with open("d.csv", "a") as f:
-                if not os.path.exists("d.csv"): f.write("E,A,F,P\n")
-                f.write(f"{m_in.strip()},{n_in.strip()},0,0\n")
+            email_limpio = m_in.strip().replace(',', '')
+            nombre_limpio = n_in.strip().replace(',', '')
             
-            # ASISTENCIA AUTOMÁTICA A GOOGLE (GRATIS)
-            try:
-                requests.get(f"{"https://script.google.com/macros/s/AKfycbw2lL020VODloofb-og7k7ERWXBYo5oa3axf5fRkX_e3JgA7lLs9PObfxHWw-T88lg_/exec"}?email={m_in.strip()}")
-            except:
-                pass # Si falla el wifi no bloquea el ingreso del alumno
+            # Guardado local seguro
+            archivo_existe = os.path.exists("d.csv")
+            with open("d.csv", "a") as f:
+                if not archivo_existe or os.stat("d.csv").st_size == 0:
+                    f.write("E,A,F,P\n")
+                f.write(f"{email_limpio},{nombre_limpio},0,0\n")
+            
+            # Asistencia Google Sheets
+            try: requests.get(f"https://script.google.com/macros/s/AKfycbw2lL020VODloofb-og7k7ERWXBYo5oa3axf5fRkX_e3JgA7lLs9PObfxHWw-T88lg_/exec", timeout=2)
+            except: pass
 
-            st.session_state.u = {"e": m_in.strip(), "a": n_in.strip()}; st.rerun()
+            st.session_state.u = {"e": email_limpio, "a": nombre_limpio}; st.rerun()
     st.stop()
 
 # --- 6. LÓGICA DE USUARIO ---
@@ -129,8 +129,6 @@ reloj_on = (t_limite > ahora)
 # --- 7. PANTALLAS ---
 if fase == 0:
     st.header("⚖️ Sala de Espera")
-    st.write("Aguarde a que el Juez inicie la sesión.")
-    # MOSTRAR COMPETIDORES A TODOS LOS ALUMNOS
     st.subheader("👥 POSTULANTES EN SALA")
     if not df_global.empty:
         st.write(", ".join(df_global["A"].unique()))
@@ -155,7 +153,6 @@ elif fase == 99:
                 st.balloons(); play_audio("ganador.mp3")
             else: play_audio("bart.mp3")
         else: play_audio("bart.mp3")
-        st.markdown("<br>", unsafe_allow_html=True)
         if len(idx) >= 1: st.markdown(f"<p class='oro'>🥇 {idx[0].upper()} ({int(votos[0])} pts)</p>", unsafe_allow_html=True)
         if len(idx) >= 2: st.markdown(f"<p class='plata'>🥈 {idx[1]} ({int(votos[1])} pts)</p>", unsafe_allow_html=True)
         if len(idx) >= 3: st.markdown(f"<p class='bronce'>🥉 {idx[2]} ({int(votos[2])} pts)</p>", unsafe_allow_html=True)
@@ -164,11 +161,13 @@ else:
     banco = {1: {"q": "¿Cuál es la legítima de descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
              2: {"q": "¿Plazo para aceptar herencia?", "o": ["5 años", "10 años", "20 años"], "k": "10 años"},
              3: {"q": "¿Válido testamento ológrafo a máquina?", "o": ["No", "Sí"], "k": "No"}}
+    
     if ya_voto:
-        st.success("✅ Opcion registrada."); play_audio("votado.mp3")
+        st.success("✅ Opcion registrado."); play_audio("votado.mp3")
     elif reloj_on:
         st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
         if int(t_limite - ahora) > 10: play_audio("suspenso.mp3")
+    
     st.write(f"### {banco[fase]['q']}")
     rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
     if not ya_voto and st.button("RESPONDER", disabled=not reloj_on):
