@@ -11,13 +11,14 @@ def play_audio(file_path):
         with open(file_path, "rb") as f:
             data = f.read()
             b64 = base64.b64encode(data).decode()
+            # Audio autoplay invisible
             md = f'<audio autoplay="true" style="display:none;"><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>'
             st.markdown(md, unsafe_allow_html=True)
 
 # --- 2. CONFIGURACIÓN Y URL ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# TU LINK DE GOOGLE APPS SCRIPT (Asegurate que termine en /exec)
+# TU LINK DE GOOGLE APPS SCRIPT
 URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw2lL020VODloofb-og7k7ERWXBYo5oa3axf5fRkX_e3JgA7lLs9PObfxHWw-T88lg_/exec"
 
 if 'u' not in st.session_state: st.session_state.u = None
@@ -51,6 +52,7 @@ df_global = cargar_datos()
 ahora = time.time()
 
 def aplicar_estilo():
+    # Estilos CSS generales
     st.markdown("""
         <style>
         header, [data-testid="stHeader"] { visibility: hidden !important; }
@@ -61,6 +63,21 @@ def aplicar_estilo():
         .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; border: 2px solid #FFFFFF !important; width: 100% !important; }
         .reloj-juez { position: fixed; top: 30px; right: 30px; background: #C0392B; color: white !important; padding: 20px 40px; border-radius: 15px; font-size: 5rem; border: 4px solid #D4AF37; z-index: 9999; }
         .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; text-align: right; margin-bottom: 20px; }
+        
+        /* Estilos específicos para el Podio Grande y Centrado */
+        .podio-final-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            margin-top: 50px;
+        }
+        .podio-item { margin: 15px 0; }
+        .oro-podio { color: #FFD700 !important; font-size: 5rem !important; text-shadow: 0 0 20px gold; font-weight: 900 !important; }
+        .plata-podio { color: #C0C0C0 !important; font-size: 3.5rem !important; text-shadow: 0 0 10px silver; }
+        .bronce-podio { color: #CD7F32 !important; font-size: 3rem !important; }
+        .sentencia-final-titulo { color: #D4AF37 !important; font-size: 4rem !important; text-transform: uppercase; font-weight: 900 !important; margin-bottom: 30px;}
         </style>
         """, unsafe_allow_html=True)
 
@@ -112,7 +129,7 @@ if st.session_state.u is None:
                     f.write("E,A,F,P\n")
                 f.write(f"{e_limpio},{n_limpio},0,0\n")
             
-            # Asistencia Google Sheets (Aumentamos el tiempo de espera)
+            # Asistencia Google Sheets
             try: requests.get(f"{URL_APPS_SCRIPT}?email={e_limpio}", timeout=5)
             except: pass
 
@@ -122,7 +139,7 @@ if st.session_state.u is None:
 # --- 6. LÓGICA DE USUARIO ---
 st.markdown(f"<div class='usuario-badge'>👤 Dr/a. <b>{st.session_state.u['a']}</b></div>", unsafe_allow_html=True)
 
-# ERROR CORREGIDO: Filtramos por el email del usuario actual para saber si ÉL ya votó
+# Verificamos si el usuario actual ya votó
 if not df_global.empty:
     ya_voto = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty
 else:
@@ -146,21 +163,32 @@ elif fase == 10:
         st.table(top)
         
 elif fase == 99:
-    st.header("🏆 SENTENCIA FINAL")
+    # --- PANTALLA DE PODIO FINAL CORREGIDA (GRANDE Y CENTRADA) ---
+    st.markdown('<div class="podio-final-container">', unsafe_allow_html=True)
+    st.markdown('<div class="sentencia-final-titulo">🏆 SENTENCIA FINAL</div>', unsafe_allow_html=True)
+    
     if not df_global.empty:
         total = df_global.groupby("A")["P"].sum().sort_values(ascending=False)
         idx = total.index.tolist()
         votos = total.values.tolist()
+        
+        # Globos y sonidos finales
         if st.session_state.u['a'] in idx:
             puesto = idx.index(st.session_state.u['a']) + 1
             if puesto <= 3:
                 st.balloons(); play_audio("ganador.mp3")
             else: play_audio("bart.mp3")
         else: play_audio("bart.mp3")
-        # Podio...
-        if len(idx) >= 1: st.markdown(f"🥇 **{idx[0].upper()}** ({int(votos[0])} pts)")
-        if len(idx) >= 2: st.markdown(f"🥈 {idx[1]} ({int(votos[1])} pts)")
-        if len(idx) >= 3: st.markdown(f"🥉 {idx[2]} ({int(votos[2])} pts)")
+        
+        # Renderizado del podio centralizado
+        if len(idx) >= 1: 
+            st.markdown(f'<div class="podio-item oro-podio">🥇 {idx[0].upper()} <span style="font-size:2.5rem;">({int(votos[0])} pts)</span></div>', unsafe_allow_html=True)
+        if len(idx) >= 2: 
+            st.markdown(f'<div class="podio-item plata-podio">🥈 {idx[1]} <span style="font-size:1.8rem;">({int(votos[1])} pts)</span></div>', unsafe_allow_html=True)
+        if len(idx) >= 3: 
+            st.markdown(f'<div class="podio-item bronce-podio">🥉 {idx[2]} <span style="font-size:1.5rem;">({int(votos[2])} pts)</span></div>', unsafe_allow_html=True)
+            
+    st.markdown('</div>', unsafe_allow_html=True)
 
 else:
     banco = {1: {"q": "¿Cuál es la legítima de descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
@@ -168,19 +196,24 @@ else:
              3: {"q": "¿Válido testamento ológrafo a máquina?", "o": ["No", "Sí"], "k": "No"}}
     
     if ya_voto:
-        st.success("✅ Veredicto registrado."); play_audio("votado.mp3")
+        st.success("✅ Veredicto registrado."); play_audio("votado.mp3") # Sonido de voto confirmado (neutro)
     elif reloj_on:
         st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
+        # El sonido de suspenso se mantiene
         if int(t_limite - ahora) > 10: play_audio("suspenso.mp3")
     
     st.write(f"### {banco[fase]['q']}")
     rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
+    
+    # --- AJUSTE DE SONIDO AL RESPONDER (SIN PISTAS) ---
     if not ya_voto and st.button("RESPONDER", disabled=not reloj_on):
         correcta = (rta == banco[fase]['k'])
         puntos = (100 + int(t_limite - ahora)*2) if correcta else 0
         with open("d.csv", "a") as f: 
             f.write(f"{st.session_state.u['e']},{st.session_state.u['a']},{fase},{puntos}\n")
-        play_audio("exito.mp3" if correcta else "error.mp3")
+        
+        # Eliminados los sonidos de exito.mp3 y error.mp3
+        # El rerun cargará la pantalla de 'Veredicto registrado' con su sonido neutro.
         time.sleep(0.5); st.rerun()
 
 time.sleep(1)
