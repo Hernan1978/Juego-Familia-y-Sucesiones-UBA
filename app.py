@@ -49,9 +49,10 @@ ahora = time.time()
 def aplicar_estilo():
     st.markdown("""
         <style>
-        header, [data-testid="stHeader"], [data-testid="stToolbar"] {
-            visibility: hidden !important;
+        /* BLOQUEO TOTAL DE INTERFAZ ESTÁNDAR */
+        header, [data-testid="stHeader"], [data-testid="stToolbar"], .st-emotion-cache-zq59db {
             display: none !important;
+            visibility: hidden !important;
         }
         
         .stApp { 
@@ -60,43 +61,42 @@ def aplicar_estilo():
             background-attachment: fixed; 
         }
         
+        /* CENTRADO DEL CONTENEDOR PRINCIPAL */
         .main .block-container { 
             background: rgba(0, 0, 0, 0.92) !important; 
             backdrop-filter: blur(15px); 
-            padding: 2rem 3rem !important; 
+            padding: 2rem !important; 
             border-radius: 20px !important; 
             border: 2px solid #D4AF37; 
-            margin-top: 10px;
+            max-width: 900px !important; /* Limita el ancho para que se vea como un cuadro central */
+            margin: 20px auto !important; /* MARGEN AUTO PARA CENTRAR HORIZONTALMENTE */
+            float: none !important;
         }
 
-        h1, h2, h3, h4, p, label, span, .stMarkdown { color: #FFFFFF !important; font-weight: 800 !important; text-shadow: 2px 2px 4px #000000 !important; }
+        h1, h2, h3, h4, p, label, span, .stMarkdown { color: #FFFFFF !important; font-weight: 800 !important; text-shadow: 2px 2px 4px #000000 !important; text-align: center !important; }
         .titulo-oro { color: #D4AF37 !important; font-size: 3rem !important; text-align: center; text-transform: uppercase; }
-        .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; border: 2px solid #FFFFFF !important; width: 100% !important; }
+        .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; border: 2px solid #FFFFFF !important; }
         
-        /* PODIO ELEVADO */
-        .podio-final-full-center {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start; /* Sube el contenido */
+        /* PODIO ESTILO JUZGADO */
+        .podio-wrapper {
+            display: block;
             text-align: center;
-            min-height: 80vh;
             width: 100%;
-            padding-top: 20px;
+            margin-top: 0px;
         }
-        .sentencia-final-titulo { color: #D4AF37 !important; font-size: 4.5rem !important; text-transform: uppercase; font-weight: 900 !important; margin-bottom: 20px; }
-        .oro-podio { color: #FFD700 !important; font-size: 5.5rem !important; text-shadow: 0 0 30px gold; font-weight: 900 !important; margin-bottom: 10px; }
-        .plata-podio { color: #C0C0C0 !important; font-size: 4rem !important; text-shadow: 0 0 15px silver; margin: 10px 0; }
-        .bronce-podio { color: #CD7F32 !important; font-size: 3rem !important; margin-top: 5px; }
+        .sentencia-final-titulo { color: #D4AF37 !important; font-size: 4rem !important; text-transform: uppercase; font-weight: 900 !important; margin-bottom: 20px; }
+        .oro-podio { color: #FFD700 !important; font-size: 5rem !important; text-shadow: 0 0 30px gold; font-weight: 900 !important; margin: 10px 0; }
+        .plata-podio { color: #C0C0C0 !important; font-size: 3.5rem !important; text-shadow: 0 0 15px silver; margin: 10px 0; }
+        .bronce-podio { color: #CD7F32 !important; font-size: 2.8rem !important; margin: 10px 0; }
         
         .reloj-juez { position: fixed; top: 30px; right: 30px; background: #C0392B; color: white !important; padding: 20px 40px; border-radius: 15px; font-size: 5rem; border: 4px solid #D4AF37; z-index: 9999; }
-        .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; text-align: right; margin-bottom: 15px; }
+        .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; text-align: center !important; margin-bottom: 20px; }
         
         .lista-competencia {
             background: rgba(255, 255, 255, 0.05);
             padding: 15px;
             border-radius: 10px;
-            border-left: 5px solid #D4AF37;
+            border: 1px solid #D4AF37;
             margin-top: 20px;
         }
         </style>
@@ -155,7 +155,6 @@ reloj_on = (t_limite > ahora)
 
 if fase == 0:
     st.header("⚖️ Sala de Espera")
-    st.write("Aguarde a que el Juez inicie la sesión.")
     st.markdown('<div class="lista-competencia">', unsafe_allow_html=True)
     st.subheader("👥 POSTULANTES EN SALA")
     if not df_global.empty:
@@ -172,8 +171,9 @@ elif fase == 10:
         st.table(top)
         
 elif fase == 99:
-    st.markdown('<div class="podio-final-full-center">', unsafe_allow_html=True)
-    st.markdown('<div class="sentencia-final-titulo">🏆 SENTENCIA FINAL 🏆</div>', unsafe_allow_html=True)
+    # --- PODIO CENTRADO ARRIBA ---
+    st.markdown('<div class="podio-wrapper">', unsafe_allow_html=True)
+    st.markdown('<div class="sentencia-final-titulo">🏆 SENTENCIA FINAL</div>', unsafe_allow_html=True)
     if not df_global.empty:
         total = df_global.groupby("A")["P"].sum().sort_values(ascending=False)
         idx, votos = total.index.tolist(), total.values.tolist()
