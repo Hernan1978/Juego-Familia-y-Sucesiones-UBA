@@ -17,13 +17,13 @@ def play_audio(file_path):
 # --- 2. CONFIGURACIÓN Y URL ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# TU LINK DE GOOGLE APPS SCRIPT
+# TU LINK DE GOOGLE APPS SCRIPT (Asegurate que termine en /exec)
 URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw2lL020VODloofb-og7k7ERWXBYo5oa3axf5fRkX_e3JgA7lLs9PObfxHWw-T88lg_/exec"
 
 if 'u' not in st.session_state: st.session_state.u = None
 if 'audio_ok' not in st.session_state: st.session_state.audio_ok = False
 
-# --- 3. GESTIÓN DE DATOS (ARRIBA PARA EVITAR NAMEERROR) ---
+# --- 3. GESTIÓN DE DATOS ---
 def cargar_datos():
     cols = ["E", "A", "F", "P"]
     if not os.path.exists("d.csv"): 
@@ -44,7 +44,7 @@ def leer_f():
 def escribir_f(fase, t_limite):
     with open("f.txt", "w") as x: x.write(f"{fase},{t_limite}")
 
-# INICIALIZAMOS VARIABLES GLOBALES
+# INICIALIZAMOS VARIABLES
 f_str, t_str = leer_f()
 fase, t_limite = int(f_str), float(t_str)
 df_global = cargar_datos()
@@ -61,7 +61,6 @@ def aplicar_estilo():
         .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; border: 2px solid #FFFFFF !important; width: 100% !important; }
         .reloj-juez { position: fixed; top: 30px; right: 30px; background: #C0392B; color: white !important; padding: 20px 40px; border-radius: 15px; font-size: 5rem; border: 4px solid #D4AF37; z-index: 9999; }
         .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; text-align: right; margin-bottom: 20px; }
-        .oro { color: #FFD700 !important; font-size: 4rem !important; text-shadow: 0 0 15px gold; text-align: center; }
         </style>
         """, unsafe_allow_html=True)
 
@@ -72,7 +71,6 @@ if st.query_params.get("admin") == "true":
     st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DEL JUEZ</h1>", unsafe_allow_html=True)
     clave = st.text_input("Clave:", type="password")
     if clave == "derecho2024":
-        # Evitamos NameError verificando que df_global exista
         inscriptos_list = df_global["A"].unique() if not df_global.empty else []
         st.write(f"### 👥 Alumnos en sala: {len(inscriptos_list)}")
         
@@ -104,26 +102,32 @@ if st.session_state.u is None:
         m_in = st.text_input("Email Académico:")
         n_in = st.text_input("Nombre y Apellido:")
         if st.button("INGRESAR") and m_in and n_in:
-            email_limpio = m_in.strip().replace(',', '')
-            nombre_limpio = n_in.strip().replace(',', '')
+            e_limpio = m_in.strip().lower()
+            n_limpio = n_in.strip().replace(',', '')
             
-            # Guardado local seguro
+            # Guardado local
             archivo_existe = os.path.exists("d.csv")
             with open("d.csv", "a") as f:
                 if not archivo_existe or os.stat("d.csv").st_size == 0:
                     f.write("E,A,F,P\n")
-                f.write(f"{email_limpio},{nombre_limpio},0,0\n")
+                f.write(f"{e_limpio},{n_limpio},0,0\n")
             
-            # Asistencia Google Sheets
-            try: requests.get(f"https://script.google.com/macros/s/AKfycbw2lL020VODloofb-og7k7ERWXBYo5oa3axf5fRkX_e3JgA7lLs9PObfxHWw-T88lg_/exec", timeout=2)
+            # Asistencia Google Sheets (Aumentamos el tiempo de espera)
+            try: requests.get(f"{URL_APPS_SCRIPT}?email={e_limpio}", timeout=5)
             except: pass
 
-            st.session_state.u = {"e": email_limpio, "a": nombre_limpio}; st.rerun()
+            st.session_state.u = {"e": e_limpio, "a": n_limpio}; st.rerun()
     st.stop()
 
 # --- 6. LÓGICA DE USUARIO ---
 st.markdown(f"<div class='usuario-badge'>👤 Dr/a. <b>{st.session_state.u['a']}</b></div>", unsafe_allow_html=True)
-ya_voto = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty if not df_global.empty else False
+
+# ERROR CORREGIDO: Filtramos por el email del usuario actual para saber si ÉL ya votó
+if not df_global.empty:
+    ya_voto = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty
+else:
+    ya_voto = False
+
 reloj_on = (t_limite > ahora)
 
 # --- 7. PANTALLAS ---
@@ -153,9 +157,10 @@ elif fase == 99:
                 st.balloons(); play_audio("ganador.mp3")
             else: play_audio("bart.mp3")
         else: play_audio("bart.mp3")
-        if len(idx) >= 1: st.markdown(f"<p class='oro'>🥇 {idx[0].upper()} ({int(votos[0])} pts)</p>", unsafe_allow_html=True)
-        if len(idx) >= 2: st.markdown(f"<p class='plata'>🥈 {idx[1]} ({int(votos[1])} pts)</p>", unsafe_allow_html=True)
-        if len(idx) >= 3: st.markdown(f"<p class='bronce'>🥉 {idx[2]} ({int(votos[2])} pts)</p>", unsafe_allow_html=True)
+        # Podio...
+        if len(idx) >= 1: st.markdown(f"🥇 **{idx[0].upper()}** ({int(votos[0])} pts)")
+        if len(idx) >= 2: st.markdown(f"🥈 {idx[1]} ({int(votos[1])} pts)")
+        if len(idx) >= 3: st.markdown(f"🥉 {idx[2]} ({int(votos[2])} pts)")
 
 else:
     banco = {1: {"q": "¿Cuál es la legítima de descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
@@ -163,7 +168,7 @@ else:
              3: {"q": "¿Válido testamento ológrafo a máquina?", "o": ["No", "Sí"], "k": "No"}}
     
     if ya_voto:
-        st.success("✅ Opcion registrado."); play_audio("votado.mp3")
+        st.success("✅ Veredicto registrado."); play_audio("votado.mp3")
     elif reloj_on:
         st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
         if int(t_limite - ahora) > 10: play_audio("suspenso.mp3")
@@ -172,8 +177,9 @@ else:
     rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
     if not ya_voto and st.button("RESPONDER", disabled=not reloj_on):
         correcta = (rta == banco[fase]['k'])
-        pts = (100 + int(t_limite - ahora)*2) if correcta else 0
-        with open("d.csv", "a") as f: f.write(f"{st.session_state.u['e']},{st.session_state.u['a']},{fase},{pts}\n")
+        puntos = (100 + int(t_limite - ahora)*2) if correcta else 0
+        with open("d.csv", "a") as f: 
+            f.write(f"{st.session_state.u['e']},{st.session_state.u['a']},{fase},{puntos}\n")
         play_audio("exito.mp3" if correcta else "error.mp3")
         time.sleep(0.5); st.rerun()
 
