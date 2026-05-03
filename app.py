@@ -91,6 +91,15 @@ def aplicar_estilo():
         
         .reloj-juez { position: fixed; top: 30px; right: 30px; background: #C0392B; color: white !important; padding: 20px 40px; border-radius: 15px; font-size: 5rem; border: 4px solid #D4AF37; z-index: 9999; }
         .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; text-align: right; margin-bottom: 20px; }
+        
+        /* LISTADO DE ALUMNOS COMPETENCIA */
+        .lista-competencia {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 5px solid #D4AF37;
+            margin-top: 20px;
+        }
         </style>
         """, unsafe_allow_html=True)
 
@@ -147,9 +156,17 @@ reloj_on = (t_limite > ahora)
 
 if fase == 0:
     st.header("⚖️ Sala de Espera")
+    st.write("Aguarde a que el Juez inicie la sesión.")
+    
+    # --- LISTADO RESTAURADO ---
+    st.markdown('<div class="lista-competencia">', unsafe_allow_html=True)
     st.subheader("👥 POSTULANTES EN SALA")
-    if not df_global.empty: st.write(", ".join(df_global["A"].unique()))
-    else: st.write("Esperando colegas...")
+    if not df_global.empty:
+        nombres = df_global["A"].unique()
+        st.write(", ".join(nombres))
+    else:
+        st.write("Esperando colegas...")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 elif fase == 10:
     st.header("📊 POSICIONES ACTUALES")
