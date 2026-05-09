@@ -13,7 +13,7 @@ def play_audio(file_path):
             st.session_state.last_audio_time = 0
         
         # Mantenemos el bloqueo de saturación pero sumamos control de volumen
-        if ahora - st.session_state.last_audio_time > 0.3:
+        if ahora - st.session_state.last_audio_time > 0.1:
             with open(file_path, "rb") as f:
                 data = f.read()
                 b64 = base64.b64encode(data).decode()
