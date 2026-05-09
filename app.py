@@ -15,7 +15,7 @@ def play_audio(file_path):
             st.markdown(md, unsafe_allow_html=True)
 
 # --- 2. CONFIGURACIÓN Y URL ---
-st.set_page_config(page_title="LexPlay UBA", layout="wide")
+st.set_page_config(page_title="DESAFIO JURIDICO UBA", layout="wide")
 
 URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw2lL020VODloofb-og7k7ERWXBYo5oa3axf5fRkX_e3JgA7lLs9PObfxHWw-T88lg_/exec"
 
