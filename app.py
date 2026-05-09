@@ -5,7 +5,7 @@ import time
 import base64
 import requests
 
-# --- 1. FUNCIÓN DE AUDIO CON VOLUMEN FIJO (0.5) ---
+# --- 1. FUNCIÓN DE AUDIO CON VOLUMEN FIJO (0.2) ---
 def play_audio(file_path):
     if os.path.exists(file_path):
         ahora = time.time()
