@@ -5,7 +5,7 @@ import time
 import base64
 import requests
 
-# --- 1. FUNCIÓN DE AUDIO CON VOLUMEN FIJO (0.2) ---
+# --- 1. FUNCIÓN DE AUDIO CON VOLUMEN FIJO (0.5) ---
 def play_audio(file_path):
     if os.path.exists(file_path):
         ahora = time.time()
@@ -25,7 +25,7 @@ def play_audio(file_path):
                     </audio>
                     <script>
                         var audio = document.getElementById("{audio_id}");
-                        audio.volume = 0.5; 
+                        audio.volume = 0.2; 
                     </script>
                 """
                 st.markdown(md, unsafe_allow_html=True)
