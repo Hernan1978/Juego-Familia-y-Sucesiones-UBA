@@ -5,17 +5,34 @@ import time
 import base64
 import requests
 
-# --- 1. FUNCIÓN DE AUDIO ---
+# --- 1. FUNCIÓN DE AUDIO CON VOLUMEN FIJO (0.5) ---
 def play_audio(file_path):
     if os.path.exists(file_path):
-        with open(file_path, "rb") as f:
-            data = f.read()
-            b64 = base64.b64encode(data).decode()
-            md = f'<audio autoplay="true" style="display:none;"><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>'
-            st.markdown(md, unsafe_allow_html=True)
+        ahora = time.time()
+        if 'last_audio_time' not in st.session_state:
+            st.session_state.last_audio_time = 0
+        
+        # Mantenemos el bloqueo de saturación pero sumamos control de volumen
+        if ahora - st.session_state.last_audio_time > 0.8:
+            with open(file_path, "rb") as f:
+                data = f.read()
+                b64 = base64.b64encode(data).decode()
+                # El script id='aud' y el script siguiente fuerzan el volumen a 0.5 (50%)
+                audio_id = f"audio_{int(ahora)}"
+                md = f"""
+                    <audio id="{audio_id}" autoplay="true" style="display:none;">
+                        <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+                    </audio>
+                    <script>
+                        var audio = document.getElementById("{audio_id}");
+                        audio.volume = 0.5; 
+                    </script>
+                """
+                st.markdown(md, unsafe_allow_html=True)
+                st.session_state.last_audio_time = ahora
 
 # --- 2. CONFIGURACIÓN Y URL ---
-st.set_page_config(page_title="DESAFIO JURIDICO UBA", layout="wide")
+st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
 URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw2lL020VODloofb-og7k7ERWXBYo5oa3axf5fRkX_e3JgA7lLs9PObfxHWw-T88lg_/exec"
 
@@ -49,55 +66,42 @@ ahora = time.time()
 def aplicar_estilo():
     st.markdown("""
         <style>
-        /* BLOQUEO TOTAL DE INTERFAZ ESTÁNDAR */
-        header, [data-testid="stHeader"], [data-testid="stToolbar"], .st-emotion-cache-zq59db {
+        header, [data-testid="stHeader"], [data-testid="stToolbar"] {
             display: none !important;
             visibility: hidden !important;
         }
-        
         .stApp { 
             background-image: url("https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"); 
             background-size: cover; 
             background-attachment: fixed; 
         }
-        
-        /* CENTRADO DEL CONTENEDOR PRINCIPAL */
         .main .block-container { 
-            background: rgba(0, 0, 0, 0.92) !important; 
+            background: rgba(0, 0, 0, 0.93) !important; 
             backdrop-filter: blur(15px); 
-            padding: 2rem !important; 
+            padding: 2.5rem !important; 
             border-radius: 20px !important; 
             border: 2px solid #D4AF37; 
-            max-width: 900px !important; /* Limita el ancho para que se vea como un cuadro central */
-            margin: 20px auto !important; /* MARGEN AUTO PARA CENTRAR HORIZONTALMENTE */
+            max-width: 950px !important; 
+            margin: 20px auto !important; 
             float: none !important;
+            text-align: center !important;
         }
-
         h1, h2, h3, h4, p, label, span, .stMarkdown { color: #FFFFFF !important; font-weight: 800 !important; text-shadow: 2px 2px 4px #000000 !important; text-align: center !important; }
-        .titulo-oro { color: #D4AF37 !important; font-size: 3rem !important; text-align: center; text-transform: uppercase; }
+        .titulo-oro { color: #D4AF37 !important; font-size: 3rem !important; text-transform: uppercase; margin-bottom: 20px; }
         .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; border: 2px solid #FFFFFF !important; }
-        
-        /* PODIO ESTILO JUZGADO */
-        .podio-wrapper {
-            display: block;
-            text-align: center;
-            width: 100%;
-            margin-top: 0px;
-        }
-        .sentencia-final-titulo { color: #D4AF37 !important; font-size: 4rem !important; text-transform: uppercase; font-weight: 900 !important; margin-bottom: 20px; }
-        .oro-podio { color: #FFD700 !important; font-size: 5rem !important; text-shadow: 0 0 30px gold; font-weight: 900 !important; margin: 10px 0; }
-        .plata-podio { color: #C0C0C0 !important; font-size: 3.5rem !important; text-shadow: 0 0 15px silver; margin: 10px 0; }
-        .bronce-podio { color: #CD7F32 !important; font-size: 2.8rem !important; margin: 10px 0; }
-        
+        .podio-item { margin: 15px 0; display: block; width: 100%; }
+        .oro-p { color: #FFD700 !important; font-size: 5.5rem !important; text-shadow: 0 0 30px gold; font-weight: 900 !important; }
+        .plata-p { color: #C0C0C0 !important; font-size: 4rem !important; text-shadow: 0 0 15px silver; }
+        .bronce-p { color: #CD7F32 !important; font-size: 3rem !important; }
         .reloj-juez { position: fixed; top: 30px; right: 30px; background: #C0392B; color: white !important; padding: 20px 40px; border-radius: 15px; font-size: 5rem; border: 4px solid #D4AF37; z-index: 9999; }
-        .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; text-align: center !important; margin-bottom: 20px; }
-        
-        .lista-competencia {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 15px;
-            border-radius: 10px;
+        .usuario-badge { background: rgba(212, 175, 55, 0.2); padding: 10px 20px; border-radius: 10px; border: 1px solid #D4AF37; margin-bottom: 25px; display: inline-block; width: 100%; }
+        .caja-asistentes {
+            background: rgba(255, 255, 255, 0.07);
+            padding: 20px;
+            border-radius: 15px;
             border: 1px solid #D4AF37;
-            margin-top: 20px;
+            margin-top: 30px;
+            text-align: center !important;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -130,7 +134,7 @@ if st.query_params.get("admin") == "true":
 
 # --- 5. ACCESO ---
 if st.session_state.u is None:
-    st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='titulo-oro'>🏛️ DESAFIO JURIDICO UBA</h1>", unsafe_allow_html=True)
     if not st.session_state.audio_ok:
         if st.button("⚖️ ENTRAR AL TRIBUNAL"):
             st.session_state.audio_ok = True; st.rerun()
@@ -154,14 +158,14 @@ ya_voto = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global
 reloj_on = (t_limite > ahora)
 
 if fase == 0:
-    st.header("⚖️ Sala de Espera")
-    st.markdown('<div class="lista-competencia">', unsafe_allow_html=True)
-    st.subheader("👥 PARTICIPANTES EN LA SALA")
+    st.header("⚖️ SALA DE ESPERA")
+    st.markdown('<div class="caja-asistentes">', unsafe_allow_html=True)
+    st.subheader("👥 COLEGAS EN SALA (COMPETENCIA)")
     if not df_global.empty:
         nombres = df_global["A"].unique()
         st.write(", ".join(nombres))
     else:
-        st.write("Esperando colegas...")
+        st.write("Esperando que ingresen los postulantes...")
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif fase == 10:
@@ -171,9 +175,7 @@ elif fase == 10:
         st.table(top)
         
 elif fase == 99:
-    # --- PODIO CENTRADO ARRIBA ---
-    st.markdown('<div class="podio-wrapper">', unsafe_allow_html=True)
-    st.markdown('<div class="sentencia-final-titulo">🏆 SENTENCIA FINAL</div>', unsafe_allow_html=True)
+    st.markdown('<h1 style="color:#D4AF37; font-size:4rem; margin-bottom:30px;">🏆 SENTENCIA FINAL</h1>', unsafe_allow_html=True)
     if not df_global.empty:
         total = df_global.groupby("A")["P"].sum().sort_values(ascending=False)
         idx, votos = total.index.tolist(), total.values.tolist()
@@ -181,17 +183,17 @@ elif fase == 99:
             if idx.index(st.session_state.u['a']) < 3:
                 st.balloons(); play_audio("ganador.mp3")
             else: play_audio("bart.mp3")
-        if len(idx) >= 1: st.markdown(f'<div class="oro-podio">🥇 {idx[0].upper()} ({int(votos[0])} pts)</div>', unsafe_allow_html=True)
-        if len(idx) >= 2: st.markdown(f'<div class="plata-podio">🥈 {idx[1]} ({int(votos[1])} pts)</div>', unsafe_allow_html=True)
-        if len(idx) >= 3: st.markdown(f'<div class="bronce-podio">🥉 {idx[2]} ({int(votos[2])} pts)</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+        
+        if len(idx) >= 1: st.markdown(f'<div class="podio-item oro-p">🥇 {idx[0].upper()} <br><span style="font-size:2rem;">({int(votos[0])} pts)</span></div>', unsafe_allow_html=True)
+        if len(idx) >= 2: st.markdown(f'<div class="podio-item plata-p">🥈 {idx[1]} <br><span style="font-size:1.5rem;">({int(votos[1])} pts)</span></div>', unsafe_allow_html=True)
+        if len(idx) >= 3: st.markdown(f'<div class="podio-item bronce-p">🥉 {idx[2]} <br><span style="font-size:1.2rem;">({int(votos[2])} pts)</span></div>', unsafe_allow_html=True)
 
 else:
     banco = {1: {"q": "¿Cuál es la legítima de descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
              2: {"q": "¿Plazo para aceptar herencia?", "o": ["5 años", "10 años", "20 años"], "k": "10 años"},
              3: {"q": "¿Válido testamento ológrafo a máquina?", "o": ["No", "Sí"], "k": "No"}}
     if ya_voto:
-        st.success("✅ Voto registrado."); play_audio("votado.mp3")
+        st.success("✅ Veredicto registrado."); play_audio("votado.mp3")
     elif reloj_on:
         st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
         if int(t_limite - ahora) > 10: play_audio("suspenso.mp3")
