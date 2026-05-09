@@ -25,7 +25,7 @@ def play_audio(file_path):
                     </audio>
                     <script>
                         var audio = document.getElementById("{audio_id}");
-                        audio.volume = 0.2; 
+                        audio.volume = 0.1; 
                     </script>
                 """
                 st.markdown(md, unsafe_allow_html=True)
