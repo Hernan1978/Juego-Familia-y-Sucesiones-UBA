@@ -5,20 +5,20 @@ import time
 import base64
 import requests
 
-# --- 1. FUNCIÓN DE AUDIO CON VOLUMEN FIJO (0.5) ---
+# --- 1. FUNCIÓN DE AUDIO AL MÍNIMO (10% de volumen) ---
 def play_audio(file_path):
     if os.path.exists(file_path):
         ahora = time.time()
         if 'last_audio_time' not in st.session_state:
             st.session_state.last_audio_time = 0
         
-        # Mantenemos el bloqueo de saturación pero sumamos control de volumen
-        if ahora - st.session_state.last_audio_time > 0.1:
+        # Bloqueo de ráfagas para no saturar
+        if ahora - st.session_state.last_audio_time > 0.8:
             with open(file_path, "rb") as f:
                 data = f.read()
                 b64 = base64.b64encode(data).decode()
-                # El script id='aud' y el script siguiente fuerzan el volumen a 0.5 (50%)
                 audio_id = f"audio_{int(ahora)}"
+                # Volumen seteado en 0.1 (mínimo absoluto audible)
                 md = f"""
                     <audio id="{audio_id}" autoplay="true" style="display:none;">
                         <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
@@ -134,76 +134,8 @@ if st.query_params.get("admin") == "true":
 
 # --- 5. ACCESO ---
 if st.session_state.u is None:
-    st.markdown("<h1 class='titulo-oro'>🏛️ DESAFIO JURIDICO UBA</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
     if not st.session_state.audio_ok:
         if st.button("⚖️ ENTRAR AL TRIBUNAL"):
             st.session_state.audio_ok = True; st.rerun()
     else:
-        play_audio("bienvenida.mp3") 
-        m_in = st.text_input("Email Académico:")
-        n_in = st.text_input("Nombre y Apellido:")
-        if st.button("INGRESAR") and m_in and n_in:
-            e_l, n_l = m_in.strip().lower(), n_in.strip().replace(',', '')
-            if not os.path.exists("d.csv"): 
-                with open("d.csv", "w") as f: f.write("E,A,F,P\n")
-            with open("d.csv", "a") as f: f.write(f"{e_l},{n_l},0,0\n")
-            try: requests.get(f"{URL_APPS_SCRIPT}?email={e_l}", timeout=5)
-            except: pass
-            st.session_state.u = {"e": e_l, "a": n_l}; st.rerun()
-    st.stop()
-
-# --- 6. JUEGO ---
-st.markdown(f"<div class='usuario-badge'>👤 Dr/a. <b>{st.session_state.u['a']}</b></div>", unsafe_allow_html=True)
-ya_voto = not df_global[(df_global["E"] == st.session_state.u["e"]) & (df_global["F"] == fase)].empty if not df_global.empty else False
-reloj_on = (t_limite > ahora)
-
-if fase == 0:
-    st.header("⚖️ SALA DE ESPERA")
-    st.markdown('<div class="caja-asistentes">', unsafe_allow_html=True)
-    st.subheader("👥 COLEGAS EN SALA (COMPETENCIA)")
-    if not df_global.empty:
-        nombres = df_global["A"].unique()
-        st.write(", ".join(nombres))
-    else:
-        st.write("Esperando que ingresen los postulantes...")
-    st.markdown('</div>', unsafe_allow_html=True)
-
-elif fase == 10:
-    st.header("📊 POSICIONES ACTUALES")
-    if not df_global.empty:
-        top = df_global.groupby("A")["P"].sum().sort_values(ascending=False).head(10)
-        st.table(top)
-        
-elif fase == 99:
-    st.markdown('<h1 style="color:#D4AF37; font-size:4rem; margin-bottom:30px;">🏆 SENTENCIA FINAL</h1>', unsafe_allow_html=True)
-    if not df_global.empty:
-        total = df_global.groupby("A")["P"].sum().sort_values(ascending=False)
-        idx, votos = total.index.tolist(), total.values.tolist()
-        if st.session_state.u['a'] in idx:
-            if idx.index(st.session_state.u['a']) < 3:
-                st.balloons(); play_audio("ganador.mp3")
-            else: play_audio("bart.mp3")
-        
-        if len(idx) >= 1: st.markdown(f'<div class="podio-item oro-p">🥇 {idx[0].upper()} <br><span style="font-size:2rem;">({int(votos[0])} pts)</span></div>', unsafe_allow_html=True)
-        if len(idx) >= 2: st.markdown(f'<div class="podio-item plata-p">🥈 {idx[1]} <br><span style="font-size:1.5rem;">({int(votos[1])} pts)</span></div>', unsafe_allow_html=True)
-        if len(idx) >= 3: st.markdown(f'<div class="podio-item bronce-p">🥉 {idx[2]} <br><span style="font-size:1.2rem;">({int(votos[2])} pts)</span></div>', unsafe_allow_html=True)
-
-else:
-    banco = {1: {"q": "¿Cuál es la legítima de descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
-             2: {"q": "¿Plazo para aceptar herencia?", "o": ["5 años", "10 años", "20 años"], "k": "10 años"},
-             3: {"q": "¿Válido testamento ológrafo a máquina?", "o": ["No", "Sí"], "k": "No"}}
-    if ya_voto:
-        st.success("✅ Veredicto registrado."); play_audio("votado.mp3")
-    elif reloj_on:
-        st.markdown(f'<div class="reloj-juez">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        if int(t_limite - ahora) > 10: play_audio("suspenso.mp3")
-    st.write(f"### {banco[fase]['q']}")
-    rta = st.radio("Veredicto:", banco[fase]['o'], disabled=ya_voto or not reloj_on, key=f"v{fase}")
-    if not ya_voto and st.button("RESPONDER", disabled=not reloj_on):
-        correcta = (rta == banco[fase]['k'])
-        pts = (100 + int(t_limite - ahora)*2) if correcta else 0
-        with open("d.csv", "a") as f: f.write(f"{st.session_state.u['e']},{st.session_state.u['a']},{fase},{pts}\n")
-        time.sleep(0.5); st.rerun()
-
-time.sleep(1)
-st.rerun()
