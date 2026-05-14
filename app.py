@@ -35,7 +35,9 @@ st.markdown("""
     .titulo-oro { color: #D4AF37 !important; font-size: 3.5rem !important; text-transform: uppercase; }
     .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; width: 100%; border: 1px solid #FFFFFF; height: 3.5em; }
     .reloj-float { position: fixed; top: 20px; right: 20px; background: #C0392B; color: white !important; padding: 15px 25px; border-radius: 10px; font-size: 3.5rem; border: 3px solid #D4AF37; z-index: 9999; }
-    .podio-oro { font-size: 2.5rem; padding: 20px; border: 3px solid #D4AF37; background: rgba(212, 175, 55, 0.3); border-radius: 15px; }
+    .podio-oro { font-size: 2.5rem; padding: 20px; border: 4px solid #D4AF37; background: rgba(212, 175, 55, 0.3); border-radius: 15px; margin-bottom: 10px; }
+    .podio-plata { font-size: 1.8rem; padding: 15px; border: 3px solid #C0C0C0; background: rgba(192, 192, 192, 0.2); border-radius: 12px; margin-bottom: 8px; }
+    .podio-bronce { font-size: 1.5rem; padding: 10px; border: 3px solid #CD7F32; background: rgba(205, 127, 50, 0.2); border-radius: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -77,7 +79,6 @@ ahora = time.time()
 # --- PANEL JUEZ ---
 if st.session_state.user["tipo"] == "juez":
     st.markdown("<h1 class='titulo-oro'>⚖️ ESTRADOS DEL JUEZ</h1>", unsafe_allow_html=True)
-    
     with st.expander("👥 ASISTENCIA Y BANCO", expanded=True):
         col_a, col_b = st.columns(2)
         with col_a:
@@ -85,44 +86,60 @@ if st.session_state.user["tipo"] == "juez":
             st.download_button("📥 DESCARGAR CSV", df_global.to_csv(index=False), "asistencia.csv")
         with col_b:
             for k, v in banco.items(): st.write(f"**{k}:** {v['q']}")
-
     col1, col2, col3 = st.columns(3)
     with col1:
-        f_sel = st.selectbox("Cambiar a Fase:", [0, 1, 2, 3, 4, 88, 99], 
-                             format_func=lambda x: {0:"Espera", 1:"P 1", 2:"P 2", 3:"P 3", 4:"P 4", 88:"RESULTADOS PARCIALES", 99:"RESULTADOS FINALES"}[x])
-        if st.button("📢 CAMBIAR AHORA"): 
-            escribir_f(f_sel, "0")
-            st.rerun()
+        f_sel = st.selectbox("Cambiar a Fase:", [0, 1, 2, 3, 4, 88, 99], format_func=lambda x: {0:"Espera", 1:"P 1", 2:"P 2", 3:"P 3", 4:"P 4", 88:"RESULTADOS PARCIALES", 99:"RESULTADOS FINALES"}[x])
+        if st.button("📢 CAMBIAR AHORA"): escribir_f(f_sel, "0"); st.rerun()
     with col2:
         t_set = st.number_input("Segundos:", 5, 60, 25)
-        if st.button("⏱️ ACTIVAR RELOJ"): 
-            escribir_f(fase_serv, str(time.time() + t_set))
-            st.rerun()
+        if st.button("⏱️ ACTIVAR RELOJ"): escribir_f(fase_serv, str(time.time() + t_set)); st.rerun()
     with col3:
         if st.button("⚠️ REINICIAR TODO"):
             if os.path.exists("d.csv"): os.remove("d.csv")
             escribir_f(0,0); st.rerun()
-            
-    # --- BOTÓN DE REFRESCO PARA EL DOCENTE ---
-    if st.button("🔄 REFRESCAR SISTEMA"):
-        st.cache_data.clear()
-        st.rerun()
-    
+    if st.button("🔄 REFRESCAR SISTEMA"): st.cache_data.clear(); st.rerun()
     st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False))
 
 # --- PANEL ALUMNO ---
 else:
-    if st.session_state.f_ok != fase_serv and fase_serv not in [88, 99]:
-        st.session_state.f_ok = -2 
-
+    if st.session_state.f_ok != fase_serv and fase_serv not in [88, 99]: st.session_state.f_ok = -2 
     ha_votado = (st.session_state.f_ok == fase_serv)
     reloj_activo = t_limite > ahora and not ha_votado
-    
     if reloj_activo:
         st.markdown(f'<div class="reloj-float">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
         st.components.v1.html('<iframe src="https://www.soundjay.com/clock/sounds/clock-ticking-4.mp3" allow="autoplay" style="display:none"></iframe>', height=0)
-
     if fase_serv in banco:
-        p = banco[fase_serv]
-        st.write(f"👤 {st.session_state.user['g']} {st.session_state.user['a']}")
-        st.
+        p = banco[fase_serv]; st.write(f"👤 {st.session_state.user['g']} {st.session_state.user['a']}")
+        st.markdown(f"## {p['q']}")
+        opcion = st.radio("Veredicto:", p["o"], key=f"ans_{fase_serv}", disabled=ha_votado)
+        if st.button("ENVIAR RESPUESTA", disabled=not (t_limite > ahora) or ha_votado):
+            if opcion == p["k"]:
+                pts = 10 + min(int(t_limite - ahora), 10)
+                df_u = cargar_datos(); df_u.loc[df_u['E'] == st.session_state.user['e'], 'P'] += pts
+                df_u.to_csv("d.csv", index=False); st.success(f"✅ ¡Correcto! +{pts}")
+            else: st.error("❌ Incorrecto")
+            st.session_state.f_ok = fase_serv; st.rerun()
+        if reloj_activo: time.sleep(1); st.rerun()
+        else: time.sleep(1.5); st.rerun()
+    elif fase_serv == 88:
+        st.markdown("### 📊 POSICIONES PARCIALES")
+        st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False).head(10))
+        time.sleep(3); st.rerun()
+    elif fase_serv == 99:
+        st.balloons(); st.snow()
+        st.components.v1.html('<iframe src="https://www.soundjay.com/human/sounds/applause-01.mp3" allow="autoplay" style="display:none"></iframe>', height=0)
+        podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
+        if podio:
+            st.markdown("<h1 class='titulo-oro'>🚀 PODIO FINAL 🚀</h1>", unsafe_allow_html=True)
+            # 🥇 ORO (Imagen + Detalle)
+            img = "https://raw.githubusercontent.com/fede-999/images/main/ganadora_mujer.png" if podio[0][4] == "Dra." else "https://raw.githubusercontent.com/fede-999/images/main/ganador_hombre.png"
+            st.image(img, width=300)
+            st.markdown(f"<div class='podio-oro'>🥇 ORO: {podio[0][1]}<br>{int(podio[0][3])} PTS</div>", unsafe_allow_html=True)
+            # 🥈 PLATA
+            if len(podio) > 1: st.markdown(f"<div class='podio-plata'>🥈 PLATA: {podio[1][1]} ({int(podio[1][3])} PTS)</div>", unsafe_allow_html=True)
+            # 🥉 BRONCE
+            if len(podio) > 2: st.markdown(f"<div class='podio-bronce'>🥉 BRONCE: {podio[2][1]} ({int(podio[2][3])} PTS)</div>", unsafe_allow_html=True)
+    else:
+        st.info("⚖️ En espera del Tribunal..."); time.sleep(2); st.rerun()
+    st.divider()
+    if st.button("🚪 SALIR"): st.session_state.user = None; st.rerun()
