@@ -22,7 +22,7 @@ def leer_f():
 def escribir_f(fase, t_limite):
     with open("f.txt", "w") as x:
         x.write(f"{fase},{t_limite}")
-    st.cache_data.clear() # Limpia la memoria para que el cambio sea instantáneo
+    st.cache_data.clear()
 
 # --- 2. ESTILOS ---
 st.markdown("""
@@ -80,8 +80,13 @@ ahora = time.time()
 if st.session_state.user["tipo"] == "juez":
     st.markdown("<h1 class='titulo-oro'>⚖️ ESTRADOS DEL JUEZ</h1>", unsafe_allow_html=True)
     
-    if not df_global.empty:
-        st.download_button("📥 DESCARGAR ASISTENCIA", df_global.to_csv(index=False), "asistencia.csv")
+    with st.expander("👥 CONTROL DE ASISTENCIA Y SALA", expanded=True):
+        if not df_global.empty:
+            st.success(f"Hay {len(df_global)} doctores presentes.")
+            st.dataframe(df_global[['G', 'A']].rename(columns={'G': 'Título', 'A': 'Nombre'}), use_container_width=True)
+            st.download_button("📥 DESCARGAR ASISTENCIA CSV", df_global.to_csv(index=False), "asistencia_uba.csv")
+        else:
+            st.warning("No hay alumnos en sala.")
     
     with st.expander("📖 BANCO DE PREGUNTAS"):
         for k, v in banco.items(): st.write(f"**{k}:** {v['q']}")
@@ -89,19 +94,14 @@ if st.session_state.user["tipo"] == "juez":
     col1, col2, col3 = st.columns(3)
     with col1:
         f_sel = st.selectbox("Elegir Pregunta:", [0, 1, 2, 3, 4, 99], index=0)
-        if st.button("📢 LANZAR FASE"):
-            escribir_f(f_sel, "0")
-            st.rerun()
+        if st.button("📢 LANZAR FASE"): escribir_f(f_sel, "0"); st.rerun()
     with col2:
         t_set = st.number_input("Segundos Reloj:", 5, 60, 25)
-        if st.button("⏱️ ACTIVAR RELOJ"):
-            escribir_f(fase_serv, str(time.time() + t_set))
-            st.rerun()
+        if st.button("⏱️ ACTIVAR RELOJ"): escribir_f(fase_serv, str(time.time() + t_set)); st.rerun()
     with col3:
         if st.button("⚠️ REINICIAR"):
             if os.path.exists("d.csv"): os.remove("d.csv")
-            escribir_f(0, 0)
-            st.rerun()
+            escribir_f(0, 0); st.rerun()
     
     st.divider()
     st.markdown("### 📊 Ranking en tiempo real")
@@ -109,9 +109,8 @@ if st.session_state.user["tipo"] == "juez":
 
 # --- PANEL ALUMNO ---
 else:
-    # Sincronización forzada: si la fase del servidor cambió, reseteamos para mostrar la nueva
     if st.session_state.f_ok != fase_serv and fase_serv != 99:
-        st.session_state.f_ok = -2 # Estado intermedio para forzar refresco de radio buttons
+        st.session_state.f_ok = -2 # Reset para nueva pregunta
 
     if t_limite > ahora:
         st.markdown(f'<div class="reloj-float">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
@@ -123,8 +122,6 @@ else:
         p = banco[fase_serv]
         st.markdown(f"## {p['q']}")
         bloqueo = not (t_limite > ahora)
-        
-        # El radio y el botón se habilitan SOLO si el reloj está corriendo
         rta = st.radio("Veredicto:", p["o"], key=f"q{fase_serv}", disabled=bloqueo)
         
         if st.button("ENVIAR RESPUESTA", disabled=bloqueo or st.session_state.f_ok == fase_serv):
@@ -134,15 +131,12 @@ else:
                 df_up.loc[df_up['E'] == st.session_state.user['e'], 'P'] += pts
                 df_up.to_csv("d.csv", index=False)
                 st.success(f"✅ ¡Correcto! +{pts} pts")
-            else:
-                st.error("❌ Incorrecto")
+            else: st.error("❌ Incorrecto")
             st.session_state.f_ok = fase_serv
             time.sleep(1); st.rerun()
             
         if bloqueo and st.session_state.f_ok != fase_serv:
-            st.warning("⚖️ Esperando que el Juez habilite el reloj para responder...")
-        elif st.session_state.f_ok == fase_serv:
-            st.info("⚖️ Veredicto enviado. Aguarde la siguiente fase...")
+            st.warning("⚖️ Aguarde a que el Juez habilite el reloj.")
 
     elif fase_serv == 99:
         st.balloons()
@@ -156,5 +150,5 @@ else:
             if len(res) > 2: st.markdown(f"<div class='podio-bronce'>🥉 BRONCE: {res[2][1]}</div>", unsafe_allow_html=True)
         st.markdown('<audio autoplay><source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mp3"></audio>', unsafe_allow_html=True)
     else:
-        st.info("⚖️ Tribunal en receso... Aguarde instrucciones.")
+        st.info("⚖️ En espera del Tribunal...")
         time.sleep(2); st.rerun()
