@@ -53,10 +53,10 @@ def leer_f():
 def escribir_f(fase, t_limite):
     with open("f.txt", "w") as x: x.write(f"{fase},{t_limite}")
 
-# --- ESTILOS (Originales) ---
+# --- 4. ESTILOS (Tus originales) ---
 st.markdown("""
     <style>
-    header, [data-testid="stHeader"], [data-testid="stToolbar"] { display: none !important; visibility: hidden !important; }
+    header, [data-testid="stHeader"], [data-testid="stToolbar"] { display: none !important; }
     .stApp { background-image: url("https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"); background-size: cover; background-attachment: fixed; }
     .main .block-container { background: rgba(0, 0, 0, 0.93) !important; backdrop-filter: blur(15px); padding: 2.5rem !important; border-radius: 20px !important; border: 2px solid #D4AF37; max-width: 950px !important; margin: 20px auto !important; text-align: center !important; }
     h1, h2, h3, h4, p, label, span, .stMarkdown { color: #FFFFFF !important; font-weight: 800 !important; text-shadow: 2px 2px 4px #000000 !important; text-align: center !important; }
@@ -72,17 +72,16 @@ ahora = time.time()
 f_str, t_str = leer_f()
 fase, t_limite = int(f_str), float(t_str)
 
-# --- 4. PANEL ADMIN ---
+# --- 5. PANEL DEL JUEZ (Con visualización de alumnos) ---
 if st.query_params.get("admin") == "true":
     st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DEL JUEZ</h1>", unsafe_allow_html=True)
     clave = st.text_input("Clave:", type="password")
     if clave == "derecho2024":
-        # --- AQUÍ ESTÁ EL REGISTRO QUE PEDISTE ---
-        if os.path.exists("d.csv"):
-            st.write("### 👥 Alumnos presentes:")
+        if not df_global.empty:
+            st.write(f"### 👥 Alumnos presentes: {len(df_global['A'].unique())}")
             st.write(df_global["A"].unique())
             st.download_button("📥 Descargar Presentes", df_global.to_csv(index=False), "presentes.csv", "text/csv")
-        # --- FIN DEL AGREGADO ---
+        
         col1, col2, col3 = st.columns(3)
         with col1:
             sel = st.selectbox("Fase:", ["Espera", "Pregunta 1", "Pregunta 2", "Pregunta 3", "Resultados Parciales", "Podio Final"])
@@ -100,7 +99,7 @@ if st.query_params.get("admin") == "true":
                 st.rerun()
     st.stop()
 
-# --- 5. ACCESO (TU CÓDIGO ORIGINAL) ---
+# --- 6. ACCESO ALUMNOS (Registro corregido) ---
 if st.session_state.u is None:
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
     if not st.session_state.audio_ok:
@@ -111,13 +110,16 @@ if st.session_state.u is None:
         n_in = st.text_input("Nombre y Apellido:")
         if st.button("INGRESAR") and m_in and n_in:
             e_l, n_l = m_in.strip().lower(), n_in.strip().replace(',', '')
-            if not os.path.exists("d.csv"): with open("d.csv", "w") as f: f.write("E,A,F,P\n")
-            with open("d.csv", "a") as f: f.write(f"{e_l},{n_l},0,0\n")
+            
+            # --- REGISTRO CORREGIDO ---
+            if not os.path.exists("d.csv"):
+                with open("d.csv", "w") as f:
+                    f.write("E,A,F,P\n")
+            with open("d.csv", "a") as f:
+                f.write(f"{e_l},{n_l},0,0\n")
+            # --- FIN REGISTRO ---
+            
             try: requests.get(f"{URL_APPS_SCRIPT}?email={e_l}", timeout=5)
             except: pass
             st.session_state.u = {"e": e_l, "a": n_l}; st.rerun()
     st.stop()
-
-# --- 6. JUEGO (Tu lógica original sin cambios) ---
-st.markdown(f"<div class='usuario-badge'>👤 Dr/a. <b>{st.session_state.u['a']}</b></div>", unsafe_allow_html=True)
-# ... [El resto de tu lógica de juego iría aquí]
