@@ -35,7 +35,7 @@ st.markdown("""
     .titulo-oro { color: #D4AF37 !important; font-size: 3.5rem !important; text-transform: uppercase; }
     .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; width: 100%; border: 1px solid #FFFFFF; height: 3.5em; }
     .reloj-float { position: fixed; top: 20px; right: 20px; background: #C0392B; color: white !important; padding: 15px 25px; border-radius: 10px; font-size: 3.5rem; border: 3px solid #D4AF37; z-index: 9999; }
-    .podio-oro { font-size: 2.5rem; padding: 20px; border: 3px solid #D4AF37; background: rgba(212, 175, 55, 0.3); border-radius: 15px; margin-bottom: 10px; }
+    .podio-oro { font-size: 2.5rem; padding: 20px; border: 3px solid #D4AF37; background: rgba(212, 175, 55, 0.3); border-radius: 15px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -76,23 +76,39 @@ ahora = time.time()
 
 # --- PANEL JUEZ ---
 if st.session_state.user["tipo"] == "juez":
-    st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DEL JUEZ</h1>", unsafe_allow_html=True)
-    col1, col2 = st.columns([1, 2])
+    st.markdown("<h1 class='titulo-oro'>⚖️ ESTRADOS DEL JUEZ</h1>", unsafe_allow_html=True)
+    
+    with st.expander("👥 ASISTENCIA Y BANCO DE PREGUNTAS", expanded=True):
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.markdown("### Alumnos en Sala")
+            st.dataframe(df_global[['G', 'A']].rename(columns={'G':'Tit','A':'Nombre'}), use_container_width=True)
+            st.download_button("📥 DESCARGAR CSV", df_global.to_csv(index=False), "asistencia.csv")
+        with col_b:
+            st.markdown("### Banco de Preguntas")
+            for k, v in banco.items(): st.write(f"**{k}:** {v['q']}")
+
+    st.divider()
+    
+    col1, col2, col3 = st.columns(3)
     with col1:
-        # Selector de Fase con las nuevas opciones solicitadas
-        f_sel = st.selectbox("Fase:", [0, 1, 2, 3, 4, 88, 99], 
-                             format_func=lambda x: {0:"Espera", 1:"Pregunta 1", 2:"Pregunta 2", 3:"Pregunta 3", 4:"Pregunta 4", 88:"RESULTADOS PARCIALES", 99:"RESULTADOS FINALES"}[x])
+        f_sel = st.selectbox("Fase Actual:", [0, 1, 2, 3, 4, 88, 99], 
+                             format_func=lambda x: {0:"Espera", 1:"P 1", 2:"P 2", 3:"P 3", 4:"P 4", 88:"RESULTADOS PARCIALES", 99:"RESULTADOS FINALES"}[x])
         if st.button("📢 LANZAR FASE"): escribir_f(f_sel, "0"); st.rerun()
+    with col2:
         t_set = st.number_input("Segundos:", 5, 60, 25)
-        if st.button("⏱️ RELOJ"): escribir_f(fase_serv, str(time.time() + t_set)); st.rerun()
-        if st.button("⚠️ RESET"): 
+        if st.button("⏱️ ACTIVAR RELOJ"): escribir_f(fase_serv, str(time.time() + t_set)); st.rerun()
+    with col3:
+        if st.button("⚠️ REINICIAR TODO"):
             if os.path.exists("d.csv"): os.remove("d.csv")
             escribir_f(0,0); st.rerun()
-    with col2:
-        st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False))
+    
+    st.markdown("### 📊 Ranking en Vivo")
+    st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False))
 
 # --- PANEL ALUMNO ---
 else:
+    # Si cambia la fase, habilitar de nuevo para responder
     if st.session_state.f_ok != fase_serv and fase_serv not in [88, 99]:
         st.session_state.f_ok = -2 
 
@@ -102,32 +118,39 @@ else:
 
     if fase_serv in banco:
         p = banco[fase_serv]
+        st.write(f"👤 {st.session_state.user['g']} {st.session_state.user['a']}")
         st.markdown(f"## {p['q']}")
-        opcion = st.radio("Veredicto:", p["o"], key=f"r_{fase_serv}", disabled=not reloj_activo)
-        if st.button("ENVIAR RESPUESTA", disabled=not reloj_activo or st.session_state.f_ok == fase_serv):
+        
+        # El radio button ya no se bloquea si el reloj está activo
+        opcion = st.radio("Veredicto:", p["o"], key=f"ans_{fase_serv}")
+        
+        # Botón de enviar se habilita si hay reloj y no respondió aún
+        puedo_enviar = reloj_activo and st.session_state.f_ok != fase_serv
+        if st.button("ENVIAR RESPUESTA", disabled=not puedo_enviar):
             if opcion == p["k"]:
                 pts = 10 + min(int(t_limite - ahora), 10)
                 df_u = cargar_datos()
                 df_u.loc[df_u['E'] == st.session_state.user['e'], 'P'] += pts
                 df_u.to_csv("d.csv", index=False)
-                st.success(f"¡Correcto! +{pts}")
-            else: st.error("Incorrecto")
+                st.success(f"✅ ¡Correcto! +{pts}")
+            else: st.error("❌ Incorrecto")
             st.session_state.f_ok = fase_serv
-            st.rerun()
+            time.sleep(1); st.rerun()
+            
         if reloj_activo: time.sleep(1); st.rerun()
+        elif st.session_state.f_ok != fase_serv:
+            st.warning("⚖️ Esperando que el Juez habilite el reloj...")
 
-    elif fase_serv == 88: # RESULTADOS PARCIALES
+    elif fase_serv == 88:
         st.markdown("### 📊 POSICIONES PARCIALES")
         st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False).head(10))
-        time.sleep(5); st.rerun()
+        time.sleep(4); st.rerun()
 
-    elif fase_serv == 99: # RESULTADOS FINALES
-        st.balloons()
-        st.snow()
+    elif fase_serv == 99:
+        st.balloons(); st.snow()
         st.markdown("<h1 class='titulo-oro'>🚀 ¡SENTENCIA DEFINITIVA! 🚀</h1>", unsafe_allow_html=True)
         res = df_global.sort_values(by="P", ascending=False).head(1).values.tolist()
         if res:
-            # Imagen según género
             img = "https://raw.githubusercontent.com/fede-999/images/main/ganadora_mujer.png" if res[0][4] == "Dra." else "https://raw.githubusercontent.com/fede-999/images/main/ganador_hombre.png"
             st.image(img, width=400)
             st.markdown(f"<div class='podio-oro'>🥇 GANADOR/A: {res[0][1]}<br>{int(res[0][3])} PUNTOS</div>", unsafe_allow_html=True)
