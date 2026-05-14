@@ -108,19 +108,32 @@ if st.query_params.get("admin") == "true":
 
 # --- 6. ACCESO ALUMNOS ---
 if st.session_state.u is None:
-    st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_html=True)
+    st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
     if not st.session_state.audio_ok:
-        if st.button("⚖️ ENTRAR AL TRIBUNAL"): st.session_state.audio_ok = True; st.rerun()
+        if st.button("⚖️ ENTRAR AL TRIBUNAL"): 
+            st.session_state.audio_ok = True
+            st.rerun()
     else:
         play_audio("bienvenida.mp3") 
         m_in = st.text_input("Email Académico:")
         n_in = st.text_input("Nombre y Apellido:")
         if st.button("INGRESAR") and m_in and n_in:
-            e_l, n_l = m_in.strip().lower(), n_in.strip().replace(',', '')
+            e_l = m_in.strip().lower()
+            n_l = n_in.strip().replace(',', '')
+            
+            # Registro de Asistencia
             registrar_asistencia(n_l)
-            if not os.path.exists("d.csv"): with open("d.csv", "w") as f: f.write("E,A,F,P\n")
-            with open("d.csv", "a") as f: f.write(f"{e_l},{n_l},0,0\n")
-            st.session_state.u = {"e": e_l, "a": n_l}; st.rerun()
+            
+            # Registro en el juego
+            if not os.path.exists("d.csv"):
+                with open("d.csv", "w") as f:
+                    f.write("E,A,F,P\n")
+            
+            with open("d.csv", "a") as f:
+                f.write(f"{e_l},{n_l},0,0\n")
+                
+            st.session_state.u = {"e": e_l, "a": n_l}
+            st.rerun()
     st.stop()
 
 # --- 7. JUEGO ---
