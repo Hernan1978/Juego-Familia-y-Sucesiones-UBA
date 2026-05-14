@@ -22,6 +22,8 @@ def leer_f():
 def escribir_f(fase, t_limite):
     with open("f.txt", "w") as x:
         x.write(f"{fase},{t_limite}")
+        x.flush()
+        os.fsync(x.fileno()) # Fuerza al disco a guardar para que el alumno lo vea ya
 
 # --- 2. ESTILOS ---
 st.markdown("""
@@ -51,7 +53,7 @@ if 'f_ok' not in st.session_state: st.session_state.f_ok = -1
 
 if st.session_state.user is None:
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
-    m = st.text_input("Email Académico o Clave Maestra:")
+    m = st.text_input("Email Académico o Clave:")
     n = st.text_input("Nombre Completo:")
     g = st.radio("Título:", ["Dr.", "Dra."])
     if st.button("INGRESAR"):
@@ -76,7 +78,7 @@ ahora = time.time()
 if st.session_state.user["tipo"] == "juez":
     st.markdown("<h1 class='titulo-oro'>⚖️ ESTRADOS DEL JUEZ</h1>", unsafe_allow_html=True)
     
-    with st.expander("👥 ASISTENCIA Y BANCO DE PREGUNTAS", expanded=True):
+    with st.expander("👥 ASISTENCIA Y BANCO", expanded=True):
         col_a, col_b = st.columns(2)
         with col_a:
             st.dataframe(df_global[['G', 'A']].rename(columns={'G':'Tit','A':'Nombre'}), use_container_width=True)
@@ -86,11 +88,10 @@ if st.session_state.user["tipo"] == "juez":
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        f_sel = st.selectbox("Fase Actual:", [0, 1, 2, 3, 4, 88, 99], 
+        f_sel = st.selectbox("Cambiar a Fase:", [0, 1, 2, 3, 4, 88, 99], 
                              format_func=lambda x: {0:"Espera", 1:"P 1", 2:"P 2", 3:"P 3", 4:"P 4", 88:"RESULTADOS PARCIALES", 99:"RESULTADOS FINALES"}[x])
-        if st.button("📢 LANZAR FASE"): 
+        if st.button("📢 CAMBIAR AHORA"): 
             escribir_f(f_sel, "0")
-            time.sleep(0.5)
             st.rerun()
     with col2:
         t_set = st.number_input("Segundos:", 5, 60, 25)
@@ -106,6 +107,7 @@ if st.session_state.user["tipo"] == "juez":
 
 # --- PANEL ALUMNO ---
 else:
+    # Reset de estado local si la fase cambió en el servidor
     if st.session_state.f_ok != fase_serv and fase_serv not in [88, 99]:
         st.session_state.f_ok = -2 
 
@@ -114,7 +116,8 @@ else:
     
     if reloj_activo:
         st.markdown(f'<div class="reloj-float">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        st.components.v1.html('<audio autoplay loop><source src="https://www.soundjay.com/clock/sounds/clock-ticking-4.mp3" type="audio/mp3"></audio>', height=0)
+        # SONIDO TIC-TAC
+        st.components.v1.html('<iframe src="https://www.soundjay.com/clock/sounds/clock-ticking-4.mp3" allow="autoplay" style="display:none"></iframe>', height=0)
 
     if fase_serv in banco:
         p = banco[fase_serv]
@@ -134,9 +137,9 @@ else:
             st.rerun()
             
         if reloj_activo:
-            time.sleep(0.8)
+            time.sleep(1)
             st.rerun()
-        elif not ha_votado:
+        else:
             time.sleep(1.5)
             st.rerun()
 
@@ -147,7 +150,8 @@ else:
 
     elif fase_serv == 99:
         st.balloons(); st.snow()
-        st.components.v1.html('<audio autoplay><source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mp3"></audio>', height=0)
+        # SONIDO APLAUSOS
+        st.components.v1.html('<iframe src="https://www.soundjay.com/human/sounds/applause-01.mp3" allow="autoplay" style="display:none"></iframe>', height=0)
         res = df_global.sort_values(by="P", ascending=False).head(1).values.tolist()
         if res:
             img = "https://raw.githubusercontent.com/fede-999/images/main/ganadora_mujer.png" if res[0][4] == "Dra." else "https://raw.githubusercontent.com/fede-999/images/main/ganador_hombre.png"
@@ -158,6 +162,6 @@ else:
         time.sleep(2); st.rerun()
 
     st.divider()
-    if st.button("🚪 SALIR DEL SISTEMA"):
+    if st.button("🚪 SALIR"):
         st.session_state.user = None
         st.rerun()
