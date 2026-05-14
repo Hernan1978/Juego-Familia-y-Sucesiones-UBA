@@ -12,24 +12,18 @@ def cargar_datos():
     except: return pd.DataFrame(columns=["E", "A", "F", "P", "G"])
 
 def leer_f():
-    """Lectura segura para evitar bloqueos de archivo"""
     if not os.path.exists("f.txt"): return ["0", "0"]
-    for _ in range(5): # Intenta 5 veces si el archivo está trabado
-        try:
-            with open("f.txt", "r") as x:
-                cont = x.read().strip().split(",")
-                if len(cont) == 2: return cont
-        except:
-            time.sleep(0.1)
-    return ["0", "0"]
+    try:
+        with open("f.txt", "r") as x:
+            cont = x.read().strip().split(",")
+            return cont if len(cont) == 2 else ["0", "0"]
+    except: return ["0", "0"]
 
 def escribir_f(fase, t_limite):
-    """Escritura atómica"""
     try:
         with open("f.txt", "w") as x:
             x.write(f"{fase},{t_limite}")
-    except:
-        st.error("Error al escribir en el servidor. Reintente.")
+    except: pass
 
 # --- 2. ESTILOS ---
 st.markdown("""
@@ -40,10 +34,8 @@ st.markdown("""
     .main .block-container { background: rgba(0, 0, 0, 0.85) !important; padding: 2.5rem !important; border-radius: 20px !important; border: 2px solid #D4AF37; max-width: 950px !important; margin: auto; }
     .titulo-oro { color: #D4AF37 !important; font-size: 3.5rem !important; text-transform: uppercase; }
     .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 900 !important; width: 100%; border: 1px solid #FFFFFF; height: 3.5em; }
-    .reloj-float { position: fixed; top: 20px; right: 20px; background: #C0392B; color: white !important; padding: 15px 25px; border-radius: 10px; font-size: 3.5rem; border: 3px solid #D4AF37; z-index: 9999; font-family: monospace; }
-    .podio-oro { font-size: 2.5rem; padding: 20px; border: 3px solid #D4AF37; background: rgba(212, 175, 55, 0.3); border-radius: 15px; margin-bottom: 10px; }
-    .podio-plata { font-size: 2rem; padding: 15px; border: 2px solid #C0C0C0; background: rgba(192, 192, 192, 0.2); border-radius: 15px; margin-bottom: 10px; }
-    .podio-bronce { font-size: 1.5rem; padding: 10px; border: 2px solid #CD7F32; background: rgba(205, 127, 50, 0.2); border-radius: 15px; }
+    .reloj-float { position: fixed; top: 20px; right: 20px; background: #C0392B; color: white !important; padding: 15px 25px; border-radius: 10px; font-size: 3.5rem; border: 3px solid #D4AF37; z-index: 9999; }
+    .podio-oro { font-size: 2.5rem; padding: 20px; border: 3px solid #D4AF37; background: rgba(212, 175, 55, 0.3); border-radius: 15px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -83,73 +75,60 @@ f_info = leer_f()
 fase_serv, t_limite = int(f_info[0]), float(f_info[1])
 ahora = time.time()
 
-# --- PANEL JUEZ ---
 if st.session_state.user["tipo"] == "juez":
-    st.markdown("<h1 class='titulo-oro'>⚖️ ESTRADOS DEL JUEZ</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DEL JUEZ</h1>", unsafe_allow_html=True)
+    with st.expander("👥 ASISTENCIA"):
+        st.dataframe(df_global[['G', 'A']].rename(columns={'G':'Tit','A':'Nom'}), use_container_width=True)
     
-    with st.expander("👥 ASISTENCIA", expanded=True):
-        if not df_global.empty:
-            st.dataframe(df_global[['G', 'A']].rename(columns={'G': 'Título', 'A': 'Nombre'}), use_container_width=True)
-            st.download_button("📥 DESCARGAR CSV", df_global.to_csv(index=False), "asistencia.csv")
-
     col1, col2, col3 = st.columns(3)
     with col1:
-        f_sel = st.selectbox("Elegir Pregunta:", [0, 1, 2, 3, 4, 99], index=0)
-        if st.button("📢 LANZAR FASE"):
-            escribir_f(f_sel, "0")
-            st.rerun()
+        f_sel = st.selectbox("Fase:", [0, 1, 2, 3, 4, 99])
+        if st.button("📢 LANZAR"): escribir_f(f_sel, "0"); st.rerun()
     with col2:
-        t_set = st.number_input("Segundos:", 5, 60, 25)
-        if st.button("⏱️ ACTIVAR RELOJ"):
-            # AQUÍ SE ESCRIBE EL TIEMPO FUTURO
-            escribir_f(fase_serv, str(time.time() + t_set))
-            st.rerun()
+        t_set = st.number_input("Seg:", 5, 60, 25)
+        if st.button("⏱️ RELOJ"): escribir_f(fase_serv, str(time.time() + t_set)); st.rerun()
     with col3:
-        if st.button("⚠️ REINICIAR"):
+        if st.button("⚠️ RESET"): 
             if os.path.exists("d.csv"): os.remove("d.csv")
-            escribir_f(0, 0)
-            st.rerun()
-    
-    st.divider()
+            escribir_f(0,0); st.rerun()
     st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False))
 
-# --- PANEL ALUMNO ---
 else:
-    # Sincronización automática de fase
+    # LÓGICA ALUMNO: Sincronización y Reloj
     if st.session_state.f_ok != fase_serv and fase_serv != 99:
-        st.session_state.f_ok = -2
+        st.session_state.f_ok = -2 
 
-    # LÓGICA DEL RELOJ (Visible para el alumno)
     reloj_activo = t_limite > ahora
     if reloj_activo:
         st.markdown(f'<div class="reloj-float">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        time.sleep(0.8) # Un poco menos de 1 seg para que se sienta fluido
-        st.rerun()
-
-    st.write(f"👤 {st.session_state.user['g']} {st.session_state.user['a']}")
 
     if fase_serv in banco:
         p = banco[fase_serv]
-        st.markdown(f"## {p['q']}")
+        st.write(f"👤 {st.session_state.user['g']} {st.session_state.user['a']}")
+        st.markdown(f"### {p['q']}")
         
-        # El radio y botón dependen EXCLUSIVAMENTE de que el tiempo límite sea mayor al actual
-        rta = st.radio("Veredicto:", p["o"], key=f"q{fase_serv}", disabled=not reloj_activo)
+        # Guardamos la opción seleccionada en session_state para que no se borre al recargar
+        opcion = st.radio("Veredicto:", p["o"], key=f"radio_{fase_serv}", disabled=not reloj_activo)
         
-        if st.button("ENVIAR RESPUESTA", disabled=not reloj_activo or st.session_state.f_ok == fase_serv):
-            if rta == p["k"]:
+        btn_enviar = st.button("ENVIAR RESPUESTA", disabled=not reloj_activo or st.session_state.f_ok == fase_serv)
+        
+        if btn_enviar:
+            if opcion == p["k"]:
                 pts = 10 + min(int(t_limite - ahora), 10)
-                df_up = cargar_datos()
-                df_up.loc[df_up['E'] == st.session_state.user['e'], 'P'] += pts
-                df_up.to_csv("d.csv", index=False)
-                st.success(f"✅ ¡Correcto! +{pts}")
-            else:
-                st.error("❌ Incorrecto")
+                df_u = cargar_datos()
+                df_u.loc[df_u['E'] == st.session_state.user['e'], 'P'] += pts
+                df_u.to_csv("d.csv", index=False)
+                st.success(f"¡Correcto! +{pts}")
+            else: st.error("Incorrecto")
             st.session_state.f_ok = fase_serv
             st.rerun()
-            
+
         if not reloj_activo and st.session_state.f_ok != fase_serv:
-            st.warning("⚖️ El Juez aún no ha iniciado el reloj.")
-            time.sleep(2)
+            st.warning("⚖️ Esperando inicio del reloj...")
+        
+        # Recarga automática solo si el reloj está andando
+        if reloj_activo:
+            time.sleep(1)
             st.rerun()
 
     elif fase_serv == 99:
@@ -157,8 +136,7 @@ else:
         res = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         if res:
             st.markdown(f"<div class='podio-oro'>🥇 ORO: {res[0][1]}</div>", unsafe_allow_html=True)
-            if len(res) > 1: st.markdown(f"<div class='podio-plata'>🥈 PLATA: {res[1][1]}</div>", unsafe_allow_html=True)
     else:
-        st.info("⚖️ Esperando al Juez...")
-        time.sleep(2)
+        st.info("⚖️ En espera...")
+        time.sleep(3)
         st.rerun()
