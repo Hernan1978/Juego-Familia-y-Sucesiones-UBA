@@ -109,20 +109,20 @@ else:
     reloj_activo = t_limite > ahora
     
     if reloj_activo:
+        # Mostramos el tiempo restante sin forzar el rerun constante que traba el botón
         st.markdown(f'<div class="reloj-float">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        # SONIDO TIC-TAC MIENTRAS CORRE EL RELOJ
         st.markdown('<audio autoplay loop><source src="https://www.soundjay.com/clock/sounds/clock-ticking-4.mp3" type="audio/mp3"></audio>', unsafe_allow_html=True)
-        time.sleep(0.8) # Mayor frecuencia de refresco para agilidad
-        st.rerun()
 
     if fase_serv in banco:
         p = banco[fase_serv]
         st.write(f"👤 {st.session_state.user['g']} {st.session_state.user['a']}")
         st.markdown(f"## {p['q']}")
+        
+        # El radio button se mantiene estable para que el alumno pueda votar
         opcion = st.radio("Veredicto:", p["o"], key=f"ans_{fase_serv}")
         
-        puedo_enviar = reloj_activo and st.session_state.f_ok != fase_serv
-        if st.button("ENVIAR RESPUESTA", disabled=not puedo_enviar):
+        # El botón de enviar solo se habilita si hay tiempo y no respondió
+        if st.button("ENVIAR RESPUESTA", disabled=not reloj_activo or st.session_state.f_ok == fase_serv):
             if opcion == p["k"]:
                 pts = 10 + min(int(t_limite - ahora), 10)
                 df_u = cargar_datos()
@@ -133,20 +133,23 @@ else:
             st.session_state.f_ok = fase_serv
             st.rerun()
             
-        if not reloj_activo and st.session_state.f_ok != fase_serv:
-            st.warning("⚖️ Esperando que el Juez habilite el reloj...")
-            time.sleep(1) # Revisa rápido si el profesor ya activó el reloj
+        # Refresco inteligente: solo si el reloj está activo para actualizar segundos
+        if reloj_activo:
+            time.sleep(1)
+            st.rerun()
+        elif st.session_state.f_ok != fase_serv:
+            # Si no hay reloj, revisa cada 2 segundos si el profesor lo activa
+            time.sleep(2)
             st.rerun()
 
     elif fase_serv == 88:
         st.markdown("### 📊 POSICIONES PARCIALES")
         st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False).head(10))
-        time.sleep(3); st.rerun()
+        time.sleep(4); st.rerun()
 
     elif fase_serv == 99:
         st.balloons(); st.snow()
         st.markdown("<h1 class='titulo-oro'>🚀 ¡SENTENCIA DEFINITIVA! 🚀</h1>", unsafe_allow_html=True)
-        # SONIDO DE APLAUSOS
         st.markdown('<audio autoplay><source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mp3"></audio>', unsafe_allow_html=True)
         res = df_global.sort_values(by="P", ascending=False).head(1).values.tolist()
         if res:
@@ -156,3 +159,8 @@ else:
     else:
         st.info("⚖️ En espera del Tribunal...")
         time.sleep(2); st.rerun()
+
+    st.divider()
+    if st.button("🚪 SALIR DEL SISTEMA"):
+        st.session_state.user = None
+        st.rerun()
