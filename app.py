@@ -23,7 +23,7 @@ def escribir_f(fase, t_limite):
     with open("f.txt", "w") as x:
         x.write(f"{fase},{t_limite}")
         x.flush()
-        os.fsync(x.fileno()) # Fuerza al disco a guardar para que el alumno lo vea ya
+        os.fsync(x.fileno())
 
 # --- 2. ESTILOS ---
 st.markdown("""
@@ -102,12 +102,16 @@ if st.session_state.user["tipo"] == "juez":
         if st.button("⚠️ REINICIAR TODO"):
             if os.path.exists("d.csv"): os.remove("d.csv")
             escribir_f(0,0); st.rerun()
+            
+    # --- BOTÓN DE REFRESCO PARA EL DOCENTE ---
+    if st.button("🔄 REFRESCAR SISTEMA"):
+        st.cache_data.clear()
+        st.rerun()
     
     st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False))
 
 # --- PANEL ALUMNO ---
 else:
-    # Reset de estado local si la fase cambió en el servidor
     if st.session_state.f_ok != fase_serv and fase_serv not in [88, 99]:
         st.session_state.f_ok = -2 
 
@@ -116,52 +120,9 @@ else:
     
     if reloj_activo:
         st.markdown(f'<div class="reloj-float">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        # SONIDO TIC-TAC
         st.components.v1.html('<iframe src="https://www.soundjay.com/clock/sounds/clock-ticking-4.mp3" allow="autoplay" style="display:none"></iframe>', height=0)
 
     if fase_serv in banco:
         p = banco[fase_serv]
         st.write(f"👤 {st.session_state.user['g']} {st.session_state.user['a']}")
-        st.markdown(f"## {p['q']}")
-        opcion = st.radio("Veredicto:", p["o"], key=f"ans_{fase_serv}", disabled=ha_votado)
-        
-        if st.button("ENVIAR RESPUESTA", disabled=not (t_limite > ahora) or ha_votado):
-            if opcion == p["k"]:
-                pts = 10 + min(int(t_limite - ahora), 10)
-                df_u = cargar_datos()
-                df_u.loc[df_u['E'] == st.session_state.user['e'], 'P'] += pts
-                df_u.to_csv("d.csv", index=False)
-                st.success(f"✅ ¡Correcto! +{pts}")
-            else: st.error("❌ Incorrecto")
-            st.session_state.f_ok = fase_serv
-            st.rerun()
-            
-        if reloj_activo:
-            time.sleep(1)
-            st.rerun()
-        else:
-            time.sleep(1.5)
-            st.rerun()
-
-    elif fase_serv == 88:
-        st.markdown("### 📊 POSICIONES PARCIALES")
-        st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False).head(10))
-        time.sleep(3); st.rerun()
-
-    elif fase_serv == 99:
-        st.balloons(); st.snow()
-        # SONIDO APLAUSOS
-        st.components.v1.html('<iframe src="https://www.soundjay.com/human/sounds/applause-01.mp3" allow="autoplay" style="display:none"></iframe>', height=0)
-        res = df_global.sort_values(by="P", ascending=False).head(1).values.tolist()
-        if res:
-            img = "https://raw.githubusercontent.com/fede-999/images/main/ganadora_mujer.png" if res[0][4] == "Dra." else "https://raw.githubusercontent.com/fede-999/images/main/ganador_hombre.png"
-            st.image(img, width=400)
-            st.markdown(f"<div class='podio-oro'>🥇 GANADOR/A: {res[0][1]}<br>{int(res[0][3])} PUNTOS</div>", unsafe_allow_html=True)
-    else:
-        st.info("⚖️ En espera del Tribunal...")
-        time.sleep(2); st.rerun()
-
-    st.divider()
-    if st.button("🚪 SALIR"):
-        st.session_state.user = None
-        st.rerun()
+        st.
