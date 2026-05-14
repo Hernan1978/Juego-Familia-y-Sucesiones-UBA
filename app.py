@@ -78,53 +78,49 @@ ahora = time.time()
 if st.session_state.user["tipo"] == "juez":
     st.markdown("<h1 class='titulo-oro'>⚖️ ESTRADOS DEL JUEZ</h1>", unsafe_allow_html=True)
     
-    with st.expander("👥 ASISTENCIA Y BANCO DE PREGUNTAS", expanded=True):
+    with st.expander("👥 ASISTENCIA Y BANCO", expanded=True):
         col_a, col_b = st.columns(2)
         with col_a:
-            st.markdown("### Alumnos en Sala")
             st.dataframe(df_global[['G', 'A']].rename(columns={'G':'Tit','A':'Nombre'}), use_container_width=True)
             st.download_button("📥 DESCARGAR CSV", df_global.to_csv(index=False), "asistencia.csv")
         with col_b:
-            st.markdown("### Banco de Preguntas")
             for k, v in banco.items(): st.write(f"**{k}:** {v['q']}")
 
-    st.divider()
-    
     col1, col2, col3 = st.columns(3)
     with col1:
-        f_sel = st.selectbox("Fase Actual:", [0, 1, 2, 3, 4, 88, 99], 
+        f_sel = st.selectbox("Fase:", [0, 1, 2, 3, 4, 88, 99], 
                              format_func=lambda x: {0:"Espera", 1:"P 1", 2:"P 2", 3:"P 3", 4:"P 4", 88:"RESULTADOS PARCIALES", 99:"RESULTADOS FINALES"}[x])
         if st.button("📢 LANZAR FASE"): escribir_f(f_sel, "0"); st.rerun()
     with col2:
         t_set = st.number_input("Segundos:", 5, 60, 25)
         if st.button("⏱️ ACTIVAR RELOJ"): escribir_f(fase_serv, str(time.time() + t_set)); st.rerun()
     with col3:
-        if st.button("⚠️ REINICIAR TODO"):
+        if st.button("⚠️ REINICIAR"):
             if os.path.exists("d.csv"): os.remove("d.csv")
             escribir_f(0,0); st.rerun()
     
-    st.markdown("### 📊 Ranking en Vivo")
     st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False))
 
 # --- PANEL ALUMNO ---
 else:
-    # Si cambia la fase, habilitar de nuevo para responder
     if st.session_state.f_ok != fase_serv and fase_serv not in [88, 99]:
         st.session_state.f_ok = -2 
 
     reloj_activo = t_limite > ahora
+    
     if reloj_activo:
         st.markdown(f'<div class="reloj-float">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
+        # SONIDO TIC-TAC MIENTRAS CORRE EL RELOJ
+        st.markdown('<audio autoplay loop><source src="https://www.soundjay.com/clock/sounds/clock-ticking-4.mp3" type="audio/mp3"></audio>', unsafe_allow_html=True)
+        time.sleep(0.8) # Mayor frecuencia de refresco para agilidad
+        st.rerun()
 
     if fase_serv in banco:
         p = banco[fase_serv]
         st.write(f"👤 {st.session_state.user['g']} {st.session_state.user['a']}")
         st.markdown(f"## {p['q']}")
-        
-        # El radio button ya no se bloquea si el reloj está activo
         opcion = st.radio("Veredicto:", p["o"], key=f"ans_{fase_serv}")
         
-        # Botón de enviar se habilita si hay reloj y no respondió aún
         puedo_enviar = reloj_activo and st.session_state.f_ok != fase_serv
         if st.button("ENVIAR RESPUESTA", disabled=not puedo_enviar):
             if opcion == p["k"]:
@@ -135,26 +131,28 @@ else:
                 st.success(f"✅ ¡Correcto! +{pts}")
             else: st.error("❌ Incorrecto")
             st.session_state.f_ok = fase_serv
-            time.sleep(1); st.rerun()
+            st.rerun()
             
-        if reloj_activo: time.sleep(1); st.rerun()
-        elif st.session_state.f_ok != fase_serv:
+        if not reloj_activo and st.session_state.f_ok != fase_serv:
             st.warning("⚖️ Esperando que el Juez habilite el reloj...")
+            time.sleep(1) # Revisa rápido si el profesor ya activó el reloj
+            st.rerun()
 
     elif fase_serv == 88:
         st.markdown("### 📊 POSICIONES PARCIALES")
         st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False).head(10))
-        time.sleep(4); st.rerun()
+        time.sleep(3); st.rerun()
 
     elif fase_serv == 99:
         st.balloons(); st.snow()
         st.markdown("<h1 class='titulo-oro'>🚀 ¡SENTENCIA DEFINITIVA! 🚀</h1>", unsafe_allow_html=True)
+        # SONIDO DE APLAUSOS
+        st.markdown('<audio autoplay><source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mp3"></audio>', unsafe_allow_html=True)
         res = df_global.sort_values(by="P", ascending=False).head(1).values.tolist()
         if res:
             img = "https://raw.githubusercontent.com/fede-999/images/main/ganadora_mujer.png" if res[0][4] == "Dra." else "https://raw.githubusercontent.com/fede-999/images/main/ganador_hombre.png"
             st.image(img, width=400)
             st.markdown(f"<div class='podio-oro'>🥇 GANADOR/A: {res[0][1]}<br>{int(res[0][3])} PUNTOS</div>", unsafe_allow_html=True)
-        st.markdown('<audio autoplay><source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mp3"></audio>', unsafe_allow_html=True)
     else:
         st.info("⚖️ En espera del Tribunal...")
-        time.sleep(3); st.rerun()
+        time.sleep(2); st.rerun()
