@@ -77,7 +77,6 @@ ahora = time.time()
 # --- PANEL JUEZ ---
 if st.session_state.user["tipo"] == "juez":
     st.markdown("<h1 class='titulo-oro'>⚖️ ESTRADOS DEL JUEZ</h1>", unsafe_allow_html=True)
-    
     with st.expander("👥 ASISTENCIA Y BANCO", expanded=True):
         col_a, col_b = st.columns(2)
         with col_a:
@@ -88,8 +87,7 @@ if st.session_state.user["tipo"] == "juez":
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        f_sel = st.selectbox("Fase:", [0, 1, 2, 3, 4, 88, 99], 
-                             format_func=lambda x: {0:"Espera", 1:"P 1", 2:"P 2", 3:"P 3", 4:"P 4", 88:"RESULTADOS PARCIALES", 99:"RESULTADOS FINALES"}[x])
+        f_sel = st.selectbox("Fase:", [0, 1, 2, 3, 4, 88, 99], format_func=lambda x: {0:"Espera", 1:"P 1", 2:"P 2", 3:"P 3", 4:"P 4", 88:"RESULTADOS PARCIALES", 99:"RESULTADOS FINALES"}[x])
         if st.button("📢 LANZAR FASE"): escribir_f(f_sel, "0"); st.rerun()
     with col2:
         t_set = st.number_input("Segundos:", 5, 60, 25)
@@ -98,7 +96,6 @@ if st.session_state.user["tipo"] == "juez":
         if st.button("⚠️ REINICIAR"):
             if os.path.exists("d.csv"): os.remove("d.csv")
             escribir_f(0,0); st.rerun()
-    
     st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False))
 
 # --- PANEL ALUMNO ---
@@ -106,23 +103,22 @@ else:
     if st.session_state.f_ok != fase_serv and fase_serv not in [88, 99]:
         st.session_state.f_ok = -2 
 
-    reloj_activo = t_limite > ahora
+    ha_votado = (st.session_state.f_ok == fase_serv)
+    reloj_activo = t_limite > ahora and not ha_votado # El reloj se apaga si ya votó
     
     if reloj_activo:
-        # Mostramos el tiempo restante sin forzar el rerun constante que traba el botón
         st.markdown(f'<div class="reloj-float">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        st.markdown('<audio autoplay loop><source src="https://www.soundjay.com/clock/sounds/clock-ticking-4.mp3" type="audio/mp3"></audio>', unsafe_allow_html=True)
+        # SONIDO TIC-TAC con autoplay forzado
+        st.components.v1.html('<audio autoplay loop><source src="https://www.soundjay.com/clock/sounds/clock-ticking-4.mp3" type="audio/mp3"></audio>', height=0)
 
     if fase_serv in banco:
         p = banco[fase_serv]
         st.write(f"👤 {st.session_state.user['g']} {st.session_state.user['a']}")
         st.markdown(f"## {p['q']}")
         
-        # El radio button se mantiene estable para que el alumno pueda votar
-        opcion = st.radio("Veredicto:", p["o"], key=f"ans_{fase_serv}")
+        opcion = st.radio("Veredicto:", p["o"], key=f"ans_{fase_serv}", disabled=ha_votado)
         
-        # El botón de enviar solo se habilita si hay tiempo y no respondió
-        if st.button("ENVIAR RESPUESTA", disabled=not reloj_activo or st.session_state.f_ok == fase_serv):
+        if st.button("ENVIAR RESPUESTA", disabled=not (t_limite > ahora) or ha_votado):
             if opcion == p["k"]:
                 pts = 10 + min(int(t_limite - ahora), 10)
                 df_u = cargar_datos()
@@ -133,12 +129,11 @@ else:
             st.session_state.f_ok = fase_serv
             st.rerun()
             
-        # Refresco inteligente: solo si el reloj está activo para actualizar segundos
+        # Refresco solo si el reloj sigue activo para ese alumno
         if reloj_activo:
             time.sleep(1)
             st.rerun()
-        elif st.session_state.f_ok != fase_serv:
-            # Si no hay reloj, revisa cada 2 segundos si el profesor lo activa
+        elif not ha_votado and fase_serv not in [88, 99]:
             time.sleep(2)
             st.rerun()
 
@@ -150,7 +145,8 @@ else:
     elif fase_serv == 99:
         st.balloons(); st.snow()
         st.markdown("<h1 class='titulo-oro'>🚀 ¡SENTENCIA DEFINITIVA! 🚀</h1>", unsafe_allow_html=True)
-        st.markdown('<audio autoplay><source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mp3"></audio>', unsafe_allow_html=True)
+        # SONIDO APLAUSOS con autoplay forzado
+        st.components.v1.html('<audio autoplay><source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mp3"></audio>', height=0)
         res = df_global.sort_values(by="P", ascending=False).head(1).values.tolist()
         if res:
             img = "https://raw.githubusercontent.com/fede-999/images/main/ganadora_mujer.png" if res[0][4] == "Dra." else "https://raw.githubusercontent.com/fede-999/images/main/ganador_hombre.png"
