@@ -50,7 +50,8 @@ st.markdown("""
 }
 /* Etiquetas de ingreso y opciones Dr/Dra */
 label, [data-testid="stWidgetLabel"] p, .stRadio label, [data-testid="stMarkdownContainer"] p {
-    color: #00FFFF !important; /* Color Cian brillante */
+        color: #CCFF00 !important; /* Amarillo Neón */
+
     font-weight: 800 !important;
     font-size: 1.3rem !important;
     /* Este código de abajo crea un borde negro alrededor de cada letra */
