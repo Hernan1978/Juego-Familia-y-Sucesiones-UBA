@@ -48,7 +48,19 @@ st.markdown("""
     font-size: 3.5rem !important; 
     text-shadow: 2px 2px 4px #000000 !important;
 }
-/* Etiquetas de ingreso y opciones Dr/Dra */
+/* Etiquetas de todos los controles (Selectores, Números, Radio) */
+label, [data-testid="stWidgetLabel"] p, .stSelectbox label, .stNumberInput label {
+    color: #CCFF00 !important; /* Amarillo Neón para máximo contraste */
+    font-weight: 800 !important;
+    font-size: 1.2rem !important;
+    text-shadow: 
+        -1px -1px 0 #000,  
+         1px -1px 0 #000,
+        -1px  1px 0 #000,
+         1px  1px 0 #000,
+         2px  2px 4px #000 !important;
+}
+
 label, [data-testid="stWidgetLabel"] p, .stRadio label, [data-testid="stMarkdownContainer"] p {
         color: #CCFF00 !important; /* Amarillo Neón */
 
