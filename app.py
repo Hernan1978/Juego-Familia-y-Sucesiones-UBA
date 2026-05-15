@@ -25,7 +25,7 @@ def escribir_f(fase, t_limite):
         x.flush()
         os.fsync(x.fileno())
 
-# --- 2. ESTILOS ---
+# --- 2. ESTILOS CON CORRECCIÓN ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
@@ -39,9 +39,12 @@ st.markdown("""
     [data-testid="stExpander"] * { color: #000000 !important; }
     .titulo-oro { color: #D4AF37 !important; font-size: 3.5rem !important; font-weight: 700; text-transform: uppercase; }
     .podio-container { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px; }
-    .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #000 !important; padding: 20px; border-radius: 8px; width: 80%; font-size: 2rem; font-weight: 700; border: 2px solid white; }
-    .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #000 !important; padding: 15px; border-radius: 8px; width: 70%; font-size: 1.5rem; font-weight: 600; }
-    .box-bronce { background: linear-gradient(145deg, #CD7F32, #8B4513); color: #000 !important; padding: 12px; border-radius: 8px; width: 60%; font-size: 1.2rem; font-weight: 600; }
+    
+    /* CAMBIO SOLICITADO: Letras amarillas (#FFFF00) en el podio parcial */
+    .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFFF00 !important; padding: 20px; border-radius: 8px; width: 80%; font-size: 2rem; font-weight: 700; border: 2px solid white; }
+    .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFFF00 !important; padding: 15px; border-radius: 8px; width: 70%; font-size: 1.5rem; font-weight: 600; }
+    .box-bronce { background: linear-gradient(145deg, #CD7F32, #8B4513); color: #FFFF00 !important; padding: 12px; border-radius: 8px; width: 60%; font-size: 1.2rem; font-weight: 600; }
+    
     .reloj-float { position: fixed; top: 20px; right: 20px; background: #E31837; color: white !important; padding: 20px; border-radius: 8px; font-size: 3rem; font-weight: 700; border: 2px solid #D4AF37; z-index: 9999; }
     .mensaje-final { color: #FFD700 !important; font-size: 2rem !important; font-weight: 700 !important; text-shadow: 2px 2px 8px #000000 !important; margin-top: 40px; padding: 20px; border-top: 2px solid #D4AF37; }
     .stButton>button { background-color: #D4AF37 !important; color: #0A1929 !important; font-weight: 700 !important; height: 3.5em; border-radius: 4px !important; }
@@ -104,13 +107,10 @@ if st.session_state.user["tipo"] == "juez":
         if st.button("⚠️ REINICIAR"):
             if os.path.exists("d.csv"): os.remove("d.csv")
             escribir_f(0,0); st.rerun()
-    
-    # REPARACIÓN BOTÓN REFRESCO
     if st.button("🔄 REFRESCAR VISTA"):
         for key in st.session_state.keys():
             if key != 'user': del st.session_state[key]
         st.rerun()
-        
     st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False))
 
 # --- PANEL ALUMNO ---
@@ -136,6 +136,7 @@ else:
         else: time.sleep(2); st.rerun()
     elif fase_serv == 88:
         st.markdown("<h2 class='titulo-oro'>📊 RESULTADOS PARCIALES</h2>", unsafe_allow_html=True)
+        # Forzamos la tabla parcial a ser visible y legible
         st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False).head(10))
         time.sleep(4); st.rerun()
     elif fase_serv == 99:
