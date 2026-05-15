@@ -34,7 +34,6 @@ st.markdown("""
     .stApp, .stMarkdown, p, h1, h2, h3, h4, label, span { color: #FFFFFF !important; font-family: 'Poppins', sans-serif; text-align: center; }
     .main .block-container { background: rgba(10, 25, 41, 0.92) !important; padding: 3rem !important; border-radius: 12px !important; border-top: 5px solid #D4AF37; max-width: 1100px !important; margin: auto; }
     
-    /* TABLAS Y RESULTADOS: NEGRO SOBRE BLANCO */
     [data-testid="stTable"], .stDataFrame, [data-testid="stExpander"], .stTable, div[data-testid="stExpander"] div { 
         background-color: white !important; color: #000000 !important;
     }
@@ -44,7 +43,6 @@ st.markdown("""
         color: #000000 !important; font-weight: 800 !important;
     }
 
-    /* PODIO: LETRAS BLANCAS */
     .podio-container { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px; }
     .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFFFFF !important; padding: 20px; border-radius: 8px; width: 80%; font-size: 2rem; font-weight: 700; border: 2px solid white; text-shadow: 1px 1px 2px #000; }
     .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFFFFF !important; padding: 15px; border-radius: 8px; width: 70%; font-size: 1.5rem; font-weight: 600; text-shadow: 1px 1px 2px #000; }
@@ -95,7 +93,17 @@ ahora = time.time()
 
 if st.session_state.user["tipo"] == "juez":
     st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DOCENTE</h1>", unsafe_allow_html=True)
-    with st.expander("📚 BANCO Y AUDIENCIA", expanded=True):
+    
+    # Si la fase es 99, mostramos el podio también al docente
+    if fase_serv == 99:
+        podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
+        if podio:
+            img_file = "alumna_festejo_uba.png" if podio[0][4] == "Dra." else "alumno_festejo_uba.png"
+            img_url = f"https://raw.githubusercontent.com/fede-999/images/main/{img_file}"
+            st.image(img_url, width=300)
+            st.markdown(f"### Ganador/a: {podio[0][1]}")
+
+    with st.expander("📚 PREGUNTAS Y ASISTENCIA", expanded=True):
         c_j1, c_j2 = st.columns(2)
         with c_j1:
             st.markdown("<b style='color:black'>Preguntas:</b>", unsafe_allow_html=True)
@@ -110,7 +118,7 @@ if st.session_state.user["tipo"] == "juez":
         if st.button("📢 CAMBIAR"): escribir_f(f_sel, "0"); st.rerun()
     with c2:
         t_set = st.number_input("Segs:", 5, 60, 25)
-        if st.button("⏱️ ACTIVAR"): escribir_f(fase_serv, str(time.time() + t_set)); st.rerun()
+        if st.button("⏱️ ACTIVAR EL RELOJ"): escribir_f(fase_serv, str(time.time() + t_set)); st.rerun()
     with c3:
         if st.button("🔄 REFRESCAR"): st.rerun()
     with c4:
@@ -133,7 +141,7 @@ else:
         opcion = st.radio("Dictamen:", p["o"], key=f"r_{fase_serv}", disabled=ya_envio or not reloj_on)
         if reloj_on and not ya_envio:
             st.markdown(f'<div class="reloj-float">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        if st.button("ENVIAR SENTENCIA", disabled=(not reloj_on or ya_envio)):
+        if st.button("ENVIAR RESPUESTA", disabled=(not reloj_on or ya_envio)):
             if opcion == p["k"]:
                 pts = 10 + min(int(t_limite - ahora), 10)
                 df_u = cargar_datos(); df_u.loc[df_u['E'] == st.session_state.user['e'], 'P'] += pts
@@ -145,24 +153,18 @@ else:
             time.sleep(1); st.rerun()
         time.sleep(2); st.rerun()
 
-    elif fase_serv == 88:
+    elif fase_serv == "RESULTADOS PARCIALES":
         st.markdown("<h2 class='titulo-oro'>📊 RESULTADOS PARCIALES</h2>")
         st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False).head(10))
         time.sleep(3); st.rerun()
 
-    elif fase_serv == 99:
+    elif fase_serv == "RESULTADOS FINAL!!":
         st.balloons()
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
-            # CORRECCIÓN DE RUTA: Directo al main (sin carpeta images)
             img_file = "alumna_festejo_uba.png" if podio[0][4] == "Dra." else "alumno_festejo_uba.png"
             img_url = f"https://raw.githubusercontent.com/fede-999/images/main/{img_file}"
-            
-            try:
-                st.image(img_url, use_container_width=True)
-            except:
-                st.error("No se pudo cargar la imagen del repositorio.")
-            
+            st.image(img_url, use_container_width=True)
             st.markdown("<div class='podio-container'>", unsafe_allow_html=True)
             st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][3])} PTS)</div>", unsafe_allow_html=True)
             if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]} ({int(podio[1][3])} PTS)</div>", unsafe_allow_html=True)
