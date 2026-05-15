@@ -6,32 +6,39 @@ import time
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# Forzar que Streamlit no use caché para los archivos de datos
+# Función para cargar datos sin caché
 def cargar_datos():
     if not os.path.exists("d.csv"): return pd.DataFrame(columns=["E", "A", "F", "P", "G"])
     try:
         df = pd.read_csv("d.csv")
-        # Asegurar que las columnas existan
-        for col in ["E", "A", "F", "P", "G"]:
-            if col not in df.columns: df[col] = 0
         return df
     except: return pd.DataFrame(columns=["E", "A", "F", "P", "G"])
 
+# Función de lectura robusta
 def leer_f():
     if not os.path.exists("f.txt"): return ["0", "0"]
     try:
         with open("f.txt", "r") as x:
             cont = x.read().strip().split(",")
-            return cont if len(cont) == 2 else ["0", "0"]
-    except: return ["0", "0"]
+            if len(cont) == 2:
+                return cont
+            else:
+                return ["0", "0"]
+    except:
+        return ["0", "0"]
 
+# Función de escritura robusta con limpieza de caché
 def escribir_f(fase, t_limite):
-    with open("f.txt", "w") as x:
-        x.write(f"{fase},{t_limite}")
-        x.flush()
-        os.fsync(x.fileno())
-    # Pequeña pausa para asegurar escritura en disco
-    time.sleep(0.2)
+    try:
+        with open("f.txt", "w") as x:
+            x.write(f"{fase},{t_limite}")
+            x.flush()
+            os.fsync(x.fileno())
+        # Guardar en session_state local también para feedback inmediato
+        st.session_state.fase_actual = int(fase)
+        st.session_state.tiempo_actual = float(t_limite)
+    except Exception as e:
+        st.error(f"Error al guardar: {e}")
 
 # --- 2. ESTILOS ---
 st.markdown("""
@@ -64,9 +71,8 @@ st.markdown("""
         color: #FFFFFF !important; font-weight: 600 !important; text-shadow: 1px 1px 2px #000000 !important;
     }
     [data-testid="stTable"], .stTable, [data-testid="stExpander"] { background-color: rgba(0, 0, 0, 0.6) !important; border-radius: 10px; }
-    .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 800 !important; border: 2px solid #000 !important; }
+    .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 800 !important; border: 2px solid #000 !important; width: 100%; }
     
-    /* PODIO FINAL */
     .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFF !important; padding: 25px; border-radius: 15px; width: 85%; font-size: 2.5rem; font-weight: 800; border: 4px solid #FFF; text-shadow: 2px 2px 5px #000 !important; margin: auto; }
     .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFF !important; padding: 15px; border-radius: 12px; width: 75%; font-size: 1.8rem; font-weight: 700; margin: auto; }
     .box-bronce { background: linear-gradient(145deg, #CD7F32, #8B4513); color: #FFF !important; padding: 12px; border-radius: 10px; width: 65%; font-size: 1.5rem; font-weight: 700; margin: auto; }
@@ -124,21 +130,27 @@ if st.session_state.user["tipo"] == "juez":
     st.markdown("---")
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        op_fase = st.selectbox("Cambiar Pregunta:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x], index=list(fases_nombres.keys()).index(fase_serv) if fase_serv in fases_nombres else 0)
-        if st.button("📢 ACTUALIZAR AHORA"):
+        # Usar un key único para el selectbox para evitar conflictos
+        op_fase = st.selectbox("Cambiar Pregunta:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x], key="sel_fase")
+        if st.button("📢 ACTUALIZAR FASE", key="btn_fase"):
             escribir_f(op_fase, "0")
+            st.success(f"Fase cambiada a {fases_nombres[op_fase]}")
+            time.sleep(0.5)
             st.rerun()
     with c2:
-        t_set = st.number_input("Segundos:", 5, 60, 25)
-        if st.button("⏱️ INICIAR RELOJ"):
+        t_set = st.number_input("Segundos:", 5, 60, 25, key="num_tiempo")
+        if st.button("⏱️ INICIAR RELOJ", key="btn_reloj"):
             escribir_f(fase_serv, str(time.time() + t_set))
+            st.success("Reloj iniciado")
+            time.sleep(0.5)
             st.rerun()
     with c3:
-        if st.button("🔄 REFRESCAR"): st.rerun()
+        if st.button("🔄 REFRESCAR", key="btn_refrescar"): st.rerun()
     with c4:
-        if st.button("⚠️ RESET"):
+        if st.button("⚠️ RESET", key="btn_reset"):
             if os.path.exists("d.csv"): os.remove("d.csv")
-            escribir_f(0, 0); st.rerun()
+            escribir_f(0, 0)
+            st.rerun()
     
     st.table(df_global[['G', 'A', 'P']].sort_values(by='P', ascending=False))
 
@@ -148,18 +160,14 @@ else:
         st.balloons(); st.snow()
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
-            # MOSTRAR IMAGEN SEGÚN GÉNERO DEL GANADOR (podio[0][4] es 'G' y podio[0][1] es 'A')
             genero_ganador = podio[0][4]
             img_file = "alumna_festejo_uba.png" if genero_ganador == "Dra." else "alumno_festejo_uba.png"
             img_url = f"https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/{img_file}"
-            
             st.image(img_url, use_container_width=True)
             st.markdown(f"<h1 class='titulo-oro'>🏆 {podio[0][4]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
-            
             st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][3])} PTS)</div><br>", unsafe_allow_html=True)
             if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]}</div><br>", unsafe_allow_html=True)
             if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]}</div>", unsafe_allow_html=True)
-            
             if st.button("🚪 CERRAR SESIÓN"):
                 st.session_state.user = None
                 st.rerun()
