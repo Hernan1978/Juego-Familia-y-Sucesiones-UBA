@@ -6,9 +6,15 @@ import time
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
+# Forzar que Streamlit no use caché para los archivos de datos
 def cargar_datos():
     if not os.path.exists("d.csv"): return pd.DataFrame(columns=["E", "A", "F", "P", "G"])
-    try: return pd.read_csv("d.csv")
+    try:
+        df = pd.read_csv("d.csv")
+        # Asegurar que las columnas existan
+        for col in ["E", "A", "F", "P", "G"]:
+            if col not in df.columns: df[col] = 0
+        return df
     except: return pd.DataFrame(columns=["E", "A", "F", "P", "G"])
 
 def leer_f():
@@ -24,57 +30,46 @@ def escribir_f(fase, t_limite):
         x.write(f"{fase},{t_limite}")
         x.flush()
         os.fsync(x.fileno())
+    # Pequeña pausa para asegurar escritura en disco
+    time.sleep(0.2)
 
-# --- 2. ESTILOS DE ALTA VISIBILIDAD ---
+# --- 2. ESTILOS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&display=swap');
     header, [data-testid="stHeader"] { display: none !important; }
     .stApp { 
         background-image: url("https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"); 
-        background-size: cover; 
-        background-attachment: fixed; 
+        background-size: cover; background-attachment: fixed; 
     }
-    
     .stApp, .stMarkdown, p, h1, h2, h3, h4, span { font-family: 'Poppins', sans-serif; text-align: center; }
-
     h2, .stMarkdown h2 {
-        color: #FFFFFF !important;
-        font-size: 2.5rem !important;
-        font-weight: 800 !important;
+        color: #FFFFFF !important; font-size: 2.5rem !important; font-weight: 800 !important;
         text-shadow: 3px 3px 10px #000000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000 !important;
     }
-
     .titulo-oro { 
         color: #FFFFFF !important; font-size: 3.8rem !important; font-weight: 800; text-transform: uppercase; 
         text-shadow: 0 0 10px #D4AF37, 0 0 20px #D4AF37, 3px 3px 5px #000 !important; 
     }
-    
     label, [data-testid="stWidgetLabel"] p, .stSelectbox label, .stNumberInput label, .stRadio label, [data-testid="stMarkdownContainer"] p {
         color: #CCFF00 !important; font-weight: 800 !important; font-size: 1.2rem !important;
         text-shadow: 2px 2px 4px #000 !important;
     }
-
     .reloj-container {
         background-color: rgba(0, 0, 0, 0.8); color: #FF4B4B; font-size: 4rem; font-weight: 800;
         padding: 10px 30px; border-radius: 15px; border: 4px solid #FF4B4B; display: inline-block;
         margin: 20px 0; text-shadow: 0 0 10px #FF4B4B;
     }
-
-    .stSelectbox div[data-baseweb="select"], .stNumberInput input, .stTextInput input { 
-        background-color: white !important; color: #000000 !important; border-radius: 8px; font-weight: 600 !important;
-    }
-
     [data-testid="stTable"] td, [data-testid="stTable"] th, .stDataFrame p, [data-testid="stExpander"] p, [data-testid="stExpander"] b {
         color: #FFFFFF !important; font-weight: 600 !important; text-shadow: 1px 1px 2px #000000 !important;
     }
-    [data-testid="stTable"], .stTable, [data-testid="stExpander"] {
-        background-color: rgba(0, 0, 0, 0.6) !important; border-radius: 10px;
-    }
-
-    .stButton>button { 
-        background-color: #D4AF37 !important; color: #000000 !important; font-weight: 800 !important; border: 2px solid #000 !important;
-    }
+    [data-testid="stTable"], .stTable, [data-testid="stExpander"] { background-color: rgba(0, 0, 0, 0.6) !important; border-radius: 10px; }
+    .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 800 !important; border: 2px solid #000 !important; }
+    
+    /* PODIO FINAL */
+    .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFF !important; padding: 25px; border-radius: 15px; width: 85%; font-size: 2.5rem; font-weight: 800; border: 4px solid #FFF; text-shadow: 2px 2px 5px #000 !important; margin: auto; }
+    .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFF !important; padding: 15px; border-radius: 12px; width: 75%; font-size: 1.8rem; font-weight: 700; margin: auto; }
+    .box-bronce { background: linear-gradient(145deg, #CD7F32, #8B4513); color: #FFF !important; padding: 12px; border-radius: 10px; width: 65%; font-size: 1.5rem; font-weight: 700; margin: auto; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -129,9 +124,9 @@ if st.session_state.user["tipo"] == "juez":
     st.markdown("---")
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        op_fase = st.selectbox("Cambiar Pregunta:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x])
+        op_fase = st.selectbox("Cambiar Pregunta:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x], index=list(fases_nombres.keys()).index(fase_serv) if fase_serv in fases_nombres else 0)
         if st.button("📢 ACTUALIZAR AHORA"):
-            escribir_f(op_fase, "0") # Al actualizar fase, el tiempo se pone en 0 (bloqueado)
+            escribir_f(op_fase, "0")
             st.rerun()
     with c2:
         t_set = st.number_input("Segundos:", 5, 60, 25)
@@ -150,11 +145,21 @@ if st.session_state.user["tipo"] == "juez":
 else:
     # --- PANTALLA ALUMNO ---
     if fase_serv == 99:
-        st.balloons()
+        st.balloons(); st.snow()
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
+            # MOSTRAR IMAGEN SEGÚN GÉNERO DEL GANADOR (podio[0][4] es 'G' y podio[0][1] es 'A')
+            genero_ganador = podio[0][4]
+            img_file = "alumna_festejo_uba.png" if genero_ganador == "Dra." else "alumno_festejo_uba.png"
+            img_url = f"https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/{img_file}"
+            
+            st.image(img_url, use_container_width=True)
             st.markdown(f"<h1 class='titulo-oro'>🏆 {podio[0][4]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
+            
             st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][3])} PTS)</div><br>", unsafe_allow_html=True)
+            if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]}</div><br>", unsafe_allow_html=True)
+            if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]}</div>", unsafe_allow_html=True)
+            
             if st.button("🚪 CERRAR SESIÓN"):
                 st.session_state.user = None
                 st.rerun()
@@ -166,7 +171,6 @@ else:
         
         st.markdown(f"## {p['q']}")
         
-        # LÓGICA DE BLOQUEO
         if t_limite == 0:
             st.warning("⚖️ El Tribunal aún no ha habilitado la votación. Espere...")
             voto_bloqueado = True
@@ -198,10 +202,10 @@ else:
         
         if ya_envio:
             st.info("✅ Sentencia enviada correctamente.")
-            time.sleep(3)
+            time.sleep(2)
             st.rerun()
             
     else:
         st.info("⚖️ Tribunal deliberando... espere.")
-        time.sleep(3)
+        time.sleep(2)
         st.rerun()
