@@ -48,11 +48,20 @@ st.markdown("""
     font-size: 3.5rem !important; 
     text-shadow: 2px 2px 4px #000000 !important;
 }
+/* Etiquetas de ingreso y opciones Dr/Dra */
+label, [data-testid="stWidgetLabel"] p, .stRadio label, [data-testid="stMarkdownContainer"] p {
+    color: #00FFFF !important; /* Color Cian brillante */
+    font-weight: 800 !important;
+    font-size: 1.3rem !important;
+    /* Este código de abajo crea un borde negro alrededor de cada letra */
+    text-shadow: 
+        -2px -2px 0 #000,  
+         2px -2px 0 #000,
+        -2px  2px 0 #000,
+         2px  2px 0 #000,
+         3px  3px 5px rgba(0,0,0,0.8) !important;
+}
 
-    /* --- PANEL DOCENTE: CONTRASTE MÁXIMO --- */
-    label, [data-testid="stWidgetLabel"] p, .stSelectbox p, .stNumberInput p, [data-testid="stExpander"] summary p {
-    label, [data-testid="stWidgetLabel"] p {
-    color: #FFFFFF !important;
     background-color: rgba(0, 0, 0, 0.5); /* Fondo negro clarito detrás de la letra */
     padding: 5px 10px;
     border-radius: 5px;
