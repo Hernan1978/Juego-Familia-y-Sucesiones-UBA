@@ -144,12 +144,12 @@ else:
         
         time.sleep(2); st.rerun()
 
-    elif fase_serv == Resultados parciales:
+    elif fase_serv == "Resultados parciales":
         st.markdown("<h2>📊 RESULTADOS</h2>", unsafe_allow_html=True)
         st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False).head(10))
         time.sleep(3); st.rerun()
 
-    elif fase_serv == Resultados finales:
+    elif fase_serv == "Resultados finales":
         st.balloons()
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
