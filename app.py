@@ -1,65 +1,3 @@
-
-
-Inicia una prueba gratuita
-
-Compartir
-Lite
-Esta es la versión v9, diseñada para ser la más estable y sincronizada posible.
-¿Qué hace que esta versión funcione donde las otras fallaron?
-Sincronización de Hierro: He añadido comandos que obligan al servidor de Streamlit a escribir físicamente en el disco cada vez que presionas un botón.
-Música de Fondo: Ahora el juego tiene sonidos:
-bienvenida.mp3 al entrar.
-exito.mp3 cuando aciertan.
-error.mp3 cuando fallan.
-ganador.mp3 en el podio final.
-Refresco Inteligente: El sistema ahora detecta cambios en el archivo de datos de forma mucho más sensible, lo que debería hacer que el panel del estudiante cambie en cuanto tú presiones el botón.
-Un consejo importante:
-Cuando estés en clase, si ves que un cambio tarda más de 2 o 3 segundos en aparecer, simplemente presiona el botón "🔄 REFRESCAR" en tu panel o pide a los alumnos que refresquen su navegador. Eso forzará la lectura del archivo actualizado.
-¡Espero que esta versión sea la definitiva para tu clase! ¡Mucho éxito!
-lexplay_uba_v9.py
-Código · 11.04 KB
-Ver todos los archivos en esta tarea
-¿Qué te pareció este resultado?
-no andan los botones, mismo error de antes
-Lite
-Lamento muchísimo que el error persista. El problema de fondo es que Streamlit Cloud no permite que dos usuarios (Docente y Alumno) compartan y modifiquen el mismo archivo CSV de forma confiable; cuando uno escribe, el otro no ve el cambio o se bloquea por permisos.
-Para que tu juego funcione perfectamente y sin errores, la única solución real es usar una Base de Datos externa (como Firestore o Supabase) o, lo más sencillo y rápido para ti ahora mismo, usar Google Sheets como base de datos.
-Sin embargo, antes de cambiar todo el sistema, hay una última prueba que podemos hacer para intentar salvar la plataforma actual:
-La "Última Oportunidad" (Versión v10):
-Voy a reescribir el código para que NUNCA se escriba y lea el archivo al mismo tiempo. Usaremos un sistema de "reintentos" automáticos: si el archivo está ocupado, el programa esperará milisegundos y volverá a intentar hasta que lo logre, en lugar de dar error.
-¿Quieres que intentemos esta última versión técnica o prefieres que te ayude a configurar una base de datos real para que el juego sea profesional y nunca más falle? (Configurar la base de datos te llevará unos 10 minutos conmigo).
-Quieres que intentemos esta última versión técnica o prefieres que te ayude a configurar una base de datos real para que el juego sea profesional y nunca más falle? (Configurar la base de datos te llevará unos 10 minutos conmigo).  una ultima version
-Lite
-Entendido, vamos con la Versión 10. Esta es la versión "blindada" para archivos.
-He aplicado tres técnicas de ingeniería para evitar el error:
-Escritura Atómica: El programa escribe un archivo temporal y luego lo "renombra" instantáneamente. Esto evita que el alumno intente leer un archivo que se está escribiendo a medias.
-Bucle de Reintentos: Si el archivo está ocupado, el código no dará error; esperará 0.1 segundos y volverá a intentar hasta 10 veces.
-Tipos de Datos Estrictos: He forzado a que la columna de puntos (P) sea siempre decimal y la de fase (F) siempre entera, para que Pandas no se confunda y lance el TypeError.
-Copia este código y reemplaza el anterior:
-La línea de CSS para que las letras en la página de login sean blancas es: `color: white;` en el selector correspondiente.
-
-Lite
-Aquí tienes la Versión 10, la más robusta que podemos crear usando archivos.
-¿Qué tiene de especial?
-Escritura Atómica: Ahora el programa no escribe directamente sobre el archivo que los alumnos están leyendo. Crea uno nuevo "escondido" y lo reemplaza en una milésima de segundo. Esto elimina el 99% de los errores de "archivo ocupado".
-Paciencia Digital: Si por alguna razón el archivo sigue bloqueado, el programa reintentará 10 veces antes de rendirse.
-Blindaje de Datos: He forzado los tipos de números para que Pandas no se queje nunca más del error de "dtype".
-Recomendación final:
-Si después de esto sigues teniendo problemas, es una señal clara de que Streamlit Cloud está saturado. En ese caso, el siguiente paso sería conectar el juego a una base de datos real (como Google Sheets), lo cual es muy fácil de hacer y yo puedo guiarte.
-¡Prueba esta versión y crucemos los dedos! Debería ser mucho más estable.
-lexplay_uba_v10.py
-Código · 11.14 KB
-Ver todos los archivos en esta tarea
-Tarea completada
-¿Qué te pareció este resultado?
-Sugerencias de seguimiento
-
-
-
-Computadoras en la nube
-Nuevo
-
-lexplay_uba_v10.py
 import streamlit as st
 import pandas as pd
 import os
@@ -269,4 +207,3 @@ else:
         st.info("⚖️ Tribunal deliberando... espere.")
         time.sleep(2)
         st.rerun()
-¿Sabes codificar en Python? - Manus
