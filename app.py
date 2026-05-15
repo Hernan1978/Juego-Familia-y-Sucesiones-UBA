@@ -6,39 +6,31 @@ import time
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# Función para cargar datos sin caché
-def cargar_datos():
-    if not os.path.exists("d.csv"): return pd.DataFrame(columns=["E", "A", "F", "P", "G"])
-    try:
-        df = pd.read_csv("d.csv")
+# ARCHIVO ÚNICO DE DATOS (CSV)
+# Usaremos una fila especial con ID "SISTEMA" para guardar la fase y el tiempo
+def gestionar_datos(accion="leer", fase=None, tiempo=None):
+    archivo = "d.csv"
+    columnas = ["E", "A", "F", "P", "G"]
+    
+    # Cargar o crear
+    if not os.path.exists(archivo):
+        df = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0, "0"]], columns=columnas)
+        df.to_csv(archivo, index=False)
+    else:
+        try:
+            df = pd.read_csv(archivo)
+            if "SISTEMA" not in df["E"].values:
+                extra = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0, "0"]], columns=columnas)
+                df = pd.concat([df, extra], ignore_index=True)
+        except:
+            df = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0, "0"]], columns=columnas)
+    
+    if accion == "escribir":
+        df.loc[df["E"] == "SISTEMA", "F"] = int(fase)
+        df.loc[df["E"] == "SISTEMA", "P"] = float(tiempo)
+        df.to_csv(archivo, index=False)
         return df
-    except: return pd.DataFrame(columns=["E", "A", "F", "P", "G"])
-
-# Función de lectura robusta
-def leer_f():
-    if not os.path.exists("f.txt"): return ["0", "0"]
-    try:
-        with open("f.txt", "r") as x:
-            cont = x.read().strip().split(",")
-            if len(cont) == 2:
-                return cont
-            else:
-                return ["0", "0"]
-    except:
-        return ["0", "0"]
-
-# Función de escritura robusta con limpieza de caché
-def escribir_f(fase, t_limite):
-    try:
-        with open("f.txt", "w") as x:
-            x.write(f"{fase},{t_limite}")
-            x.flush()
-            os.fsync(x.fileno())
-        # Guardar en session_state local también para feedback inmediato
-        st.session_state.fase_actual = int(fase)
-        st.session_state.tiempo_actual = float(t_limite)
-    except Exception as e:
-        st.error(f"Error al guardar: {e}")
+    return df
 
 # --- 2. ESTILOS ---
 st.markdown("""
@@ -100,18 +92,18 @@ if st.session_state.user is None:
         if m == "derecho2024": st.session_state.user = {"tipo": "juez"}
         elif m and n:
             st.session_state.user = {"tipo": "alumno", "e": m, "a": n, "g": g}
-            df = cargar_datos()
+            df = gestionar_datos()
             if m not in df['E'].values:
                 with open("d.csv", "a") as f:
-                    if os.stat("d.csv").st_size == 0: f.write("E,A,F,P,G\n")
                     f.write(f"{m},{n},0,0,{g}\n")
         st.rerun()
     st.stop()
 
 # --- 5. LÓGICA ---
-df_global = cargar_datos()
-f_info = leer_f()
-fase_serv, t_limite = int(f_info[0]), float(f_info[1])
+df_global = gestionar_datos()
+info_sistema = df_global[df_global["E"] == "SISTEMA"].iloc[0]
+fase_serv = int(info_sistema["F"])
+t_limite = float(info_sistema["P"])
 ahora = time.time()
 fases_nombres = {0: "Inicio", 1: "P1", 2: "P2", 3: "P3", 4: "P4", 88: "Parcial", 99: "FINAL"}
 
@@ -125,40 +117,34 @@ if st.session_state.user["tipo"] == "juez":
             for k,v in banco.items(): st.write(f"**{k}.** {v['q']}")
         with c_p2:
             st.markdown("<b>Alumnos en Sala:</b>", unsafe_allow_html=True)
-            st.table(df_global[['G', 'A']])
+            st.table(df_global[df_global["E"] != "SISTEMA"][['G', 'A']])
 
     st.markdown("---")
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        # Usar un key único para el selectbox para evitar conflictos
         op_fase = st.selectbox("Cambiar Pregunta:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x], key="sel_fase")
         if st.button("📢 ACTUALIZAR FASE", key="btn_fase"):
-            escribir_f(op_fase, "0")
-            st.success(f"Fase cambiada a {fases_nombres[op_fase]}")
-            time.sleep(0.5)
+            gestionar_datos("escribir", fase=op_fase, tiempo=0)
             st.rerun()
     with c2:
         t_set = st.number_input("Segundos:", 5, 60, 25, key="num_tiempo")
         if st.button("⏱️ INICIAR RELOJ", key="btn_reloj"):
-            escribir_f(fase_serv, str(time.time() + t_set))
-            st.success("Reloj iniciado")
-            time.sleep(0.5)
+            gestionar_datos("escribir", fase=fase_serv, tiempo=time.time() + t_set)
             st.rerun()
     with c3:
         if st.button("🔄 REFRESCAR", key="btn_refrescar"): st.rerun()
     with c4:
         if st.button("⚠️ RESET", key="btn_reset"):
             if os.path.exists("d.csv"): os.remove("d.csv")
-            escribir_f(0, 0)
             st.rerun()
     
-    st.table(df_global[['G', 'A', 'P']].sort_values(by='P', ascending=False))
+    st.table(df_global[df_global["E"] != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
 
 else:
     # --- PANTALLA ALUMNO ---
     if fase_serv == 99:
         st.balloons(); st.snow()
-        podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
+        podio = df_global[df_global["E"] != "SISTEMA"].sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
             genero_ganador = podio[0][4]
             img_file = "alumna_festejo_uba.png" if genero_ganador == "Dra." else "alumno_festejo_uba.png"
@@ -199,7 +185,7 @@ else:
         if st.button("ENVIAR SENTENCIA", disabled=voto_bloqueado or ya_envio):
             if opcion == p["k"]:
                 pts = 10 + min(int(t_limite - ahora), 10)
-                df_u = cargar_datos()
+                df_u = gestionar_datos()
                 df_u.loc[df_u['E'] == st.session_state.user['e'], 'P'] += pts
                 df_u.to_csv("d.csv", index=False)
                 st.success("✅ REGISTRADO")
