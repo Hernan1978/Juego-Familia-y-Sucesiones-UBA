@@ -25,7 +25,7 @@ def escribir_f(fase, t_limite):
         x.flush()
         os.fsync(x.fileno())
 
-# --- 2. ESTILOS DE ALTA VISIBILIDAD (SIN SOMBRAS) ---
+# --- 2. ESTILOS DE ALTA VISIBILIDAD ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
@@ -36,50 +36,61 @@ st.markdown("""
         background-attachment: fixed; 
     }
     
-    /* Texto General */
+    /* TEXTO GENERAL */
     .stApp, .stMarkdown, p, h1, h2, h3, h4, span { 
         font-family: 'Poppins', sans-serif; 
         text-align: center;
-        text-shadow: none !important;
     }
 
-    /* TÍTULO DORADO */
-    .titulo-oro { color: #D4AF37 !important; font-size: 3.5rem !important; font-weight: 700; text-transform: uppercase; text-shadow: 2px 2px 4px #000 !important; }
-    
-    /* --- PANEL DOCENTE: CONTRASTE MÁXIMO --- */
-    /* Etiquetas de selección y números en NEGRO PURO */
-    label, [data-testid="stWidgetLabel"] p, .stSelectbox p, .stNumberInput p, [data-testid="stExpander"] summary p {
-        color: #000000 !important;
+    /* TÍTULOS PRINCIPALES */
+    .titulo-oro { 
+        color: #D4AF37 !important; 
+        font-size: 3.5rem !important; 
+        font-weight: 700; 
+        text-transform: uppercase; 
+        text-shadow: 3px 3px 6px #000 !important; 
+    }
+
+    /* --- AJUSTE SOLICITADO: LETRAS DE INGRESO EN BLANCO --- */
+    label, [data-testid="stWidgetLabel"] p {
+        color: #FFFFFF !important; 
         font-weight: 700 !important;
-        text-shadow: none !important;
+        font-size: 1.2rem !important;
+        text-shadow: 2px 2px 4px #000000 !important; /* Sombreado para que no se pierdan en el fondo */
     }
 
-    /* Fondo blanco para los widgets de control */
-    [data-testid="stTable"], .stDataFrame, [data-testid="stExpander"], .stTable, 
-    div[data-testid="stExpander"] div, .stSelectbox div[data-baseweb="select"], 
-    .stNumberInput input { 
-        background-color: white !important; 
+    /* CAJAS DE ENTRADA (INPUTS) */
+    .stTextInput input, .stSelectbox div, .stNumberInput input {
+        background-color: white !important;
         color: #000000 !important;
-        border-radius: 8px;
-    }
-
-    /* Texto dentro de tablas y desplegables */
-    [data-testid="stTable"] td, [data-testid="stTable"] th, .stDataFrame p, 
-    .stSelectbox p, [data-testid="stExpander"] p, [data-testid="stExpander"] b {
-        color: #000000 !important;
+        border-radius: 10px !important;
+        border: 2px solid #D4AF37 !important;
         font-weight: 600 !important;
     }
 
-    /* BOTONES DORADOS */
+    /* BOTONES */
     .stButton>button { 
         background-color: #D4AF37 !important; 
         color: #000000 !important; 
         font-weight: 800 !important; 
-        border: 2px solid #000 !important;
+        border: 2px solid #FFF !important;
+        border-radius: 10px !important;
+        transition: 0.3s;
     }
-    
-    /* Botón Salir */
-    .btn-exit>div>button { background-color: #ff4b4b !important; color: white !important; border: none !important; }
+    .stButton>button:hover {
+        transform: scale(1.05);
+        background-color: #F1D36E !important;
+    }
+
+    /* PANEL DOCENTE (TABLAS Y EXPANDERS) */
+    [data-testid="stExpander"], [data-testid="stTable"], .stDataFrame {
+        background-color: rgba(255, 255, 255, 0.9) !important;
+        border-radius: 10px;
+        padding: 10px;
+    }
+    [data-testid="stTable"] td, [data-testid="stTable"] th {
+        color: black !important;
+    }
 
     /* PODIO FINAL */
     .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFF !important; padding: 25px; border-radius: 15px; width: 85%; font-size: 2.5rem; font-weight: 800; border: 4px solid #FFF; text-shadow: 2px 2px 5px #000 !important; margin: auto; }
@@ -98,15 +109,19 @@ banco = {
 
 # --- 4. ACCESO ---
 if 'user' not in st.session_state: st.session_state.user = None
-if 'f_voto' not in st.session_state: st.session_state.f_voto = -1
 
 if st.session_state.user is None:
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
-    m = st.text_input("Clave de Acceso // Mail academico:")
+    
+    # Letras blancas controladas por el CSS arriba
+    m = st.text_input("Clave de Acceso / Mail académico:")
     n = st.text_input("Nombre Completo:")
     g = st.radio("Título:", ["Dr.", "Dra."])
+    
     if st.button("INGRESAR"):
-        if m == "derecho2024": st.session_state.user = {"tipo": "juez"}
+        if m == "derecho2024": 
+            st.session_state.user = {"tipo": "juez"}
+            st.rerun()
         elif m and n:
             st.session_state.user = {"tipo": "alumno", "e": m, "a": n, "g": g}
             df = cargar_datos()
@@ -114,58 +129,32 @@ if st.session_state.user is None:
                 with open("d.csv", "a") as f:
                     if os.stat("d.csv").st_size == 0: f.write("E,A,F,P,G\n")
                     f.write(f"{m},{n},0,0,{g}\n")
-        st.rerun()
+            st.rerun()
     st.stop()
 
-# --- 5. LÓGICA ---
+# --- 5. LÓGICA DE CONTROL (DOCENTE) ---
 df_global = cargar_datos()
 f_info = leer_f()
-fase_serv, t_limite = int(f_info[0]), float(f_info[1])
-ahora = time.time()
-fases_nombres = {0: "Inicio", 1: "P1", 2: "P2", 3: "P3", 4: "P4", 88: "Parcial", 99: "FINAL"}
+fase_serv = int(f_info[0])
 
 if st.session_state.user["tipo"] == "juez":
-    c_tit, c_exit = st.columns([0.8, 0.2])
-    with c_tit: st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DOCENTE</h1>", unsafe_allow_html=True)
-    with c_exit: 
-        st.markdown('<div class="btn-exit">', unsafe_allow_html=True)
+    st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DOCENTE</h1>", unsafe_allow_html=True)
+    
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        op_fase = st.selectbox("Cambiar Fase:", options=[0,1,2,3,4,88,99], format_func=lambda x: {0:"Inicio",1:"P1",2:"P2",3:"P3",4:"P4",88:"Parcial",99:"FINAL"}[x])
+        if st.button("📢 ACTUALIZAR"):
+            escribir_f(op_fase, "0")
+            st.rerun()
+    with c2:
+        if st.button("🔄 REFRESCAR"): st.rerun()
+    with c3:
         if st.button("🚪 SALIR"):
             st.session_state.user = None
             st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
 
-    with st.expander("📚 VER PREGUNTAS Y ASISTENCIA", expanded=False):
-        c_p1, c_p2 = st.columns(2)
-        with c_p1:
-            st.markdown("<b style='color:black;'>Banco:</b>", unsafe_allow_html=True)
-            for k,v in banco.items(): st.write(f"**{k}.** {v['q']}")
-        with c_p2:
-            st.markdown("<b style='color:black;'>Alumnos en Sala:</b>", unsafe_allow_html=True)
-            st.table(df_global[['G', 'A']])
-
-    st.markdown("---")
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        op_fase = st.selectbox("Cambiar Pregunta:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x])
-        if st.button("📢 ACTUALIZAR AHORA"):
-            escribir_f(op_fase, "0")
-            st.rerun() # REFRESCO INSTANTÁNEO
-    with c2:
-        t_set = st.number_input("Segundos:", 5, 60, 25)
-        if st.button("⏱️ RELOJ"):
-            escribir_f(fase_serv, str(time.time() + t_set))
-            st.rerun()
-    with c3:
-        if st.button("🔄 REFRESCAR"): st.rerun()
-    with c4:
-        if st.button("⚠️ RESET"):
-            if os.path.exists("d.csv"): os.remove("d.csv")
-            escribir_f(0, 0); st.rerun()
-    
+    st.markdown("### 🏆 Ranking de Profesionales")
     st.table(df_global[['G', 'A', 'P']].sort_values(by='P', ascending=False))
-    
-    csv = df_global[['G', 'A', 'P']].to_csv(index=False).encode('utf-8')
-    st.download_button("📥 DESCARGAR EXCEL", data=csv, file_name='lexplay.csv', mime='text/csv')
 
 else:
     # --- PANTALLA ALUMNO ---
@@ -173,41 +162,14 @@ else:
         st.balloons(); st.snow()
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
-            # IMAGEN DE CIERRE DESDE GITHUB RAW
             img_file = "alumna_festejo_uba.png" if podio[0][4] == "Dra." else "alumno_festejo_uba.png"
             img_url = f"https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/{img_file}"
-            
             st.image(img_url, use_container_width=True)
             st.markdown(f"<h1 class='titulo-oro'>🏆 {podio[0][4]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
-            
             st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][3])} PTS)</div><br>", unsafe_allow_html=True)
             if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]}</div><br>", unsafe_allow_html=True)
             if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]}</div>", unsafe_allow_html=True)
-            
-            if st.button("🚪 CERRAR SESIÓN"):
-                st.session_state.user = None
-                st.rerun()
-    elif fase_serv in banco:
-        p = banco[fase_serv]
-        reloj_on = t_limite > ahora
-        ya_envio = st.session_state.get('enviado', False)
-        if st.session_state.f_voto != fase_serv: st.session_state.enviado = False
-        
-        st.write(f"## {p['q']}")
-        opcion = st.radio("Dictamen:", p["o"], disabled=ya_envio or not reloj_on)
-        
-        if st.button("ENVIAR SENTENCIA", disabled=ya_envio or not reloj_on):
-            if opcion == p["k"]:
-                pts = 10 + min(int(t_limite - ahora), 10)
-                df_u = cargar_datos()
-                df_u.loc[df_u['E'] == st.session_state.user['e'], 'P'] += pts
-                df_u.to_csv("d.csv", index=False)
-                st.success("✅ REGISTRADO")
-            else: st.error("❌ INCORRECTO")
-            st.session_state.enviado = True
-            st.session_state.f_voto = fase_serv
-            time.sleep(1); st.rerun()
-        time.sleep(2); st.rerun()
     else:
-        st.info("⚖️ Tribunal deliberando... espere.")
-        time.sleep(3); st.rerun()
+        st.info("⚖️ El tribunal está deliberando... espere a que el docente inicie la fase.")
+        time.sleep(2)
+        st.rerun()
