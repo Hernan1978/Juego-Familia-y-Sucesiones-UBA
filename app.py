@@ -25,51 +25,38 @@ def escribir_f(fase, t_limite):
         x.flush()
         os.fsync(x.fileno())
 
-# --- 2. ESTILOS ACTUALIZADOS (TODO A NEGRO) ---
+# --- 2. ESTILOS DE ALTA VISIBILIDAD ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
     header, [data-testid="stHeader"] { display: none !important; }
     .stApp { background-image: url("https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"); background-size: cover; background-attachment: fixed; }
     
-    /* Texto general en blanco para contraste con fondo oscuro */
-    .stApp, .stMarkdown, p, h1, h2, h3, h4, label, span { font-family: 'Poppins', sans-serif; text-align: center; }
-    .main .block-container { background: rgba(10, 25, 41, 0.92); padding: 3rem; border-radius: 12px; border-top: 5px solid #D4AF37; max-width: 1100px; margin: auto; }
+    .stApp, .stMarkdown, p, h1, h2, h3, h4, span { color: #FFFFFF !important; font-family: 'Poppins', sans-serif; text-align: center; text-shadow: 1px 1px 3px #000; }
     
-    /* --- FORZADO DE COLOR NEGRO (#000000) --- */
-    /* Tablas, desplegables y sus contenidos */
+    /* Labels en blanco para que se vean sobre el fondo oscuro */
+    label, [data-testid="stWidgetLabel"] p { color: #FFFFFF !important; font-weight: 700 !important; }
+
+    /* Tablas y Selectores (Fondo Blanco, Texto Negro) */
     [data-testid="stTable"], .stDataFrame, [data-testid="stExpander"], .stTable, 
-    div[data-testid="stExpander"] div, .stSelectbox label, .stNumberInput label { 
+    div[data-testid="stExpander"] div, .stSelectbox div[data-baseweb="select"], .stNumberInput input { 
         background-color: white !important; color: #000000 !important;
     }
-    
-    /* Texto dentro del desplegable (Expander) */
-    [data-testid="stExpander"] p, [data-testid="stExpander"] b, [data-testid="stExpander"] span, 
-    [data-testid="stExpander"] summary, [data-testid="stExpander"] div {
-        color: #000000 !important; font-weight: 700 !important;
+    [data-testid="stTable"] td, [data-testid="stTable"] th, .stDataFrame p, .stSelectbox p, [data-testid="stExpander"] p, [data-testid="stExpander"] b {
+        color: #000000 !important; font-weight: 600 !important;
     }
 
-    /* Títulos de tablas y celdas */
-    [data-testid="stTable"] td, [data-testid="stTable"] th, .stDataFrame p, .stTable p, label {
-        color: #000000 !important; font-weight: 700 !important;
-    }
+    /* Botones Dorados */
+    .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 700 !important; border: 2px solid white !important; }
+    .btn-exit>div>button { background-color: #ff4b4b !important; color: white !important; }
 
-    /* Botón de Descarga Excel - Texto Negro */
-    [data-testid="stDownloadButton"] button, [data-testid="stDownloadButton"] button p {
-        color: #000000 !important; font-weight: 800 !important;
-    }
-
-    /* Podio Estilos */
-    .podio-container { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px; }
-    .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFFFFF !important; padding: 20px; border-radius: 8px; width: 85%; font-size: 2.5rem; font-weight: 700; border: 3px solid white; text-shadow: 2px 2px 4px #000; }
-    .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFFFFF !important; padding: 15px; border-radius: 8px; width: 75%; font-size: 1.8rem; font-weight: 600; text-shadow: 1px 1px 2px #000; }
-    .box-bronce { background: linear-gradient(145deg, #CD7F32, #8B4513); color: #FFFFFF !important; padding: 12px; border-radius: 8px; width: 65%; font-size: 1.5rem; font-weight: 600; text-shadow: 1px 1px 2px #000; }
+    /* PODIO ESTILIZADO */
+    .podio-container { display: flex; flex-direction: column; align-items: center; gap: 15px; margin-top: 30px; }
+    .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFF !important; padding: 25px; border-radius: 15px; width: 85%; font-size: 2.8rem; font-weight: 800; border: 4px solid #FFF; text-shadow: 2px 2px 5px #000; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+    .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFF !important; padding: 15px; border-radius: 12px; width: 75%; font-size: 1.8rem; font-weight: 700; border: 2px solid #FFF; text-shadow: 1px 1px 3px #000; }
+    .box-bronce { background: linear-gradient(145deg, #CD7F32, #8B4513); color: #FFF !important; padding: 12px; border-radius: 10px; width: 65%; font-size: 1.5rem; font-weight: 700; border: 2px solid #FFF; text-shadow: 1px 1px 3px #000; }
     
-    .titulo-oro { color: #D4AF37 !important; font-size: 3.5rem !important; font-weight: 700; text-transform: uppercase; margin: 0; }
-    .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 700 !important; border: 1px solid #000; }
-    
-    .btn-exit>div>button { background-color: #ff4b4b !important; color: white !important; border: none !important; }
-    .reloj-float { position: fixed; top: 20px; right: 20px; background: #E31837; color: white !important; padding: 20px; border-radius: 8px; font-size: 3rem; font-weight: 700; border: 2px solid #D4AF37; z-index: 9999; }
+    .titulo-oro { color: #D4AF37 !important; font-size: 3.5rem !important; font-weight: 700; text-transform: uppercase; text-shadow: 3px 3px 6px #000; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -107,7 +94,6 @@ df_global = cargar_datos()
 f_info = leer_f()
 fase_serv, t_limite = int(f_info[0]), float(f_info[1])
 ahora = time.time()
-fases_nombres = {0: "Inicio", 1: "Pregunta 1", 2: "Pregunta 2", 3: "Pregunta 3", 4: "Pregunta 4", 88: "RESULTADOS PARCIALES", 99: "RESULTADO FINAL"}
 
 if st.session_state.user["tipo"] == "juez":
     c_tit, c_exit = st.columns([0.8, 0.2])
@@ -119,57 +105,60 @@ if st.session_state.user["tipo"] == "juez":
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # DESPLEGABLE CON TEXTO NEGRO FORZADO
-    with st.expander("📚 PREGUNTAS Y ASISTENCIAS", expanded=False):
+    with st.expander("📚 VER PREGUNTAS Y AUDIENCIA", expanded=False):
         c_p1, c_p2 = st.columns(2)
         with c_p1:
-            st.markdown("<b>Preguntas del Banco:</b>", unsafe_allow_html=True)
+            st.markdown("<b style='color:black;'>Banco:</b>", unsafe_allow_html=True)
             for k,v in banco.items(): st.write(f"**{k}.** {v['q']}")
         with c_p2:
-            st.markdown("<b>Alumnos en Sala:</b>", unsafe_allow_html=True)
+            st.markdown("<b style='color:black;'>Profesionales:</b>", unsafe_allow_html=True)
             st.table(df_global[['G', 'A']])
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        op_fase = st.selectbox("Fase:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x])
-        if st.button("📢 ACTUALIZAR"): escribir_f(op_fase, "0"); st.rerun()
+        op_fase = st.selectbox("Fase:", options=[0,1,2,3,4,88,99], format_func=lambda x: {0:"Inicio",1:"P1",2:"P2",3:"P3",4:"P4",88:"Parcial",99:"FINAL"}[x])
+        if st.button("📢 CAMBIAR"): escribir_f(op_fase, "0"); st.rerun()
     with c2:
         t_set = st.number_input("Segs:", 5, 60, 25)
         if st.button("⏱️ RELOJ"): escribir_f(fase_serv, str(time.time() + t_set)); st.rerun()
     with c3:
         if st.button("🔄 REFRESCAR"): st.rerun()
     with c4:
-        if st.button("⚠️ REINICIAR"):
+        if st.button("⚠️ RESET"):
             if os.path.exists("d.csv"): os.remove("d.csv")
             escribir_f(0, 0); st.rerun()
     
     df_ranking = df_global[['G', 'A', 'P']].sort_values(by='P', ascending=False)
     st.table(df_ranking)
-    
-    # BOTÓN DE DESCARGA CON TEXTO NEGRO
     csv = df_ranking.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="📥 DESCARGAR EXCEL (CSV)",
-        data=csv,
-        file_name='resultados_lexplay.csv',
-        mime='text/csv',
-    )
+    st.download_button(label="📥 EXCEL", data=csv, file_name='lexplay_uba.csv', mime='text/csv')
 
 else:
-    # Interfaz Alumno y Resultados Finales (Fase 99)
+    # --- PANTALLA DE RESULTADOS FINALES (PODIO) ---
     if fase_serv == 99:
         st.balloons(); st.snow()
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
+            # 1. Foto según Género
             img_file = "alumna_festejo_uba.png" if podio[0][4] == "Dra." else "alumno_festejo_uba.png"
             img_url = f"https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/{img_file}"
             st.image(img_url, use_container_width=True)
-            st.markdown(f"<h1 class='titulo-oro' style='font-size:4rem;'>🏆 {podio[0][4]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
+            
+            # 2. Nombre del Ganador
+            st.markdown(f"<h1 class='titulo-oro'>🏆 {podio[0][4]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
+            
+            # 3. EL PODIO (RESTABLECIDO)
             st.markdown("<div class='podio-container'>", unsafe_allow_html=True)
             st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][3])} PTS)</div>", unsafe_allow_html=True)
-            if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]}</div>", unsafe_allow_html=True)
-            if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]}</div>", unsafe_allow_html=True)
+            if len(podio) > 1:
+                st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]} ({int(podio[1][3])} PTS)</div>", unsafe_allow_html=True)
+            if len(podio) > 2:
+                st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]} ({int(podio[2][3])} PTS)</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
+            
+            if st.button("🚪 CERRAR SESIÓN"):
+                st.session_state.user = None
+                st.rerun()
     else:
-        st.info("⚖️ En espera de instrucciones del docente...")
+        st.info("⚖️ El tribunal está deliberando... Espere instrucciones.")
         time.sleep(3); st.rerun()
