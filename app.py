@@ -96,7 +96,7 @@ fases_nombres = {0: "Inicio", 1: "Pregunta 1", 2: "Pregunta 2", 3: "Pregunta 3",
 if st.session_state.user["tipo"] == "juez":
     st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DOCENTE</h1>", unsafe_allow_html=True)
     
-    with st.expander("📚 BANCO Y AUDIENCIA", expanded=True):
+    with st.expander("📚 PREGUNTAS Y ASISTENCIAS", expanded=True):
         c_j1, c_j2 = st.columns(2)
         with c_j1:
             st.markdown("<b style='color:black'>Preguntas:</b>", unsafe_allow_html=True)
