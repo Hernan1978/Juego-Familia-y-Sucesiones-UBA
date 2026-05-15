@@ -34,6 +34,7 @@ st.markdown("""
     .stApp, .stMarkdown, p, h1, h2, h3, h4, label, span { color: #FFFFFF !important; font-family: 'Poppins', sans-serif; text-align: center; }
     .main .block-container { background: rgba(10, 25, 41, 0.92) !important; padding: 3rem !important; border-radius: 12px !important; border-top: 5px solid #D4AF37; max-width: 1000px !important; margin: auto; }
     
+    /* TABLAS NEGRAS FONDO BLANCO */
     [data-testid="stTable"], .stDataFrame, [data-testid="stDataFrame"], [data-testid="stExpander"] { background-color: white !important; border-radius: 8px !important; }
     [data-testid="stTable"] td, [data-testid="stTable"] th, [data-testid="stTable"] tr, .stDataFrame div, .stDataFrame span, .stDataFrame p, [data-testid="stExpander"] p, [data-testid="stExpander"] span, [data-testid="stExpander"] label {
         color: #000000 !important; font-weight: 700 !important; text-shadow: none !important;
@@ -142,15 +143,16 @@ else:
         if podio:
             st.markdown("<h1 class='titulo-oro'>🏆 SENTENCIA FINAL 🏆</h1>", unsafe_allow_html=True)
             
-            # --- LÓGICA DE FOTO CORREGIDA ---
-            # podio[0][4] es la columna 'G' (Género: Dr. o Dra.)
+            # --- LINKS DEFINITIVOS INSERTADOS ---
             if podio[0][4] == "Dra.":
-                url_final = "PONER_AQUI_LINK_FOTO_MUJER"
+                url_final = "https://raw.githubusercontent.com/fede-999/images/main/alumna_festejo_uba.png"
             else:
-                url_final = "PONER_AQUI_LINK_FOTO_HOMBRE"
+                url_final = "https://raw.githubusercontent.com/fede-999/images/main/alumno_festejo_uba.png"
             
-            st.image(url_final, use_container_width=True)
-            # -------------------------------
+            try:
+                st.image(url_final, use_container_width=True)
+            except:
+                st.warning("Cargando imagen de victoria...")
 
             st.markdown(f"<div class='podio-container'><div class='box-oro'>🥇 ORO: {podio[0][1]}<br>{int(podio[0][3])} PTS</div>", unsafe_allow_html=True)
             if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]} ({int(podio[1][3])} PTS)</div>", unsafe_allow_html=True)
