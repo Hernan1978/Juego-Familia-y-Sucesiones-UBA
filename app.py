@@ -125,4 +125,32 @@ else:
         p = banco[fase_serv]; st.write(f"👤 {st.session_state.user['g']} {st.session_state.user['a']}")
         st.markdown(f"### {p['q']}")
         opcion = st.radio("Sentencia:", p["o"], key=f"ans_{fase_serv}", disabled=ha_votado)
-        if st.
+        if st.button("ENVIAR", disabled=not (t_limite > ahora) or ha_votado):
+            if opcion == p["k"]:
+                pts = 10 + min(int(t_limite - ahora), 10)
+                df_u = cargar_datos(); df_u.loc[df_u['E'] == st.session_state.user['e'], 'P'] += pts
+                df_u.to_csv("d.csv", index=False); st.success(f"✅ +{pts}")
+            else: st.error("❌ Error")
+            st.session_state.f_ok = fase_serv; st.rerun()
+        if reloj_activo: time.sleep(1); st.rerun()
+        else: time.sleep(2); st.rerun()
+    elif fase_serv == 88:
+        st.markdown("<h2 class='titulo-oro'>📊 RESULTADOS PARCIALES</h2>", unsafe_allow_html=True)
+        st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False).head(10))
+        time.sleep(4); st.rerun()
+    elif fase_serv == 99:
+        st.balloons(); st.snow()
+        st.components.v1.html('<iframe src="https://www.soundjay.com/human/sounds/applause-01.mp3" allow="autoplay" style="display:none"></iframe>', height=0)
+        podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
+        if podio:
+            st.markdown("<h1 class='titulo-oro'>🏆 SENTENCIA FINAL 🏆</h1>", unsafe_allow_html=True)
+            img = "https://raw.githubusercontent.com/fede-999/images/main/ganadora_mujer.png" if podio[0][4] == "Dra." else "https://raw.githubusercontent.com/fede-999/images/main/ganador_hombre.png"
+            st.image(img, width=320)
+            st.markdown(f"<div class='podio-container'><div class='box-oro'>🥇 ORO: {podio[0][1]}<br>{int(podio[0][3])} PTS</div>", unsafe_allow_html=True)
+            if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]} ({int(podio[1][3])} PTS)</div>", unsafe_allow_html=True)
+            if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]} ({int(podio[2][3])} PTS)</div></div>", unsafe_allow_html=True)
+            st.markdown("<div class='mensaje-final'>La sesión ha concluido. El Tribunal agradece su participación.<br>¡FELICITACIONES A LOS GANADORES!</div>", unsafe_allow_html=True)
+    else:
+        st.info("⚖️ Esperando al Tribunal..."); time.sleep(2); st.rerun()
+    st.divider()
+    if st.button("🚪 SALIR"): st.session_state.user = None; st.rerun()
