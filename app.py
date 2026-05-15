@@ -52,6 +52,9 @@ st.markdown("""
     font-weight: 700 !important;
     text-shadow: 1px 1px 2px #000 !important; /* Sombra negra suave para que resalte */
 }
+div[data-testid="stMarkdownContainer"] p {
+    color: #FFFFFF !important;
+}
 
 
     /* Fondo blanco para los widgets de control */
