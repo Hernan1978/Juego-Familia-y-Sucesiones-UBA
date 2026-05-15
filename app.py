@@ -146,4 +146,32 @@ else:
                 st.rerun()
             time.sleep(1); st.rerun()
         else:
-            st.warning("⏱️ Tiempo agotado o esperando al Tribunal..."); time.sleep(2
+            st.warning("⏱️ Tiempo agotado o esperando al Tribunal..."); time.sleep(2); st.rerun()
+
+    elif fase_serv == 88:
+        st.markdown("<h2 class='titulo-oro'>📊 RESULTADOS PARCIALES</h2>", unsafe_allow_html=True)
+        st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False).head(10))
+        time.sleep(4); st.rerun()
+
+    elif fase_serv == 99:
+        st.balloons(); st.snow()
+        podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
+        st.markdown("<h1 class='titulo-oro'>🏆 SENTENCIA FINAL 🏆</h1>", unsafe_allow_html=True)
+        
+        # FOTO DEL GANADOR SEGÚN GÉNERO
+        if len(podio) > 0 and podio[0][4] == "Dra.":
+            url_img = "https://raw.githubusercontent.com/fede-999/images/main/alumna_festejo_uba.png"
+        else:
+            url_img = "https://raw.githubusercontent.com/fede-999/images/main/alumno_festejo_uba.png"
+        
+        st.image(url_img, use_container_width=True)
+
+        if podio:
+            st.markdown(f"<div class='podio-container'><div class='box-oro'>🥇 ORO: {podio[0][1]}<br>{int(podio[0][3])} PTS</div>", unsafe_allow_html=True)
+            if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]} ({int(podio[1][3])} PTS)</div>", unsafe_allow_html=True)
+            if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]} ({int(podio[2][3])} PTS)</div></div>", unsafe_allow_html=True)
+        
+        st.markdown("<div class='mensaje-final'>¡EDUCACIÓN PÚBLICA, DE CALIDAD Y GRATUITA!</div>", unsafe_allow_html=True)
+    
+    else:
+        st.info("⚖️ Esperando al Tribunal..."); time.sleep(2); st.rerun()
