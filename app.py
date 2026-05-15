@@ -47,12 +47,12 @@ st.markdown("""
     .titulo-oro { color: #D4AF37 !important; font-size: 3.5rem !important; font-weight: 700; text-transform: uppercase; text-shadow: 2px 2px 4px #000 !important; }
     
     /* --- PANEL DOCENTE: CONTRASTE MÁXIMO --- */
-    /* Etiquetas de selección y números en NEGRO PURO */
     label, [data-testid="stWidgetLabel"] p, .stSelectbox p, .stNumberInput p, [data-testid="stExpander"] summary p {
-        color: #000000 !important;
-        font-weight: 700 !important;
-        text-shadow: none !important;
-    }
+    color: #FFFFFF !important; /* Esto pone en blanco los nombres y el título del radio */
+    font-weight: 700 !important;
+    text-shadow: 1px 1px 2px #000 !important; /* Sombra negra suave para que resalte */
+}
+
 
     /* Fondo blanco para los widgets de control */
     [data-testid="stTable"], .stDataFrame, [data-testid="stExpander"], .stTable, 
