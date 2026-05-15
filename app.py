@@ -25,7 +25,7 @@ def escribir_f(fase, t_limite):
         x.flush()
         os.fsync(x.fileno())
 
-# --- 2. ESTILOS (TABLAS NEGRAS / PODIO RESTAURADO) ---
+# --- 2. ESTILOS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
@@ -34,7 +34,7 @@ st.markdown("""
     .stApp, .stMarkdown, p, h1, h2, h3, h4, label, span { color: #FFFFFF !important; font-family: 'Poppins', sans-serif; text-align: center; }
     .main .block-container { background: rgba(10, 25, 41, 0.92) !important; padding: 3rem !important; border-radius: 12px !important; border-top: 5px solid #D4AF37; max-width: 1100px !important; margin: auto; }
     
-    /* TABLAS NEGRAS SOBRE FONDO BLANCO */
+    /* TABLAS EN NEGRO SOBRE BLANCO */
     [data-testid="stTable"], .stDataFrame, [data-testid="stExpander"], .stTable, div[data-testid="stExpander"] div { 
         background-color: white !important; color: #000000 !important;
     }
@@ -44,18 +44,17 @@ st.markdown("""
         color: #000000 !important; font-weight: 800 !important;
     }
 
-    /* ESTILO PODIO CON LETRAS BLANCAS RESTAURADO */
+    /* PODIO CON LETRAS BLANCAS */
     .podio-container { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px; }
-    .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFFFFF !important; padding: 20px; border-radius: 8px; width: 80%; font-size: 2rem; font-weight: 700; border: 2px solid white; }
-    .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFFFFF !important; padding: 15px; border-radius: 8px; width: 70%; font-size: 1.5rem; font-weight: 600; }
-    .box-bronce { background: linear-gradient(145deg, #CD7F32, #8B4513); color: #FFFFFF !important; padding: 12px; border-radius: 8px; width: 60%; font-size: 1.2rem; font-weight: 600; }
+    .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFFFFF !important; padding: 20px; border-radius: 8px; width: 80%; font-size: 2rem; font-weight: 700; border: 2px solid white; text-shadow: 1px 1px 2px #000; }
+    .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFFFFF !important; padding: 15px; border-radius: 8px; width: 70%; font-size: 1.5rem; font-weight: 600; text-shadow: 1px 1px 2px #000; }
+    .box-bronce { background: linear-gradient(145deg, #CD7F32, #8B4513); color: #FFFFFF !important; padding: 12px; border-radius: 8px; width: 60%; font-size: 1.2rem; font-weight: 600; text-shadow: 1px 1px 2px #000; }
     
     .reloj-float { position: fixed; top: 20px; right: 20px; background: #E31837; color: white !important; padding: 20px; border-radius: 8px; font-size: 3rem; font-weight: 700; border: 2px solid #D4AF37; z-index: 9999; }
     .titulo-oro { color: #D4AF37 !important; font-size: 3.5rem !important; font-weight: 700; text-transform: uppercase; }
     .mensaje-final { color: #FFD700 !important; font-size: 2rem !important; font-weight: 800 !important; text-shadow: 2px 2px 10px #000000 !important; margin-top: 30px; padding: 20px; border-top: 3px solid #D4AF37; }
     
     .stButton>button { background-color: #D4AF37 !important; color: #0A1929 !important; font-weight: 700 !important; }
-    .stButton>button:disabled { background-color: #444444 !important; color: #888888 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -96,37 +95,31 @@ ahora = time.time()
 
 if st.session_state.user["tipo"] == "juez":
     st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DOCENTE</h1>", unsafe_allow_html=True)
-    
     with st.expander("📚 BANCO Y AUDIENCIA", expanded=True):
-        col_j1, col_j2 = st.columns(2)
-        with col_j1:
+        c_j1, c_j2 = st.columns(2)
+        with c_j1:
             st.markdown("<b style='color:black'>Preguntas:</b>", unsafe_allow_html=True)
             for k,v in banco.items(): st.write(f"**{k}.** {v['q']}")
-        with col_j2:
+        with c_j2:
             st.markdown("<b style='color:black'>Participantes:</b>", unsafe_allow_html=True)
             st.table(df_global[['G', 'A']])
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        f_sel = st.selectbox("Fase:", [0, 1, 2, 3, 4, 88, 99], format_func=lambda x: {0:"Espera", 1:"P 1", 2:"P 2", 3:"P 3", 4:"P 4", 88:"RESULTADOS PARCIALES", 99:"FINAL"}[x])
+        f_sel = st.selectbox("Fase:", [0, 1, 2, 3, 4, 88, 99])
         if st.button("📢 CAMBIAR"): escribir_f(f_sel, "0"); st.rerun()
-    with col2:
-        t_set = st.number_input("Segundos:", 5, 60, 25)
+    with c2:
+        t_set = st.number_input("Segs:", 5, 60, 25)
         if st.button("⏱️ ACTIVAR"): escribir_f(fase_serv, str(time.time() + t_set)); st.rerun()
     with c3:
         if st.button("🔄 REFRESCAR"): st.rerun()
-    with col4:
+    with c4:
         st.download_button("📥 EXCEL", df_global.to_csv(index=False), "resultados.csv")
 
-    if st.button("⚠️ REINICIAR TODO"):
-        if os.path.exists("d.csv"): os.remove("d.csv")
-        escribir_f(0, 0); st.rerun()
-    
     st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False))
 
 else:
-    if st.session_state.f_voto != fase_serv:
-        st.session_state.enviado = False
+    if st.session_state.f_voto != fase_serv: st.session_state.enviado = False
 
     if fase_serv in banco:
         p = banco[fase_serv]
@@ -149,31 +142,25 @@ else:
             st.session_state.enviado = True
             st.session_state.f_voto = fase_serv
             time.sleep(1); st.rerun()
-            
         time.sleep(2); st.rerun()
 
-    elif fase_serv == "RESULTADOS PARCIALES":
-        st.markdown("<h2 class='titulo-oro'>📊 RESULTADOS PARCIALES</h2>")
+    elif fase_serv == 88:
+        st.markdown("<h2 class='titulo-oro'>📊 RESULTADOS</h2>")
         st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False).head(10))
         time.sleep(3); st.rerun()
 
-    elif fase_serv == "RESULTADOS FINALES":
+    elif fase_serv == 99:
         st.balloons()
         st.audio("https://raw.githubusercontent.com/fede-999/images/main/festejo.mp3", autoplay=True)
-        
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
-        st.markdown("<h1 class='titulo-oro'>🏆 SENTENCIA FINAL 🏆</h1>", unsafe_allow_html=True)
-        
         if podio:
-            img = "https://raw.githubusercontent.com/fede-999/images/main/alumna_festejo_uba.png" if podio[0][4] == "Dra." else "https://raw.githubusercontent.com/fede-999/images/main/alumno_festejo_uba.png"
+            img = f"https://raw.githubusercontent.com/fede-999/images/main/{ 'alumna_festejo_uba.png' if podio[0][4] == 'Dra.' else 'alumno_festejo_uba.png' }"
             st.image(img, use_container_width=True)
-            
             st.markdown("<div class='podio-container'>", unsafe_allow_html=True)
             st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][3])} PTS)</div>", unsafe_allow_html=True)
             if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]} ({int(podio[1][3])} PTS)</div>", unsafe_allow_html=True)
             if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]} ({int(podio[2][3])} PTS)</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
-            
-        st.markdown("<div class='mensaje-final'>La sesión ha concluido. El Tribunal agradece su participación. ¡Felicitaciones a los ganadores!</div>", unsafe_allow_html=True)
+        st.markdown("<div class='mensaje-final'>La sesión ha concluido. ¡Felicitaciones a los ganadores!</div>", unsafe_allow_html=True)
     else:
         st.info("⚖️ En espera..."); time.sleep(2); st.rerun()
