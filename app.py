@@ -25,7 +25,7 @@ def escribir_f(fase, t_limite):
         x.flush()
         os.fsync(x.fileno())
 
-# --- 2. ESTILOS (TEXTO NEGRO EN TABLAS FORZADO) ---
+# --- 2. ESTILOS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
@@ -34,16 +34,10 @@ st.markdown("""
     .stApp, .stMarkdown, p, h1, h2, h3, h4, label, span { color: #FFFFFF !important; font-family: 'Poppins', sans-serif; text-align: center; }
     .main .block-container { background: rgba(10, 25, 41, 0.92) !important; padding: 3rem !important; border-radius: 12px !important; border-top: 5px solid #D4AF37; max-width: 1000px !important; margin: auto; }
     
-    /* TABLAS: FONDO BLANCO Y LETRAS NEGRAS (TODAS) */
-    [data-testid="stTable"], .stDataFrame, [data-testid="stDataFrame"], [data-testid="stExpander"], div[data-testid="stExpander"] div { 
-        background-color: white !important; 
-        color: #000000 !important;
-    }
-    [data-testid="stTable"] td, [data-testid="stTable"] th, [data-testid="stTable"] tr, 
-    .stDataFrame div, .stDataFrame span, .stDataFrame p, .stDataFrame td, .stDataFrame th,
-    [data-testid="stExpander"] p, [data-testid="stExpander"] span, [data-testid="stExpander"] label {
-        color: #000000 !important;
-        font-weight: 800 !important;
+    [data-testid="stTable"], .stDataFrame, [data-testid="stDataFrame"], [data-testid="stExpander"] { background-color: white !important; }
+    [data-testid="stTable"] td, [data-testid="stTable"] th, [data-testid="stTable"] tr, .stDataFrame td, .stDataFrame th,
+    [data-testid="stExpander"] p, [data-testid="stExpander"] label, [data-testid="stExpander"] span {
+        color: #000000 !important; font-weight: 900 !important;
     }
 
     .titulo-oro { color: #D4AF37 !important; font-size: 3.5rem !important; font-weight: 700; text-transform: uppercase; }
@@ -52,10 +46,8 @@ st.markdown("""
     .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #000 !important; padding: 15px; border-radius: 8px; width: 70%; font-size: 1.5rem; font-weight: 600; }
     .box-bronce { background: linear-gradient(145deg, #CD7F32, #8B4513); color: #000 !important; padding: 12px; border-radius: 8px; width: 60%; font-size: 1.2rem; font-weight: 600; }
     .reloj-float { position: fixed; top: 20px; right: 20px; background: #E31837; color: white !important; padding: 20px; border-radius: 8px; font-size: 3rem; font-weight: 700; border: 2px solid #D4AF37; z-index: 9999; }
-    
-    .mensaje-final { color: #FFD700 !important; font-size: 2.2rem !important; font-weight: 800 !important; text-shadow: 2px 2px 10px #000000 !important; margin-top: 30px; padding: 20px; border-top: 3px solid #D4AF37; }
-    
-    .stButton>button { background-color: #D4AF37 !important; color: #0A1929 !important; font-weight: 700 !important; height: 3.5em; border-radius: 4px !important; }
+    .mensaje-final { color: #FFD700 !important; font-size: 2rem !important; font-weight: 800 !important; text-shadow: 2px 2px 10px #000000 !important; margin-top: 30px; padding: 20px; border-top: 3px solid #D4AF37; }
+    .stButton>button { background-color: #D4AF37 !important; color: #0A1929 !important; font-weight: 700 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -69,6 +61,7 @@ banco = {
 
 # --- 4. ACCESO ---
 if 'user' not in st.session_state: st.session_state.user = None
+if 'fase_votada' not in st.session_state: st.session_state.fase_votada = -1
 
 if st.session_state.user is None:
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
@@ -94,63 +87,75 @@ fase_serv, t_limite = int(f_info[0]), float(f_info[1])
 ahora = time.time()
 
 if st.session_state.user["tipo"] == "juez":
-    st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DEL JUEZ</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='titulo-oro'>⚖️ ESTRADOS DEL JUEZ</h1>", unsafe_allow_html=True)
+    with st.expander("📚 BANCO Y AUDIENCIA"):
+        col_b1, col_b2 = st.columns(2)
+        with col_b1:
+            for i, p in banco.items(): st.write(f"{i}. {p['q']}")
+        with col_b2:
+            st.table(df_global[['G', 'A']])
+
     col1, col2, col3 = st.columns(3)
     with col1:
-        f_sel = st.selectbox("Fase:", [0, 1, 2, 3, 4, 88, 99])
+        f_sel = st.selectbox("Fase:", [0, 1, 2, 3, 4, 88, 99], format_func=lambda x: {0:"Espera", 1:"P 1", 2:"P 2", 3:"P 3", 4:"P 4", 88:"PARCIAL", 99:"FINAL"}[x])
         if st.button("📢 CAMBIAR FASE"): escribir_f(f_sel, "0"); st.rerun()
     with col2:
         t_set = st.number_input("Segundos:", 5, 60, 25)
-        if st.button("⏱️ ACTIVAR TIEMPO"): escribir_f(fase_serv, str(time.time() + t_set)); st.rerun()
+        if st.button("⏱️ ACTIVAR"): escribir_f(fase_serv, str(time.time() + t_set)); st.rerun()
     with col3:
-        # --- BOTÓN REINICIAR RESTAURADO ---
-        if st.button("⚠️ REINICIAR JUEGO"):
+        if st.button("⚠️ REINICIAR"):
             if os.path.exists("d.csv"): os.remove("d.csv")
             escribir_f(0, 0); st.rerun()
     
-    st.markdown("### 📊 AUDIENCIA Y PUNTAJES")
-    st.table(df_global[['G', 'A', 'P']].sort_values(by='P', ascending=False))
+    st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False))
 
 else:
+    # Lógica Alumno: Si la fase cambió, permitimos votar de nuevo
+    if st.session_state.fase_votada != fase_serv:
+        st.session_state.voto_enviado = False
+
     if fase_serv in banco:
         p = banco[fase_serv]
+        # REGLA: Si ya votó, no mostramos reloj y bloqueamos opciones
+        ya_voto = st.session_state.get('voto_enviado', False)
+        
         st.markdown(f"### {p['q']}")
-        opcion = st.radio("Respuesta:", p["o"], key=f"ans_{fase_serv}")
-        if t_limite > ahora:
+        opcion = st.radio("Respuesta:", p["o"], key=f"ans_{fase_serv}", disabled=ya_voto)
+        
+        if not ya_voto and t_limite > ahora:
             st.markdown(f'<div class="reloj-float">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-            if st.button("ENVIAR"):
+            if st.button("ENVIAR SENTENCIA"):
                 if opcion == p["k"]:
                     pts = 10 + min(int(t_limite - ahora), 10)
                     df_u = cargar_datos(); df_u.loc[df_u['E'] == st.session_state.user['e'], 'P'] += pts
-                    df_u.to_csv("d.csv", index=False); st.success(f"✅ +{pts}")
-                else: st.error("❌ Error")
+                    df_u.to_csv("d.csv", index=False)
+                    st.success(f"✅ Voto registrado: +{pts} pts")
+                else: st.error("❌ Fundamentos incorrectos")
+                st.session_state.voto_enviado = True
+                st.session_state.fase_votada = fase_serv
                 time.sleep(1); st.rerun()
             time.sleep(1); st.rerun()
-        else: st.info("Esperando..."); time.sleep(2); st.rerun()
+        elif ya_voto:
+            st.warning("⚖️ Su voto ha sido procesado. Espere la siguiente fase.")
+            time.sleep(3); st.rerun()
+        else:
+            st.info("⌛ Tiempo agotado. Esperando al Juez..."); time.sleep(2); st.rerun()
 
     elif fase_serv == 88:
         st.markdown("<h2 class='titulo-oro'>📊 RESULTADOS PARCIALES</h2>", unsafe_allow_html=True)
-        # Forzado de tabla con resultados
         st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False).head(10))
-        time.sleep(4); st.rerun()
+        time.sleep(5); st.rerun()
 
     elif fase_serv == 99:
         st.balloons(); st.snow()
-        # --- SONIDO DE VICTORIA ---
         st.audio("https://www.myinstants.com/media/sounds/we-are-the-champions-copia.mp3", format="audio/mp3", autoplay=True)
-        
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         st.markdown("<h1 class='titulo-oro'>🏆 SENTENCIA FINAL 🏆</h1>", unsafe_allow_html=True)
-        
-        # --- URLs DE GITHUB CORREGIDAS (RAW) ---
-        if len(podio) > 0:
-            img_url = "https://raw.githubusercontent.com/fede-999/images/main/alumna_festejo_uba.png" if podio[0][4] == "Dra." else "https://raw.githubusercontent.com/fede-999/images/main/alumno_festejo_uba.png"
-            st.image(img_url, use_container_width=True)
-
+        if podio:
+            url_img = "https://raw.githubusercontent.com/fede-999/images/main/alumna_festejo_uba.png" if podio[0][4] == "Dra." else "https://raw.githubusercontent.com/fede-999/images/main/alumno_festejo_uba.png"
+            st.image(url_img, use_container_width=True)
             st.markdown(f"<div class='podio-container'><div class='box-oro'>🥇 ORO: {podio[0][1]}<br>{int(podio[0][3])} PTS</div>", unsafe_allow_html=True)
-            if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]} ({int(podio[1][3])} PTS)</div>", unsafe_allow_html=True)
-            if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]} ({int(podio[2][3])} PTS)</div></div>", unsafe_allow_html=True)
-        
+            if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]}</div>", unsafe_allow_html=True)
         st.markdown("<div class='mensaje-final'>La sesión ha concluido. El Tribunal agradece su participación. ¡Felicitaciones a los ganadores!</div>", unsafe_allow_html=True)
     else:
-        st.info("⚖️ Esperando al Tribunal..."); time.sleep(2); st.rerun()
+        st.info("⚖️ Esperando inicio de la audiencia..."); time.sleep(2); st.rerun()
