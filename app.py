@@ -25,7 +25,7 @@ def escribir_f(fase, t_limite):
         x.flush()
         os.fsync(x.fileno())
 
-# --- 2. ESTILOS (TABLAS NEGRAS / PODIO RESTAURADO) ---
+# --- 2. ESTILOS (FONDO BLANCO Y LETRA NEGRA EN TABLAS) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
@@ -34,17 +34,16 @@ st.markdown("""
     .stApp, .stMarkdown, p, h1, h2, h3, h4, label, span { color: #FFFFFF !important; font-family: 'Poppins', sans-serif; text-align: center; }
     .main .block-container { background: rgba(10, 25, 41, 0.92) !important; padding: 3rem !important; border-radius: 12px !important; border-top: 5px solid #D4AF37; max-width: 1100px !important; margin: auto; }
     
-    /* TABLAS NEGRAS SOBRE FONDO BLANCO */
+    /* FORZADO DE NEGRO SOBRE BLANCO EN LA ZONA QUE PINTO */
     [data-testid="stTable"], .stDataFrame, [data-testid="stExpander"], .stTable, div[data-testid="stExpander"] div { 
         background-color: white !important; color: #000000 !important;
     }
     [data-testid="stTable"] td, [data-testid="stTable"] th, [data-testid="stTable"] tr, 
     .stDataFrame td, .stDataFrame th, .stDataFrame p, .stTable td, .stTable th,
     [data-testid="stExpander"] p, [data-testid="stExpander"] label, [data-testid="stExpander"] span, [data-testid="stExpander"] b {
-        color: #000000 !important; font-weight: 800 !important;
+        color: #000000 !important; font-weight: 900 !important; text-shadow: none !important;
     }
 
-    /* ESTILO PODIO ANTERIOR */
     .podio-container { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px; }
     .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #000 !important; padding: 20px; border-radius: 8px; width: 80%; font-size: 2rem; font-weight: 700; border: 2px solid white; }
     .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #000 !important; padding: 15px; border-radius: 8px; width: 70%; font-size: 1.5rem; font-weight: 600; }
@@ -54,7 +53,7 @@ st.markdown("""
     .titulo-oro { color: #D4AF37 !important; font-size: 3.5rem !important; font-weight: 700; text-transform: uppercase; }
     .mensaje-final { color: #FFD700 !important; font-size: 2rem !important; font-weight: 800 !important; text-shadow: 2px 2px 10px #000000 !important; margin-top: 30px; padding: 20px; border-top: 3px solid #D4AF37; }
     
-    .stButton>button { background-color: #D4AF37 !important; color: #0A1929 !important; font-weight: 700 !important; }
+    .stButton>button { background-color: #D4AF37 !important; color: #0A1929 !important; font-weight: 700 !important; border: 1px solid white; }
     .stButton>button:disabled { background-color: #444444 !important; color: #888888 !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -97,13 +96,13 @@ ahora = time.time()
 if st.session_state.user["tipo"] == "juez":
     st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DOCENTE</h1>", unsafe_allow_html=True)
     
-    with st.expander("📚 BANCO Y AUDIENCIA", expanded=True):
+    with st.expander("📝 BANCO Y AUDIENCIA", expanded=True):
         col_j1, col_j2 = st.columns(2)
         with col_j1:
             st.markdown("<b style='color:black'>Preguntas:</b>", unsafe_allow_html=True)
             for k,v in banco.items(): st.write(f"**{k}.** {v['q']}")
         with col_j2:
-            st.markdown("<b style='color:black'>Participantes:</b>", unsafe_allow_html=True)
+            st.markdown("<b style='color:black'>Inscriptos:</b>", unsafe_allow_html=True)
             st.table(df_global[['G', 'A']])
 
     c1, c2, c3, c4 = st.columns(4)
@@ -159,7 +158,7 @@ else:
 
     elif fase_serv == 99:
         st.balloons()
-        st.audio("https://raw.githubusercontent.com/fede-999/images/main/festejo.mp3", autoplay=True)
+        # SE ELIMINÓ LA BARRA DE AUDIO DEL PANEL DEL ALUMNO COMO PIDIÓ
         
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         st.markdown("<h1 class='titulo-oro'>🏆 SENTENCIA FINAL 🏆</h1>", unsafe_allow_html=True)
