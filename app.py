@@ -34,7 +34,7 @@ st.markdown("""
     .stApp, .stMarkdown, p, h1, h2, h3, h4, label, span { color: #FFFFFF !important; font-family: 'Poppins', sans-serif; text-align: center; }
     .main .block-container { background: rgba(10, 25, 41, 0.92) !important; padding: 3rem !important; border-radius: 12px !important; border-top: 5px solid #D4AF37; max-width: 1100px !important; margin: auto; }
     
-    /* TABLAS Y RESULTADOS (Fase 88 y Docente): NEGRO SOBRE BLANCO */
+    /* TABLAS Y RESULTADOS: NEGRO SOBRE BLANCO */
     [data-testid="stTable"], .stDataFrame, [data-testid="stExpander"], .stTable, div[data-testid="stExpander"] div { 
         background-color: white !important; color: #000000 !important;
     }
@@ -44,7 +44,7 @@ st.markdown("""
         color: #000000 !important; font-weight: 800 !important;
     }
 
-    /* PODIO: LETRAS BLANCAS PARA CONTRASTE */
+    /* PODIO: LETRAS BLANCAS */
     .podio-container { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px; }
     .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFFFFF !important; padding: 20px; border-radius: 8px; width: 80%; font-size: 2rem; font-weight: 700; border: 2px solid white; text-shadow: 1px 1px 2px #000; }
     .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFFFFF !important; padding: 15px; border-radius: 8px; width: 70%; font-size: 1.5rem; font-weight: 600; text-shadow: 1px 1px 2px #000; }
@@ -129,13 +129,10 @@ else:
         p = banco[fase_serv]
         reloj_on = t_limite > ahora
         ya_envio = st.session_state.get('enviado', False)
-        
         st.markdown(f"## {p['q']}")
         opcion = st.radio("Dictamen:", p["o"], key=f"r_{fase_serv}", disabled=ya_envio or not reloj_on)
-        
         if reloj_on and not ya_envio:
             st.markdown(f'<div class="reloj-float">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        
         if st.button("ENVIAR SENTENCIA", disabled=(not reloj_on or ya_envio)):
             if opcion == p["k"]:
                 pts = 10 + min(int(t_limite - ahora), 10)
@@ -157,10 +154,14 @@ else:
         st.balloons()
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
-            # RUTA DIRECTA AL MAIN (Sin carpeta images)
+            # CORRECCIÓN DE RUTA: Directo al main (sin carpeta images)
             img_file = "alumna_festejo_uba.png" if podio[0][4] == "Dra." else "alumno_festejo_uba.png"
             img_url = f"https://raw.githubusercontent.com/fede-999/images/main/{img_file}"
-            st.image(img_url, use_container_width=True)
+            
+            try:
+                st.image(img_url, use_container_width=True)
+            except:
+                st.error("No se pudo cargar la imagen del repositorio.")
             
             st.markdown("<div class='podio-container'>", unsafe_allow_html=True)
             st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][3])} PTS)</div>", unsafe_allow_html=True)
