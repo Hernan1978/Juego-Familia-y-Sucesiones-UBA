@@ -25,39 +25,33 @@ def escribir_f(fase, t_limite):
         x.flush()
         os.fsync(x.fileno())
 
-# --- 2. ESTILOS (ACTUALIZADOS A NEGRO) ---
+# --- 2. ESTILOS (TEXTO NEGRO Y EFECTOS) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
     header, [data-testid="stHeader"] { display: none !important; }
     .stApp { background-image: url("https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"); background-size: cover; background-attachment: fixed; }
     
-    /* TODO EL TEXTO POR DEFECTO EN PANTALLAS DE ALUMNO */
     .stApp, .stMarkdown, p, h1, h2, h3, h4, label, span { color: #FFFFFF; font-family: 'Poppins', sans-serif; text-align: center; }
-    
     .main .block-container { background: rgba(10, 25, 41, 0.92); padding: 3rem; border-radius: 12px; border-top: 5px solid #D4AF37; max-width: 1100px; margin: auto; }
     
-    /* TABLAS, EXPANDERS Y SELECTORES EN NEGRO (PEDIDO EXPLÍCITO) */
+    /* PANEL DOCENTE: FORZAR TEXTO NEGRO EN TABLAS Y SELECTORES */
     [data-testid="stTable"], .stDataFrame, [data-testid="stExpander"], .stTable, div[data-testid="stExpander"] div, .stSelectbox label, .stNumberInput label { 
         background-color: white !important; color: #000000 !important;
     }
-    
-    /* FORZAR COLOR NEGRO EN CUALQUIER TEXTO DENTRO DE TABLAS O BOTONES CLAROS */
-    [data-testid="stTable"] td, [data-testid="stTable"] th, .stDataFrame p, .stTable p, 
-    .stSelectbox p, [data-testid="stExpander"] p, [data-testid="stExpander"] b, label {
+    [data-testid="stTable"] td, [data-testid="stTable"] th, .stDataFrame p, .stTable p, .stSelectbox p, [data-testid="stExpander"] p, [data-testid="stExpander"] b, label {
         color: #000000 !important; font-weight: 700 !important;
     }
 
-    /* PODIO */
+    /* PODIO VISUAL */
     .podio-container { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px; }
-    .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFFFFF !important; padding: 20px; border-radius: 8px; width: 80%; font-size: 2.5rem; font-weight: 700; border: 2px solid white; text-shadow: 1px 1px 2px #000; }
-    .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFFFFF !important; padding: 15px; border-radius: 8px; width: 70%; font-size: 1.8rem; font-weight: 600; text-shadow: 1px 1px 2px #000; }
-    .box-bronce { background: linear-gradient(145deg, #CD7F32, #8B4513); color: #FFFFFF !important; padding: 12px; border-radius: 8px; width: 60%; font-size: 1.5rem; font-weight: 600; text-shadow: 1px 1px 2px #000; }
+    .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFFFFF !important; padding: 20px; border-radius: 8px; width: 85%; font-size: 2.5rem; font-weight: 700; border: 3px solid white; text-shadow: 2px 2px 4px #000; }
+    .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFFFFF !important; padding: 15px; border-radius: 8px; width: 75%; font-size: 1.8rem; font-weight: 600; text-shadow: 1px 1px 2px #000; }
+    .box-bronce { background: linear-gradient(145deg, #CD7F32, #8B4513); color: #FFFFFF !important; padding: 12px; border-radius: 8px; width: 65%; font-size: 1.5rem; font-weight: 600; text-shadow: 1px 1px 2px #000; }
     
     .reloj-float { position: fixed; top: 20px; right: 20px; background: #E31837; color: white !important; padding: 20px; border-radius: 8px; font-size: 3rem; font-weight: 700; border: 2px solid #D4AF37; z-index: 9999; }
-    .titulo-oro { color: #D4AF37 !important; font-size: 3.5rem !important; font-weight: 700; text-transform: uppercase; margin-bottom: 0px !important; }
+    .titulo-oro { color: #D4AF37 !important; font-size: 3.5rem !important; font-weight: 700; text-transform: uppercase; margin: 0; }
     
-    /* BOTONES */
     .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 700 !important; border: 1px solid #000 !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -76,7 +70,7 @@ if 'f_voto' not in st.session_state: st.session_state.f_voto = -1
 
 if st.session_state.user is None:
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
-    m = st.text_input("Clave de Acceso:")
+    m = st.text_input("Clave de Acceso // Mail academico:")
     n = st.text_input("Nombre Completo:")
     g = st.radio("Título:", ["Dr.", "Dra."])
     if st.button("INGRESAR"):
@@ -156,12 +150,19 @@ else:
 
     elif fase_serv == 99:
         st.balloons()
+        st.snow() # Este comando simula los cohetes/fuegos artificiales en Streamlit
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
+        
         if podio:
+            # DETERMINAR FOTO POR GÉNERO DESDE SU GIT
             img_file = "alumna_festejo_uba.png" if podio[0][4] == "Dra." else "alumno_festejo_uba.png"
             img_url = f"https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/{img_file}"
+            
+            # MOSTRAR FOTO Y NOMBRE GIGANTE
             st.image(img_url, use_container_width=True)
             st.markdown(f"<h1 style='color:#D4AF37; font-size:5rem; text-shadow: 3px 3px 10px #000;'>🏆 {podio[0][4]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
+            
+            # PODIO VISUAL
             st.markdown("<div class='podio-container'>", unsafe_allow_html=True)
             st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][3])} PTS)</div>", unsafe_allow_html=True)
             if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]} ({int(podio[1][3])} PTS)</div>", unsafe_allow_html=True)
