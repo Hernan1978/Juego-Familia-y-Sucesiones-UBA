@@ -175,6 +175,6 @@ else:
             if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]} ({int(podio[1][3])} PTS)</div>", unsafe_allow_html=True)
             if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]} ({int(podio[2][3])} PTS)</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown("<div class='mensaje-final'>¡La sesión ha concluido!</div>", unsafe_allow_html=True)
+        st.markdown("<div class='mensaje-final'>¡La sesión ha concluido! Muchas gracias por participar!</div>", unsafe_allow_html=True)
     else:
         st.info("⚖️ En espera..."); time.sleep(2); st.rerun()
