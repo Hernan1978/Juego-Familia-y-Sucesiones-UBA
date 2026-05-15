@@ -63,12 +63,23 @@ label, [data-testid="stWidgetLabel"] p, .stRadio label, [data-testid="stMarkdown
          3px  3px 5px rgba(0,0,0,0.8) !important;
 }
 
-    background-color: rgba(0, 0, 0, 0.5); /* Fondo negro clarito detrás de la letra */
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-weight: 700 !important;
-}
+        /* Texto dentro de tablas y desplegables (Expander) */
+    [data-testid="stTable"] td, 
+    [data-testid="stTable"] th, 
+    .stDataFrame p, 
+    [data-testid="stExpander"] p, 
+    [data-testid="stExpander"] b,
+    [data-testid="stExpander"] li {
+        color: #FFFFFF !important; /* Letras blancas */
+        font-weight: 600 !important;
+        text-shadow: 1px 1px 2px #000000 !important; /* Sombra para legibilidad */
+    }
 
+    /* Fondo para que la tabla se destaque */
+    [data-testid="stTable"], .stTable {
+        background-color: rgba(0, 0, 0, 0.6) !important; /* Fondo oscuro elegante */
+        border-radius: 10px;
+    }
 
     /* Fondo blanco para los widgets de control */
     [data-testid="stTable"], .stDataFrame, [data-testid="stExpander"], .stTable, 
