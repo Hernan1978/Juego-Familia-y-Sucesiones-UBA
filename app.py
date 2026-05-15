@@ -25,10 +25,10 @@ def escribir_f(fase, t_limite):
         x.flush()
         os.fsync(x.fileno())
 
-# --- 2. ESTILOS DE ALTA VISIBILIDAD (SIN SOMBRAS) ---
+# --- 2. ESTILOS DE ALTA VISIBILIDAD ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&display=swap');
     header, [data-testid="stHeader"] { display: none !important; }
     .stApp { 
         background-image: url("https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"); 
@@ -43,70 +43,54 @@ st.markdown("""
         text-shadow: none !important;
     }
 
+    /* TÍTULO PRINCIPAL: BLANCO CON RESPLANDOR DORADO */
     .titulo-oro { 
-    color: #FFD700 !important; 
-    font-size: 3.5rem !important; 
-    text-shadow: 2px 2px 4px #000000 !important;
-}
-/* Etiquetas de todos los controles (Selectores, Números, Radio) */
-label, [data-testid="stWidgetLabel"] p, .stSelectbox label, .stNumberInput label {
-    color: #CCFF00 !important; /* Amarillo Neón para máximo contraste */
-    font-weight: 800 !important;
-    font-size: 1.2rem !important;
-    text-shadow: 
-        -1px -1px 0 #000,  
-         1px -1px 0 #000,
-        -1px  1px 0 #000,
-         1px  1px 0 #000,
-         2px  2px 4px #000 !important;
-}
+        color: #FFFFFF !important; 
+        font-size: 3.8rem !important; 
+        font-weight: 800; 
+        text-transform: uppercase; 
+        text-shadow: 0 0 10px #D4AF37, 0 0 20px #D4AF37, 3px 3px 5px #000 !important; 
+    }
+    
+    /* ETIQUETAS DE CONTROL: AMARILLO NEÓN (MÁXIMO CONTRASTE) */
+    label, [data-testid="stWidgetLabel"] p, .stSelectbox label, .stNumberInput label, .stRadio label, [data-testid="stMarkdownContainer"] p {
+        color: #CCFF00 !important; 
+        font-weight: 800 !important;
+        font-size: 1.2rem !important;
+        text-shadow: 
+            -1px -1px 0 #000,  
+             1px -1px 0 #000,
+            -1px  1px 0 #000,
+             1px  1px 0 #000,
+             2px  2px 4px #000 !important;
+    }
 
-label, [data-testid="stWidgetLabel"] p, .stRadio label, [data-testid="stMarkdownContainer"] p {
-        color: #CCFF00 !important; /* Amarillo Neón */
+    /* Fondo blanco para los widgets de entrada (Inputs) */
+    .stSelectbox div[data-baseweb="select"], 
+    .stNumberInput input,
+    .stTextInput input { 
+        background-color: white !important; 
+        color: #000000 !important;
+        border-radius: 8px;
+        font-weight: 600 !important;
+    }
 
-    font-weight: 800 !important;
-    font-size: 1.3rem !important;
-    /* Este código de abajo crea un borde negro alrededor de cada letra */
-    text-shadow: 
-        -2px -2px 0 #000,  
-         2px -2px 0 #000,
-        -2px  2px 0 #000,
-         2px  2px 0 #000,
-         3px  3px 5px rgba(0,0,0,0.8) !important;
-}
-
-        /* Texto dentro de tablas y desplegables (Expander) */
+    /* TEXTO DENTRO DE TABLAS Y DESPLEGABLES: BLANCO SOBRE FONDO OSCURO */
     [data-testid="stTable"] td, 
     [data-testid="stTable"] th, 
     .stDataFrame p, 
     [data-testid="stExpander"] p, 
     [data-testid="stExpander"] b,
     [data-testid="stExpander"] li {
-        color: #FFFFFF !important; /* Letras blancas */
+        color: #FFFFFF !important; 
         font-weight: 600 !important;
-        text-shadow: 1px 1px 2px #000000 !important; /* Sombra para legibilidad */
+        text-shadow: 1px 1px 2px #000000 !important;
     }
 
-    /* Fondo para que la tabla se destaque */
-    [data-testid="stTable"], .stTable {
-        background-color: rgba(0, 0, 0, 0.6) !important; /* Fondo oscuro elegante */
+    [data-testid="stTable"], .stTable, [data-testid="stExpander"] {
+        background-color: rgba(0, 0, 0, 0.6) !important; 
         border-radius: 10px;
-    }
-
-    /* Fondo blanco para los widgets de control */
-    [data-testid="stTable"], .stDataFrame, [data-testid="stExpander"], .stTable, 
-    div[data-testid="stExpander"] div, .stSelectbox div[data-baseweb="select"], 
-    .stNumberInput input { 
-        background-color: white !important; 
-        color: #000000 !important;
-        border-radius: 8px;
-    }
-
-    /* Texto dentro de tablas y desplegables */
-    [data-testid="stTable"] td, [data-testid="stTable"] th, .stDataFrame p, 
-    .stSelectbox p, [data-testid="stExpander"] p, [data-testid="stExpander"] b {
-        color: #000000 !important;
-        font-weight: 600 !important;
+        border: 1px solid rgba(255,255,255,0.1);
     }
 
     /* BOTONES DORADOS */
@@ -115,6 +99,7 @@ label, [data-testid="stWidgetLabel"] p, .stRadio label, [data-testid="stMarkdown
         color: #000000 !important; 
         font-weight: 800 !important; 
         border: 2px solid #000 !important;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
     }
     
     /* Botón Salir */
@@ -173,13 +158,13 @@ if st.session_state.user["tipo"] == "juez":
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-    with st.expander("📚 VER PREGUNTAS Y AUDIENCIA (TEXTO NEGRO)", expanded=False):
+    with st.expander("📚 VER PREGUNTAS Y AUDIENCIA", expanded=False):
         c_p1, c_p2 = st.columns(2)
         with c_p1:
-            st.markdown("<b style='color:black;'>Banco:</b>", unsafe_allow_html=True)
+            st.markdown("<b>Banco:</b>", unsafe_allow_html=True)
             for k,v in banco.items(): st.write(f"**{k}.** {v['q']}")
         with c_p2:
-            st.markdown("<b style='color:black;'>Alumnos en Sala:</b>", unsafe_allow_html=True)
+            st.markdown("<b>Alumnos en Sala:</b>", unsafe_allow_html=True)
             st.table(df_global[['G', 'A']])
 
     st.markdown("---")
@@ -188,7 +173,7 @@ if st.session_state.user["tipo"] == "juez":
         op_fase = st.selectbox("Cambiar Pregunta:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x])
         if st.button("📢 ACTUALIZAR AHORA"):
             escribir_f(op_fase, "0")
-            st.rerun() # REFRESCO INSTANTÁNEO
+            st.rerun()
     with c2:
         t_set = st.number_input("Segundos:", 5, 60, 25)
         if st.button("⏱️ RELOJ"):
@@ -212,7 +197,6 @@ else:
         st.balloons(); st.snow()
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
-            # IMAGEN DE CIERRE DESDE GITHUB RAW
             img_file = "alumna_festejo_uba.png" if podio[0][4] == "Dra." else "alumno_festejo_uba.png"
             img_url = f"https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/{img_file}"
             
