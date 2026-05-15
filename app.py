@@ -36,79 +36,45 @@ st.markdown("""
         background-attachment: fixed; 
     }
     
-    /* Texto General */
-    .stApp, .stMarkdown, p, h1, h2, h3, h4, span { 
-        font-family: 'Poppins', sans-serif; 
-        text-align: center;
-        text-shadow: none !important;
+    .stApp, .stMarkdown, p, h1, h2, h3, h4, span { font-family: 'Poppins', sans-serif; text-align: center; }
+
+    h2, .stMarkdown h2 {
+        color: #FFFFFF !important;
+        font-size: 2.5rem !important;
+        font-weight: 800 !important;
+        text-shadow: 3px 3px 10px #000000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000 !important;
     }
 
-    /* TÍTULO PRINCIPAL: BLANCO CON RESPLANDOR DORADO */
     .titulo-oro { 
-        color: #FFFFFF !important; 
-        font-size: 3.8rem !important; 
-        font-weight: 800; 
-        text-transform: uppercase; 
+        color: #FFFFFF !important; font-size: 3.8rem !important; font-weight: 800; text-transform: uppercase; 
         text-shadow: 0 0 10px #D4AF37, 0 0 20px #D4AF37, 3px 3px 5px #000 !important; 
     }
     
-    /* ETIQUETAS DE CONTROL: AMARILLO NEÓN (MÁXIMO CONTRASTE) */
     label, [data-testid="stWidgetLabel"] p, .stSelectbox label, .stNumberInput label, .stRadio label, [data-testid="stMarkdownContainer"] p {
-        color: #CCFF00 !important; 
-        font-weight: 800 !important;
-        font-size: 1.2rem !important;
-        text-shadow: 
-            -1px -1px 0 #000,  
-             1px -1px 0 #000,
-            -1px  1px 0 #000,
-             1px  1px 0 #000,
-             2px  2px 4px #000 !important;
+        color: #CCFF00 !important; font-weight: 800 !important; font-size: 1.2rem !important;
+        text-shadow: 2px 2px 4px #000 !important;
     }
 
-    /* Fondo blanco para los widgets de entrada (Inputs) */
-    .stSelectbox div[data-baseweb="select"], 
-    .stNumberInput input,
-    .stTextInput input { 
-        background-color: white !important; 
-        color: #000000 !important;
-        border-radius: 8px;
-        font-weight: 600 !important;
+    .reloj-container {
+        background-color: rgba(0, 0, 0, 0.8); color: #FF4B4B; font-size: 4rem; font-weight: 800;
+        padding: 10px 30px; border-radius: 15px; border: 4px solid #FF4B4B; display: inline-block;
+        margin: 20px 0; text-shadow: 0 0 10px #FF4B4B;
     }
 
-    /* TEXTO DENTRO DE TABLAS Y DESPLEGABLES: BLANCO SOBRE FONDO OSCURO */
-    [data-testid="stTable"] td, 
-    [data-testid="stTable"] th, 
-    .stDataFrame p, 
-    [data-testid="stExpander"] p, 
-    [data-testid="stExpander"] b,
-    [data-testid="stExpander"] li {
-        color: #FFFFFF !important; 
-        font-weight: 600 !important;
-        text-shadow: 1px 1px 2px #000000 !important;
+    .stSelectbox div[data-baseweb="select"], .stNumberInput input, .stTextInput input { 
+        background-color: white !important; color: #000000 !important; border-radius: 8px; font-weight: 600 !important;
     }
 
+    [data-testid="stTable"] td, [data-testid="stTable"] th, .stDataFrame p, [data-testid="stExpander"] p, [data-testid="stExpander"] b {
+        color: #FFFFFF !important; font-weight: 600 !important; text-shadow: 1px 1px 2px #000000 !important;
+    }
     [data-testid="stTable"], .stTable, [data-testid="stExpander"] {
-        background-color: rgba(0, 0, 0, 0.6) !important; 
-        border-radius: 10px;
-        border: 1px solid rgba(255,255,255,0.1);
+        background-color: rgba(0, 0, 0, 0.6) !important; border-radius: 10px;
     }
 
-    /* BOTONES DORADOS */
     .stButton>button { 
-        background-color: #D4AF37 !important; 
-        color: #000000 !important; 
-        font-weight: 800 !important; 
-        border: 2px solid #000 !important;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+        background-color: #D4AF37 !important; color: #000000 !important; font-weight: 800 !important; border: 2px solid #000 !important;
     }
-    
-    /* Botón Salir */
-    .btn-exit>div>button { background-color: #ff4b4b !important; color: white !important; border: none !important; }
-
-    /* PODIO FINAL */
-    .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFF !important; padding: 25px; border-radius: 15px; width: 85%; font-size: 2.5rem; font-weight: 800; border: 4px solid #FFF; text-shadow: 2px 2px 5px #000 !important; margin: auto; }
-    .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFF !important; padding: 15px; border-radius: 12px; width: 75%; font-size: 1.8rem; font-weight: 700; margin: auto; }
-    .box-bronce { background: linear-gradient(145deg, #CD7F32, #8B4513); color: #FFF !important; padding: 12px; border-radius: 10px; width: 65%; font-size: 1.5rem; font-weight: 700; margin: auto; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -149,15 +115,8 @@ ahora = time.time()
 fases_nombres = {0: "Inicio", 1: "P1", 2: "P2", 3: "P3", 4: "P4", 88: "Parcial", 99: "FINAL"}
 
 if st.session_state.user["tipo"] == "juez":
-    c_tit, c_exit = st.columns([0.8, 0.2])
-    with c_tit: st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DOCENTE</h1>", unsafe_allow_html=True)
-    with c_exit: 
-        st.markdown('<div class="btn-exit">', unsafe_allow_html=True)
-        if st.button("🚪 SALIR"):
-            st.session_state.user = None
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
+    st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DOCENTE</h1>", unsafe_allow_html=True)
+    
     with st.expander("📚 VER PREGUNTAS Y AUDIENCIA", expanded=False):
         c_p1, c_p2 = st.columns(2)
         with c_p1:
@@ -172,11 +131,11 @@ if st.session_state.user["tipo"] == "juez":
     with c1:
         op_fase = st.selectbox("Cambiar Pregunta:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x])
         if st.button("📢 ACTUALIZAR AHORA"):
-            escribir_f(op_fase, "0")
+            escribir_f(op_fase, "0") # Al actualizar fase, el tiempo se pone en 0 (bloqueado)
             st.rerun()
     with c2:
         t_set = st.number_input("Segundos:", 5, 60, 25)
-        if st.button("⏱️ RELOJ"):
+        if st.button("⏱️ INICIAR RELOJ"):
             escribir_f(fase_serv, str(time.time() + t_set))
             st.rerun()
     with c3:
@@ -187,26 +146,15 @@ if st.session_state.user["tipo"] == "juez":
             escribir_f(0, 0); st.rerun()
     
     st.table(df_global[['G', 'A', 'P']].sort_values(by='P', ascending=False))
-    
-    csv = df_global[['G', 'A', 'P']].to_csv(index=False).encode('utf-8')
-    st.download_button("📥 DESCARGAR EXCEL", data=csv, file_name='lexplay.csv', mime='text/csv')
 
 else:
     # --- PANTALLA ALUMNO ---
     if fase_serv == 99:
-        st.balloons(); st.snow()
+        st.balloons()
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
-            img_file = "alumna_festejo_uba.png" if podio[0][4] == "Dra." else "alumno_festejo_uba.png"
-            img_url = f"https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/{img_file}"
-            
-            st.image(img_url, use_container_width=True)
             st.markdown(f"<h1 class='titulo-oro'>🏆 {podio[0][4]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
-            
             st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][3])} PTS)</div><br>", unsafe_allow_html=True)
-            if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]}</div><br>", unsafe_allow_html=True)
-            if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]}</div>", unsafe_allow_html=True)
-            
             if st.button("🚪 CERRAR SESIÓN"):
                 st.session_state.user = None
                 st.rerun()
@@ -216,10 +164,27 @@ else:
         ya_envio = st.session_state.get('enviado', False)
         if st.session_state.f_voto != fase_serv: st.session_state.enviado = False
         
-        st.write(f"## {p['q']}")
-        opcion = st.radio("Dictamen:", p["o"], disabled=ya_envio or not reloj_on)
+        st.markdown(f"## {p['q']}")
         
-        if st.button("ENVIAR SENTENCIA", disabled=ya_envio or not reloj_on):
+        # LÓGICA DE BLOQUEO
+        if t_limite == 0:
+            st.warning("⚖️ El Tribunal aún no ha habilitado la votación. Espere...")
+            voto_bloqueado = True
+        elif reloj_on and not ya_envio:
+            secs_restantes = int(t_limite - ahora)
+            st.markdown(f"<div style='text-align:center;'><div class='reloj-container'>⏱️ {secs_restantes}s</div></div>", unsafe_allow_html=True)
+            voto_bloqueado = False
+            time.sleep(1)
+            st.rerun()
+        elif not ya_envio and not reloj_on:
+            st.markdown("<div style='text-align:center;'><div class='reloj-container' style='color:gray; border-color:gray;'>⌛ TIEMPO AGOTADO</div></div>", unsafe_allow_html=True)
+            voto_bloqueado = True
+        else:
+            voto_bloqueado = True
+
+        opcion = st.radio("Dictamen:", p["o"], disabled=voto_bloqueado or ya_envio)
+        
+        if st.button("ENVIAR SENTENCIA", disabled=voto_bloqueado or ya_envio):
             if opcion == p["k"]:
                 pts = 10 + min(int(t_limite - ahora), 10)
                 df_u = cargar_datos()
@@ -229,8 +194,14 @@ else:
             else: st.error("❌ INCORRECTO")
             st.session_state.enviado = True
             st.session_state.f_voto = fase_serv
-            time.sleep(1); st.rerun()
-        time.sleep(2); st.rerun()
+            st.rerun()
+        
+        if ya_envio:
+            st.info("✅ Sentencia enviada correctamente.")
+            time.sleep(3)
+            st.rerun()
+            
     else:
         st.info("⚖️ Tribunal deliberando... espere.")
-        time.sleep(3); st.rerun()
+        time.sleep(3)
+        st.rerun()
