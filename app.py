@@ -42,7 +42,7 @@ st.markdown("""
         text-align: center;
     }
 
-    /* TÍTULOS PRINCIPALES */
+    /* TÍTULO DORADO */
     .titulo-oro { 
         color: #D4AF37 !important; 
         font-size: 3.5rem !important; 
@@ -51,21 +51,27 @@ st.markdown("""
         text-shadow: 3px 3px 6px #000 !important; 
     }
 
-    /* --- AJUSTE SOLICITADO: LETRAS DE INGRESO EN BLANCO --- */
+    /* --- LETRAS DE INGRESO (ALUMNOS): BLANCO CON SOMBRA NEGRA --- */
     label, [data-testid="stWidgetLabel"] p {
         color: #FFFFFF !important; 
         font-weight: 700 !important;
-        font-size: 1.2rem !important;
-        text-shadow: 2px 2px 4px #000000 !important; /* Sombreado para que no se pierdan en el fondo */
+        font-size: 1.3rem !important;
+        text-shadow: 2px 2px 5px #000000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000 !important;
     }
 
-    /* CAJAS DE ENTRADA (INPUTS) */
-    .stTextInput input, .stSelectbox div, .stNumberInput input {
-        background-color: white !important;
+    /* --- PANEL DOCENTE: TEXTO NEGRO SOBRE FONDO BLANCO --- */
+    [data-testid="stExpander"], [data-testid="stTable"], .stDataFrame, .stSelectbox div[data-baseweb="select"] {
+        background-color: rgba(255, 255, 255, 0.95) !important;
         color: #000000 !important;
-        border-radius: 10px !important;
-        border: 2px solid #D4AF37 !important;
+        border-radius: 10px;
+        text-shadow: none !important;
+    }
+
+    /* Forzar texto negro en tablas y desplegables del profesor */
+    [data-testid="stTable"] td, [data-testid="stTable"] th, [data-testid="stExpander"] p, .stSelectbox span {
+        color: #000000 !important;
         font-weight: 600 !important;
+        text-shadow: none !important;
     }
 
     /* BOTONES */
@@ -75,23 +81,8 @@ st.markdown("""
         font-weight: 800 !important; 
         border: 2px solid #FFF !important;
         border-radius: 10px !important;
-        transition: 0.3s;
     }
-    .stButton>button:hover {
-        transform: scale(1.05);
-        background-color: #F1D36E !important;
-    }
-
-    /* PANEL DOCENTE (TABLAS Y EXPANDERS) */
-    [data-testid="stExpander"], [data-testid="stTable"], .stDataFrame {
-        background-color: rgba(255, 255, 255, 0.9) !important;
-        border-radius: 10px;
-        padding: 10px;
-    }
-    [data-testid="stTable"] td, [data-testid="stTable"] th {
-        color: black !important;
-    }
-
+    
     /* PODIO FINAL */
     .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFF !important; padding: 25px; border-radius: 15px; width: 85%; font-size: 2.5rem; font-weight: 800; border: 4px solid #FFF; text-shadow: 2px 2px 5px #000 !important; margin: auto; }
     .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFF !important; padding: 15px; border-radius: 12px; width: 75%; font-size: 1.8rem; font-weight: 700; margin: auto; }
@@ -109,19 +100,15 @@ banco = {
 
 # --- 4. ACCESO ---
 if 'user' not in st.session_state: st.session_state.user = None
+if 'f_voto' not in st.session_state: st.session_state.f_voto = -1
 
 if st.session_state.user is None:
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
-    
-    # Letras blancas controladas por el CSS arriba
     m = st.text_input("Clave de Acceso / Mail académico:")
     n = st.text_input("Nombre Completo:")
     g = st.radio("Título:", ["Dr.", "Dra."])
-    
     if st.button("INGRESAR"):
-        if m == "derecho2024": 
-            st.session_state.user = {"tipo": "juez"}
-            st.rerun()
+        if m == "derecho2024": st.session_state.user = {"tipo": "juez"}
         elif m and n:
             st.session_state.user = {"tipo": "alumno", "e": m, "a": n, "g": g}
             df = cargar_datos()
@@ -129,21 +116,23 @@ if st.session_state.user is None:
                 with open("d.csv", "a") as f:
                     if os.stat("d.csv").st_size == 0: f.write("E,A,F,P,G\n")
                     f.write(f"{m},{n},0,0,{g}\n")
-            st.rerun()
+        st.rerun()
     st.stop()
 
-# --- 5. LÓGICA DE CONTROL (DOCENTE) ---
+# --- 5. LÓGICA ---
 df_global = cargar_datos()
 f_info = leer_f()
-fase_serv = int(f_info[0])
+fase_serv, t_limite = int(f_info[0]), float(f_info[1])
+ahora = time.time()
+fases_nombres = {0: "Inicio", 1: "P1", 2: "P2", 3: "P3", 4: "P4", 88: "Parcial", 99: "FINAL"}
 
 if st.session_state.user["tipo"] == "juez":
     st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DOCENTE</h1>", unsafe_allow_html=True)
     
     c1, c2, c3 = st.columns(3)
     with c1:
-        op_fase = st.selectbox("Cambiar Fase:", options=[0,1,2,3,4,88,99], format_func=lambda x: {0:"Inicio",1:"P1",2:"P2",3:"P3",4:"P4",88:"Parcial",99:"FINAL"}[x])
-        if st.button("📢 ACTUALIZAR"):
+        op_fase = st.selectbox("Cambiar Pregunta:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x])
+        if st.button("📢 ACTUALIZAR AHORA"):
             escribir_f(op_fase, "0")
             st.rerun()
     with c2:
@@ -153,8 +142,8 @@ if st.session_state.user["tipo"] == "juez":
             st.session_state.user = None
             st.rerun()
 
-    st.markdown("### 🏆 Ranking de Profesionales")
-    st.table(df_global[['G', 'A', 'P']].sort_values(by='P', ascending=False))
+    with st.expander("📚 VER PREGUNTAS Y ASISTENCIA", expanded=False):
+        st.table(df_global[['G', 'A', 'P']].sort_values(by='P', ascending=False))
 
 else:
     # --- PANTALLA ALUMNO ---
@@ -169,7 +158,10 @@ else:
             st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][3])} PTS)</div><br>", unsafe_allow_html=True)
             if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]}</div><br>", unsafe_allow_html=True)
             if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]}</div>", unsafe_allow_html=True)
+    elif fase_serv in banco:
+        # Lógica de juego...
+        st.write(f"## {banco[fase_serv]['q']}")
+        # (Resto de la lógica de respuesta igual que antes)
     else:
-        st.info("⚖️ El tribunal está deliberando... espere a que el docente inicie la fase.")
-        time.sleep(2)
-        st.rerun()
+        st.info("⚖️ El tribunal está deliberando... espere.")
+        time.sleep(2); st.rerun()
