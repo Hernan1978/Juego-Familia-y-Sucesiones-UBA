@@ -6,28 +6,31 @@ import time
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# ARCHIVO ÚNICO DE DATOS (CSV)
-# Usaremos una fila especial con ID "SISTEMA" para guardar la fase y el tiempo
+# GESTIÓN DE DATOS UNIFICADA
 def gestionar_datos(accion="leer", fase=None, tiempo=None):
     archivo = "d.csv"
     columnas = ["E", "A", "F", "P", "G"]
     
-    # Cargar o crear
     if not os.path.exists(archivo):
-        df = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0, "0"]], columns=columnas)
+        df = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=columnas)
+        df["P"] = df["P"].astype(float) # Forzar decimales
         df.to_csv(archivo, index=False)
     else:
         try:
             df = pd.read_csv(archivo)
+            df["P"] = df["P"].astype(float) # Asegurar que P sea decimal
             if "SISTEMA" not in df["E"].values:
-                extra = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0, "0"]], columns=columnas)
+                extra = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=columnas)
                 df = pd.concat([df, extra], ignore_index=True)
         except:
-            df = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0, "0"]], columns=columnas)
-    
+            df = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=columnas)
+            df["P"] = df["P"].astype(float)
+
     if accion == "escribir":
-        df.loc[df["E"] == "SISTEMA", "F"] = int(fase)
-        df.loc[df["E"] == "SISTEMA", "P"] = float(tiempo)
+        # Usar .at para evitar problemas de tipos en celdas específicas
+        idx_sistema = df[df["E"] == "SISTEMA"].index[0]
+        df.at[idx_sistema, "F"] = int(fase)
+        df.at[idx_sistema, "P"] = float(tiempo)
         df.to_csv(archivo, index=False)
         return df
     return df
@@ -95,7 +98,7 @@ if st.session_state.user is None:
             df = gestionar_datos()
             if m not in df['E'].values:
                 with open("d.csv", "a") as f:
-                    f.write(f"{m},{n},0,0,{g}\n")
+                    f.write(f"{m},{n},0,0.0,{g}\n")
         st.rerun()
     st.stop()
 
@@ -124,7 +127,7 @@ if st.session_state.user["tipo"] == "juez":
     with c1:
         op_fase = st.selectbox("Cambiar Pregunta:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x], key="sel_fase")
         if st.button("📢 ACTUALIZAR FASE", key="btn_fase"):
-            gestionar_datos("escribir", fase=op_fase, tiempo=0)
+            gestionar_datos("escribir", fase=op_fase, tiempo=0.0)
             st.rerun()
     with c2:
         t_set = st.number_input("Segundos:", 5, 60, 25, key="num_tiempo")
