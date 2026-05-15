@@ -34,7 +34,7 @@ st.markdown("""
     .stApp, .stMarkdown, p, h1, h2, h3, h4, label, span { color: #FFFFFF !important; font-family: 'Poppins', sans-serif; text-align: center; }
     .main .block-container { background: rgba(10, 25, 41, 0.92) !important; padding: 3rem !important; border-radius: 12px !important; border-top: 5px solid #D4AF37; max-width: 1100px !important; margin: auto; }
     
-    /* TABLAS EN NEGRO SOBRE BLANCO */
+    /* TABLAS Y RESULTADOS: NEGRO SOBRE BLANCO */
     [data-testid="stTable"], .stDataFrame, [data-testid="stExpander"], .stTable, div[data-testid="stExpander"] div { 
         background-color: white !important; color: #000000 !important;
     }
@@ -44,7 +44,7 @@ st.markdown("""
         color: #000000 !important; font-weight: 800 !important;
     }
 
-    /* PODIO CON LETRAS BLANCAS */
+    /* PODIO: LETRAS BLANCAS */
     .podio-container { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px; }
     .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFFFFF !important; padding: 20px; border-radius: 8px; width: 80%; font-size: 2rem; font-weight: 700; border: 2px solid white; text-shadow: 1px 1px 2px #000; }
     .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFFFFF !important; padding: 15px; border-radius: 8px; width: 70%; font-size: 1.5rem; font-weight: 600; text-shadow: 1px 1px 2px #000; }
@@ -116,6 +116,11 @@ if st.session_state.user["tipo"] == "juez":
     with c4:
         st.download_button("📥 EXCEL", df_global.to_csv(index=False), "resultados.csv")
 
+    # BOTÓN DE REINICIAR RESTAURADO
+    if st.button("⚠️ REINICIAR TODO"):
+        if os.path.exists("d.csv"): os.remove("d.csv")
+        escribir_f(0, 0); st.rerun()
+    
     st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False))
 
 else:
@@ -146,12 +151,13 @@ else:
 
     elif fase_serv == 88:
         st.markdown("<h2 class='titulo-oro'>📊 RESULTADOS</h2>")
+        # Tabla con letras negras sobre blanco
         st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False).head(10))
         time.sleep(3); st.rerun()
 
     elif fase_serv == 99:
         st.balloons()
-        st.audio("https://raw.githubusercontent.com/fede-999/images/main/festejo.mp3", autoplay=True)
+        # Se quitó la barra de audio para el estudiante aquí también
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
             img = f"https://raw.githubusercontent.com/fede-999/images/main/{ 'alumna_festejo_uba.png' if podio[0][4] == 'Dra.' else 'alumno_festejo_uba.png' }"
