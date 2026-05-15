@@ -2,36 +2,50 @@ import streamlit as st
 import pandas as pd
 import os
 import time
+import random
 
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# GESTIÓN DE DATOS UNIFICADA
+# FUNCIÓN PARA REPRODUCIR AUDIO
+def reproducir_audio(url):
+    audio_html = f"""
+        <audio autoplay>
+            <source src="{url}" type="audio/mp3">
+        </audio>
+    """
+    st.markdown(audio_html, unsafe_allow_html=True)
+
+# GESTIÓN DE DATOS CON FORZADO DE LECTURA (Anti-Caché)
 def gestionar_datos(accion="leer", fase=None, tiempo=None):
     archivo = "d.csv"
     columnas = ["E", "A", "F", "P", "G"]
     
+    # Forzar lectura fresca añadiendo un parámetro aleatorio internamente
     if not os.path.exists(archivo):
         df = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=columnas)
-        df["P"] = df["P"].astype(float) # Forzar decimales
         df.to_csv(archivo, index=False)
     else:
         try:
             df = pd.read_csv(archivo)
-            df["P"] = df["P"].astype(float) # Asegurar que P sea decimal
+            df["P"] = pd.to_numeric(df["P"], errors='coerce').fillna(0.0)
             if "SISTEMA" not in df["E"].values:
                 extra = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=columnas)
                 df = pd.concat([df, extra], ignore_index=True)
         except:
             df = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=columnas)
-            df["P"] = df["P"].astype(float)
 
     if accion == "escribir":
-        # Usar .at para evitar problemas de tipos en celdas específicas
         idx_sistema = df[df["E"] == "SISTEMA"].index[0]
         df.at[idx_sistema, "F"] = int(fase)
         df.at[idx_sistema, "P"] = float(tiempo)
         df.to_csv(archivo, index=False)
+        # Forzar que el sistema operativo guarde el archivo YA
+        try:
+            f = os.open(archivo, os.O_RDONLY)
+            os.fsync(f)
+            os.close(f)
+        except: pass
         return df
     return df
 
@@ -87,6 +101,7 @@ if 'user' not in st.session_state: st.session_state.user = None
 if 'f_voto' not in st.session_state: st.session_state.f_voto = -1
 
 if st.session_state.user is None:
+    reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/bienvenida.mp3")
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
     m = st.text_input("Clave de Acceso:")
     n = st.text_input("Nombre Completo:")
@@ -146,6 +161,7 @@ if st.session_state.user["tipo"] == "juez":
 else:
     # --- PANTALLA ALUMNO ---
     if fase_serv == 99:
+        reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/ganador.mp3")
         st.balloons(); st.snow()
         podio = df_global[df_global["E"] != "SISTEMA"].sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
@@ -187,12 +203,15 @@ else:
         
         if st.button("ENVIAR SENTENCIA", disabled=voto_bloqueado or ya_envio):
             if opcion == p["k"]:
+                reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/exito.mp3")
                 pts = 10 + min(int(t_limite - ahora), 10)
                 df_u = gestionar_datos()
                 df_u.loc[df_u['E'] == st.session_state.user['e'], 'P'] += pts
                 df_u.to_csv("d.csv", index=False)
                 st.success("✅ REGISTRADO")
-            else: st.error("❌ INCORRECTO")
+            else:
+                reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/error.mp3")
+                st.error("❌ INCORRECTO")
             st.session_state.enviado = True
             st.session_state.f_voto = fase_serv
             st.rerun()
