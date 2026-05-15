@@ -70,7 +70,7 @@ if 'f_voto' not in st.session_state: st.session_state.f_voto = -1
 
 if st.session_state.user is None:
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
-    m = st.text_input("Clave de Acceso:")
+    m = st.text_input("Clave de Acceso// Mail academico:")
     n = st.text_input("Nombre Completo:")
     g = st.radio("Título:", ["Dr.", "Dra."])
     if st.button("INGRESAR"):
@@ -91,16 +91,19 @@ f_info = leer_f()
 fase_serv, t_limite = int(f_info[0]), float(f_info[1])
 ahora = time.time()
 
+# Diccionario para nombres amigables de fases
+fases_nombres = {0: "Inicio", 1: "Pregunta 1", 2: "Pregunta 2", 3: "Pregunta 3", 4: "Pregunta 4", 88: "RESULTADOS PARCIALES", 99: "RESULTADO FINAL"}
+
 if st.session_state.user["tipo"] == "juez":
     st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DOCENTE</h1>", unsafe_allow_html=True)
     
-    # Si la fase es 99, mostramos el podio también al docente
     if fase_serv == 99:
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
             img_file = "alumna_festejo_uba.png" if podio[0][4] == "Dra." else "alumno_festejo_uba.png"
+            # RUTA CORREGIDA: Directa al repositorio raw
             img_url = f"https://raw.githubusercontent.com/fede-999/images/main/{img_file}"
-            st.image(img_url, width=300)
+            st.image(img_url, width=250)
             st.markdown(f"### Ganador/a: {podio[0][1]}")
 
     with st.expander("📚 PREGUNTAS Y ASISTENCIA", expanded=True):
@@ -114,11 +117,12 @@ if st.session_state.user["tipo"] == "juez":
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        f_sel = st.selectbox("Fase:", [0, 1, 2, 3, 4, 88, 99])
-        if st.button("📢 CAMBIAR"): escribir_f(f_sel, "0"); st.rerun()
+        # Selección con nombres en lugar de números
+        opcion_fase = st.selectbox("Cambiar a:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x])
+        if st.button("📢 CAMBIO DE PREGUNTA"): escribir_f(opcion_fase, "0"); st.rerun()
     with c2:
-        t_set = st.number_input("Segs:", 5, 60, 25)
-        if st.button("⏱️ ACTIVAR EL RELOJ"): escribir_f(fase_serv, str(time.time() + t_set)); st.rerun()
+        t_set = st.number_input("Segundos:", 5, 60, 25)
+        if st.button("⏱️ ACTIVAR RELOJ"): escribir_f(fase_serv, str(time.time() + t_set)); st.rerun()
     with c3:
         if st.button("🔄 REFRESCAR"): st.rerun()
     with c4:
@@ -141,7 +145,7 @@ else:
         opcion = st.radio("Dictamen:", p["o"], key=f"r_{fase_serv}", disabled=ya_envio or not reloj_on)
         if reloj_on and not ya_envio:
             st.markdown(f'<div class="reloj-float">{int(t_limite - ahora)}</div>', unsafe_allow_html=True)
-        if st.button("ENVIAR RESPUESTA", disabled=(not reloj_on or ya_envio)):
+        if st.button("ENVIAR ELECCION", disabled=(not reloj_on or ya_envio)):
             if opcion == p["k"]:
                 pts = 10 + min(int(t_limite - ahora), 10)
                 df_u = cargar_datos(); df_u.loc[df_u['E'] == st.session_state.user['e'], 'P'] += pts
@@ -153,23 +157,24 @@ else:
             time.sleep(1); st.rerun()
         time.sleep(2); st.rerun()
 
-    elif fase_serv == "RESULTADOS PARCIALES":
+    elif fase_serv == 88:
         st.markdown("<h2 class='titulo-oro'>📊 RESULTADOS PARCIALES</h2>")
         st.table(df_global[['A', 'P']].sort_values(by='P', ascending=False).head(10))
         time.sleep(3); st.rerun()
 
-    elif fase_serv == "RESULTADOS FINAL!!":
+    elif fase_serv == 99:
         st.balloons()
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
             img_file = "alumna_festejo_uba.png" if podio[0][4] == "Dra." else "alumno_festejo_uba.png"
             img_url = f"https://raw.githubusercontent.com/fede-999/images/main/{img_file}"
             st.image(img_url, use_container_width=True)
+            
             st.markdown("<div class='podio-container'>", unsafe_allow_html=True)
             st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][3])} PTS)</div>", unsafe_allow_html=True)
             if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]} ({int(podio[1][3])} PTS)</div>", unsafe_allow_html=True)
             if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]} ({int(podio[2][3])} PTS)</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown("<div class='mensaje-final'>La sesión ha concluido. ¡Felicitaciones a los ganadores!</div>", unsafe_allow_html=True)
+        st.markdown("<div class='mensaje-final'>¡La sesión ha concluido!</div>", unsafe_allow_html=True)
     else:
         st.info("⚖️ En espera..."); time.sleep(2); st.rerun()
