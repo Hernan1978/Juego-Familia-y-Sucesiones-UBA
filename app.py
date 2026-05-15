@@ -43,17 +43,20 @@ st.markdown("""
         text-shadow: none !important;
     }
 
-    /* TÍTULO DORADO */
-    .titulo-oro { color: #D4AF37 !important; font-size: 3.5rem !important; font-weight: 700; text-transform: uppercase; text-shadow: 2px 2px 4px #000 !important; }
-    
+    .titulo-oro { 
+    color: #FFD700 !important; 
+    font-size: 3.5rem !important; 
+    text-shadow: 2px 2px 4px #000000 !important;
+}
+
     /* --- PANEL DOCENTE: CONTRASTE MÁXIMO --- */
     label, [data-testid="stWidgetLabel"] p, .stSelectbox p, .stNumberInput p, [data-testid="stExpander"] summary p {
-    color: #FFFFFF !important; /* Esto pone en blanco los nombres y el título del radio */
-    font-weight: 700 !important;
-    text-shadow: 1px 1px 2px #000 !important; /* Sombra negra suave para que resalte */
-}
-div[data-testid="stMarkdownContainer"] p {
+    label, [data-testid="stWidgetLabel"] p {
     color: #FFFFFF !important;
+    background-color: rgba(0, 0, 0, 0.5); /* Fondo negro clarito detrás de la letra */
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-weight: 700 !important;
 }
 
 
