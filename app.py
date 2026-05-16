@@ -15,18 +15,22 @@ def reproducir_audio(url):
 
 def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
     try:
-        # Leer la hoja principal (Hoja 1)
+        # Leer la hoja principal
         df = conn.read(ttl=0)
         
-        # Limpiar nombres de columnas
+        # Si el DF está vacío o no tiene columnas, crear estructura básica
+        if df.empty or len(df.columns) < 2:
+            df = pd.DataFrame(columns=["E", "A", "F", "P", "G"])
+        
+        # Limpiar nombres de columnas (CORREGIDO)
         df.columns = [str(c).strip().upper() for c in df.columns]
         
         # Asegurar columnas básicas
         for col in ["E", "A", "F", "P", "G"]:
             if col not in df.columns: df[col] = ""
 
-        # Normalizar columna E para búsqueda
-        df["E_STR"] = df["E"].astype(str).str.strip().upper()
+        # Normalizar columna E para búsqueda (CORREGIDO)
+        df["E_STR"] = df["E"].astype(str).str.strip().str.upper()
 
         if accion == "escribir_sistema":
             if "SISTEMA" not in df["E_STR"].values:
