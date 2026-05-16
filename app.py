@@ -15,22 +15,18 @@ def reproducir_audio(url):
 
 def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
     try:
-        # Leer datos sin caché para asegurar frescura
         df = conn.read(ttl=0)
-        
-        # Limpiar nombres de columnas
         df.columns = [str(c).strip().upper() for c in df.columns]
         
         # Asegurar columnas básicas
         for col in ["E", "A", "F", "P", "G"]:
             if col not in df.columns: df[col] = ""
 
-        # Normalizar columna E para búsqueda
-        df["E_STR"] = df["E"].astype(str).str.strip().upper()
+        # Normalizar columna E para búsqueda (CORREGIDO)
+        df["E_STR"] = df["E"].astype(str).str.strip().str.upper()
 
         if accion == "escribir_sistema":
             if "SISTEMA" not in df["E_STR"].values:
-                # Si no existe, lo creamos
                 nuevo_sys = pd.DataFrame([["SISTEMA", "CONTROL", int(fase), float(tiempo), "0"]], columns=["E", "A", "F", "P", "G"])
                 df = pd.concat([df.drop(columns=["E_STR"]), nuevo_sys], ignore_index=True)
             else:
@@ -54,7 +50,7 @@ def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
             conn.update(data=df)
             return df
 
-        # AUTO-REPARACIÓN: Si al leer no hay SISTEMA, lo creamos por defecto
+        # AUTO-REPARACIÓN
         if "SISTEMA" not in df["E_STR"].values:
             nuevo_sys = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=["E", "A", "F", "P", "G"])
             df = pd.concat([df.drop(columns=["E_STR"]), nuevo_sys], ignore_index=True)
@@ -104,7 +100,7 @@ if df_global.empty:
     st.stop()
 
 try:
-    info_sistema = df_global[df_global["E"].astype(str).str.strip().upper() == "SISTEMA"].iloc[0]
+    info_sistema = df_global[df_global["E"].astype(str).str.strip().str.upper() == "SISTEMA"].iloc[0]
     fase_serv = int(info_sistema["F"])
     t_limite = float(info_sistema["P"])
 except:
@@ -147,18 +143,18 @@ if st.session_state.user["tipo"] == "juez":
         if st.button("🔄 REFRESCAR"): st.rerun()
     with c4:
         if st.button("⚠️ RESET"):
-            df_reset = df_global[df_global["E"].astype(str).str.strip().upper() == "SISTEMA"]
+            df_reset = df_global[df_global["E"].astype(str).str.strip().str.upper() == "SISTEMA"]
             conn.update(data=df_reset)
             st.rerun()
     
-    st.table(df_global[df_global["E"].astype(str).str.strip().upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
+    st.table(df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
 
 else:
     # --- PANTALLA ALUMNO ---
     if fase_serv == 99:
         reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/ganador.mp3")
         st.balloons(); st.snow()
-        podio = df_global[df_global["E"].astype(str).str.strip().upper() != "SISTEMA"].sort_values(by="P", ascending=False).head(3).values.tolist()
+        podio = df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"].sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
             img_file = "alumna_festejo_uba.png" if podio[0][4] == "Dra." else "alumno_festejo_uba.png"
             img_url = f"https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/{img_file}"
@@ -211,7 +207,7 @@ else:
         # TABLA DE PARTICIPANTES PARA ALUMNOS
         st.markdown("---")
         st.markdown("### 👥 PARTICIPANTES EN VIVO")
-        st.table(df_global[df_global["E"].astype(str).str.strip().upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
+        st.table(df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
         time.sleep(3)
         st.rerun()
             
@@ -219,6 +215,6 @@ else:
         st.info("⚖️ Tribunal deliberando... espere.")
         st.markdown("---")
         st.markdown("### 👥 PARTICIPANTES EN VIVO")
-        st.table(df_global[df_global["E"].astype(str).str.strip().upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
+        st.table(df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
         time.sleep(3)
         st.rerun()
