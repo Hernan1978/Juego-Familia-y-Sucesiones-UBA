@@ -6,39 +6,47 @@ import time
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# CONEXIÓN A GOOGLE SHEETS
-conn = st.connection("gsheets", type=GSheetsConnection)
+# CONEXIÓN ROBUSTA
+try:
+    conn = st.connection("gsheets", type=GSheetsConnection)
+except Exception as e:
+    st.error(f"Error crítico de configuración: {e}")
+    st.stop()
 
 def reproducir_audio(url):
     audio_html = f'<audio autoplay><source src="{url}" type="audio/mp3"></audio>'
     st.markdown(audio_html, unsafe_allow_html=True)
 
 def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
-    # Leer datos actuales de Google Sheets
-    df = conn.read(ttl=0) # ttl=0 para que no use caché y lea siempre lo último
-    
-    if accion == "escribir_sistema":
-        # Actualizar fase y tiempo en la fila SISTEMA
-        df.loc[df["E"] == "SISTEMA", "F"] = int(fase)
-        df.loc[df["E"] == "SISTEMA", "P"] = float(tiempo)
-        conn.update(data=df)
-        return df
-    
-    if accion == "nuevo_usuario":
-        # Añadir un alumno nuevo
-        if nuevo_usuario["e"] not in df["E"].values:
-            nuevo_df = pd.DataFrame([nuevo_usuario])
-            df = pd.concat([df, nuevo_df], ignore_index=True)
+    try:
+        # Leer siempre la primera hoja disponible
+        df = conn.read(ttl=0)
+        
+        # Limpiar nombres de columnas por si acaso hay espacios invisibles
+        df.columns = df.columns.str.strip()
+        
+        if accion == "escribir_sistema":
+            df.loc[df["E"] == "SISTEMA", "F"] = int(fase)
+            df.loc[df["E"] == "SISTEMA", "P"] = float(tiempo)
             conn.update(data=df)
-        return df
+            return df
+        
+        if accion == "nuevo_usuario":
+            if nuevo_usuario["E"] not in df["E"].astype(str).values:
+                nuevo_df = pd.DataFrame([nuevo_usuario])
+                df = pd.concat([df, nuevo_df], ignore_index=True)
+                conn.update(data=df)
+            return df
 
-    if accion == "sumar_puntos":
-        # Sumar puntos a un alumno
-        df.loc[df["E"] == nuevo_usuario["e"], "P"] += float(nuevo_usuario["pts"])
-        conn.update(data=df)
-        return df
+        if accion == "sumar_puntos":
+            df.loc[df["E"].astype(str) == str(nuevo_usuario["e"]), "P"] += float(nuevo_usuario["pts"])
+            conn.update(data=df)
+            return df
 
-    return df
+        return df
+    except Exception as e:
+        st.error(f"Error al acceder a los datos: {e}")
+        return pd.DataFrame()
 
 # --- 2. ESTILOS ---
 st.markdown("""
@@ -72,13 +80,17 @@ banco = {
 if 'user' not in st.session_state: st.session_state.user = None
 if 'f_voto' not in st.session_state: st.session_state.f_voto = -1
 
+df_global = gestionar_datos()
+if df_global.empty:
+    st.warning("⏳ Conectando con la base de datos... por favor espera.")
+    st.stop()
+
 try:
-    df_global = gestionar_datos()
-    info_sistema = df_global[df_global["E"] == "SISTEMA"].iloc[0]
+    info_sistema = df_global[df_global["E"].astype(str) == "SISTEMA"].iloc[0]
     fase_serv = int(info_sistema["F"])
     t_limite = float(info_sistema["P"])
 except:
-    st.error("⚠️ Error de conexión con Google Sheets. Verifica los Secrets.")
+    st.error("❌ La planilla no tiene el formato correcto. Revisa la fila SISTEMA.")
     st.stop()
 
 if st.session_state.user is None:
@@ -108,7 +120,7 @@ if st.session_state.user["tipo"] == "juez":
             for k,v in banco.items(): st.write(f"**{k}.** {v['q']}")
         with c_p2:
             st.markdown("<b>Alumnos en Sala:</b>", unsafe_allow_html=True)
-            st.table(df_global[df_global["E"] != "SISTEMA"][['G', 'A']])
+            st.table(df_global[df_global["E"].astype(str) != "SISTEMA"][['G', 'A']])
 
     st.markdown("---")
     c1, c2, c3, c4 = st.columns(4)
@@ -126,19 +138,18 @@ if st.session_state.user["tipo"] == "juez":
         if st.button("🔄 REFRESCAR", key="btn_refrescar"): st.rerun()
     with c4:
         if st.button("⚠️ RESET", key="btn_reset"):
-            # Para resetear en Sheets, simplemente limpiamos los alumnos
-            df_reset = df_global[df_global["E"] == "SISTEMA"]
+            df_reset = df_global[df_global["E"].astype(str) == "SISTEMA"]
             conn.update(data=df_reset)
             st.rerun()
     
-    st.table(df_global[df_global["E"] != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
+    st.table(df_global[df_global["E"].astype(str) != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
 
 else:
     # --- PANTALLA ALUMNO ---
     if fase_serv == 99:
         reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/ganador.mp3")
         st.balloons(); st.snow()
-        podio = df_global[df_global["E"] != "SISTEMA"].sort_values(by="P", ascending=False).head(3).values.tolist()
+        podio = df_global[df_global["E"].astype(str) != "SISTEMA"].sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
             genero_ganador = podio[0][4]
             img_file = "alumna_festejo_uba.png" if genero_ganador == "Dra." else "alumno_festejo_uba.png"
