@@ -10,35 +10,35 @@ def reproducir_audio(url):
     audio_html = f'<audio autoplay><source src="{url}" type="audio/mp3"></audio>'
     st.markdown(audio_html, unsafe_allow_html=True)
 
-# GESTIÓN DE ARCHIVOS SEPARADOS PARA EVITAR BLOQUEOS
+# GESTIÓN DE ARCHIVOS (MÁXIMA ESTABILIDAD)
 def leer_fase():
-    if not os.path.exists("fase.txt"): return 0, 0.0
+    if not os.path.exists("f.txt"): return 0, 0.0
     try:
-        with open("fase.txt", "r") as f:
+        with open("f.txt", "r") as f:
             c = f.read().strip().split(",")
             return int(c[0]), float(c[1])
     except: return 0, 0.0
 
 def escribir_fase(f, t):
-    with open("fase.txt", "w") as x:
+    with open("f.txt", "w") as x:
         x.write(f"{f},{t}")
 
 def cargar_alumnos():
-    if not os.path.exists("alumnos.csv"): return pd.DataFrame(columns=["Email", "Nombre", "Puntos", "Titulo"])
-    try: return pd.read_csv("alumnos.csv")
-    except: return pd.DataFrame(columns=["Email", "Nombre", "Puntos", "Titulo"])
+    if not os.path.exists("a.csv"): return pd.DataFrame(columns=["E", "A", "P", "G"])
+    try: return pd.read_csv("a.csv")
+    except: return pd.DataFrame(columns=["E", "A", "P", "G"])
 
-def guardar_alumno(email, nombre, titulo):
+def guardar_alumno(e, a, g):
     df = cargar_alumnos()
-    if email not in df["Email"].values:
-        nuevo = pd.DataFrame([[email, nombre, 0, titulo]], columns=["Email", "Nombre", "Puntos", "Titulo"])
+    if e not in df["E"].astype(str).values:
+        nuevo = pd.DataFrame([[e, a, 0.0, g]], columns=["E", "A", "P", "G"])
         df = pd.concat([df, nuevo], ignore_index=True)
-        df.to_csv("alumnos.csv", index=False)
+        df.to_csv("a.csv", index=False)
 
-def sumar_puntos(email, pts):
+def sumar_puntos(e, pts):
     df = cargar_alumnos()
-    df.loc[df["Email"] == email, "Puntos"] += pts
-    df.to_csv("alumnos.csv", index=False)
+    df.loc[df["E"].astype(str) == str(e), "P"] += float(pts)
+    df.to_csv("a.csv", index=False)
 
 # --- 2. ESTILOS ---
 st.markdown("""
@@ -86,8 +86,7 @@ if st.session_state.user is None:
             st.session_state.user = {"tipo": "alumno", "e": m, "a": n, "g": g}
             guardar_alumno(m, n, g)
             st.rerun()
-        else:
-            st.error("Por favor, ingresa un Email válido y tu Nombre.")
+        else: st.error("Ingresa un Email válido y tu Nombre.")
     st.stop()
 
 # --- 5. LÓGICA ---
@@ -105,7 +104,7 @@ if st.session_state.user["tipo"] == "juez":
             for k,v in banco.items(): st.write(f"**{k}.** {v['q']}")
         with c_p2:
             st.markdown("<b>Alumnos en Sala:</b>", unsafe_allow_html=True)
-            st.table(df_global[['Titulo', 'Nombre']])
+            st.table(df_global[['G', 'A']])
 
     st.markdown("---")
     c1, c2, c3, c4 = st.columns(4)
@@ -123,22 +122,25 @@ if st.session_state.user["tipo"] == "juez":
         if st.button("🔄 REFRESCAR"): st.rerun()
     with c4:
         if st.button("⚠️ RESET"):
-            if os.path.exists("alumnos.csv"): os.remove("alumnos.csv")
+            if os.path.exists("a.csv"): os.remove("a.csv")
             escribir_fase(0, 0.0)
             st.rerun()
     
-    st.table(df_global[['Titulo', 'Nombre', 'Puntos']].sort_values(by='Puntos', ascending=False))
+    st.table(df_global[['G', 'A', 'P']].sort_values(by='P', ascending=False))
 
 else:
     # --- PANTALLA ALUMNO ---
     if fase_serv == 99:
         reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/ganador.mp3")
         st.balloons(); st.snow()
-        podio = df_global.sort_values(by="Puntos", ascending=False).head(3).values.tolist()
+        podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
-            img_file = "alumna_festejo_uba.png" if podio[0][3] == "Dra." else "alumno_festejo_uba.png"
+            # LÓGICA DE FOTOS DE GANADORES
+            genero_ganador = podio[0][3]
+            img_file = "alumna_festejo_uba.png" if genero_ganador == "Dra." else "alumno_festejo_uba.png"
             img_url = f"https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/{img_file}"
             st.image(img_url, use_container_width=True)
+            
             st.markdown(f"<h1 class='titulo-oro'>🏆 {podio[0][3]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
             st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][2])} PTS)</div><br>", unsafe_allow_html=True)
             if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]}</div><br>", unsafe_allow_html=True)
