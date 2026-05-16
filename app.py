@@ -6,26 +6,44 @@ import requests
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# URL DE SPREADSHEET (CSV PÚBLICO) - Reemplace por el ID de su planilla real
-GSHEET_ID = "1_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # <- PONGA AQUÍ EL ID DE SU PLANILLA
-URL_LECTURA = f"https://docs.google.com/spreadsheets/d/{GSHEET_ID}/gviz/tq?tqx=out:csv"
+# ID DE SU PLANILLA INTEGRADO AUTOMÁTICAMENTE
+GSHEET_ID = "1ZcXOkFeMgHZFchQfDKxPWaH516b7sO9LIiO9MibvP5Q"
 
-# Para escribir sin cuenta de servicio, usamos el truco de enviar datos mediante la API Web de Google Apps Script o un Formulario
-# Si usa la API Web de Google, coloque aquí la URL de ejecución; de lo contrario, el sistema simulará almacenamiento local resiliente:
-URL_ESCRITURA = "" 
+# OPCIÓN A (Lectura directa por CSV público)
+URL_LECTURA_DIRECTA = f"https://docs.google.com/spreadsheets/d/{GSHEET_ID}/gviz/tq?tqx=out:csv"
+
+# OPCIÓN B (Para escribir y guardar puntos usando Apps Script sin usar tarjetas ni cuentas de servicio)
+# Coloque aquí la URL que le dará Google tras seguir los pasos del final del mensaje:
+URL_SCRIPT_GOOGLE = "https://script.google.com/macros/s/ACA_VA_SU_ENLACE_DE_GOOGLE/exec"
 
 def reproducir_audio(url):
     audio_html = f'<audio autoplay><source src="{url}" type="audio/mp3"></audio>'
     st.markdown(audio_html, unsafe_allow_html=True)
 
 def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
-    # Usamos session_state como respaldo local en tiempo real para evitar caídas del Workspace institucional
+    # Intentamos primero interactuar con el Apps Script para sincronizar el Sheets real en vivo
+    if URL_SCRIPT_GOOGLE and "ACA_VA_SU_ENLACE" not in URL_SCRIPT_GOOGLE:
+        try:
+            if accion == "leer":
+                res = requests.get(URL_SCRIPT_GOOGLE, timeout=5)
+                df = pd.DataFrame(res.json())
+            else:
+                payload = {"accion": accion, "fase": fase, "tiempo": tiempo, "usuario": nuevo_usuario}
+                res = requests.post(URL_SCRIPT_GOOGLE, json=payload, timeout=5)
+                df = pd.DataFrame(res.json())
+            st.session_state.db_local = df
+            return df
+        except:
+            pass # Si falla el script de Google, cae en el respaldo local interactivo automático
+
+    # RESPALDO LOCAL INTERACTIVO: Esto hace que todos los botones de la app anden AL INSTANTE 
+    # aunque Google Workspace tenga bloqueos en la red del aula.
     if "db_local" not in st.session_state:
         try:
-            # Intentar lectura directa mediante petición HTTP nativa (evita errores de autenticación de Streamlit)
-            df = pd.read_csv(URL_LECTURA)
+            # Intenta leer la planilla real por HTTP público como base inicial
+            df = pd.read_csv(URL_LECTURA_DIRECTA)
         except:
-            # Estructura de respaldo automática si Google bloquea la petición externa
+            # Estructura de contingencia si no hay internet en el aula al iniciar
             df = pd.DataFrame(columns=["E", "A", "F", "P", "G"])
         st.session_state.db_local = df
 
@@ -43,29 +61,19 @@ def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
         df = pd.concat([df, nuevo_sys], ignore_index=True)
         df["E_STR"] = df["E"].astype(str).str.strip().str.upper()
 
-    try:
-        if accion == "escribir_sistema":
-            df.loc[df["E_STR"] == "SISTEMA", "F"] = int(fase)
-            df.loc[df["E_STR"] == "SISTEMA", "P"] = float(tiempo)
-            
-        elif accion == "nuevo_usuario":
-            if nuevo_usuario["E"].strip().upper() not in df["E_STR"].values:
-                nuevo_row = pd.DataFrame([nuevo_usuario])
-                df = pd.concat([df, nuevo_row], ignore_index=True)
-                
-        elif accion == "sumar_puntos":
-            mask = df["E_STR"] == str(nuevo_usuario["e"]).strip().upper()
-            df.loc[mask, "P"] = pd.to_numeric(df.loc[mask, "P"], errors='coerce').fillna(0) + float(nuevo_usuario["pts"])
+    # Procesar acciones de los botones interactivamente
+    if accion == "escribir_sistema":
+        df.loc[df["E_STR"] == "SISTEMA", "F"] = int(fase)
+        df.loc[df["E_STR"] == "SISTEMA", "P"] = float(tiempo)
+    elif accion == "nuevo_usuario":
+        if nuevo_usuario["E"].strip().upper() not in df["E_STR"].values:
+            df = pd.concat([df, pd.DataFrame([nuevo_usuario])], ignore_index=True)
+    elif accion == "sumar_puntos":
+        mask = df["E_STR"] == str(nuevo_usuario["e"]).strip().upper()
+        df.loc[mask, "P"] = pd.to_numeric(df.loc[mask, "P"], errors='coerce').fillna(0) + float(nuevo_usuario["pts"])
 
-        st.session_state.db_local = df.drop(columns=["E_STR"]) if "E_STR" in df.columns else df
-        
-        # Sincronización asíncrona opcional por HTTP Post (Evita que la app tire error en clase)
-        if URL_ESCRITURA and accion != "leer":
-            requests.post(URL_ESCRITURA, json=st.session_state.db_local.to_dict(orient="records"))
-            
-        return st.session_state.db_local
-    except Exception as e:
-        return df.drop(columns=["E_STR"]) if "E_STR" in df.columns else df
+    st.session_state.db_local = df.drop(columns=["E_STR"]) if "E_STR" in df.columns else df
+    return st.session_state.db_local
 
 # --- 2. ESTILOS DE VISIBILIDAD DE ALTA DEFINICIÓN ---
 st.markdown("""
@@ -147,7 +155,7 @@ banco = {
 if 'user' not in st.session_state: st.session_state.user = None
 if 'f_voto' not in st.session_state: st.session_state.f_voto = -1
 
-df_global = gestionar_datos()
+df_global = gestionar_datos("leer")
 
 try:
     info_sistema = df_global[df_global["E"].astype(str).str.strip().str.upper() == "SISTEMA"].iloc[0]
@@ -226,12 +234,12 @@ else:
         if t_limite == 0:
             st.warning("⚖️ El Tribunal aún no ha habilitado la votación. Espere...")
             voto_bloqueado = True
+            time.sleep(3); st.rerun()
         elif reloj_on and not ya_envio:
             secs_restantes = int(t_limite - ahora)
             st.markdown(f"<div style='text-align:center;'><div class='reloj-container'>⏱️ {secs_restantes}s</div></div>", unsafe_allow_html=True)
             voto_bloqueado = False
-            time.sleep(1)
-            st.rerun()
+            time.sleep(1); st.rerun()
         elif not ya_envio and not reloj_on:
             st.markdown("<div style='text-align:center;'><div class='reloj-container' style='color:gray; border-color:gray;'>⌛ TIEMPO AGOTADO</div></div>", unsafe_allow_html=True)
             voto_bloqueado = True
@@ -256,13 +264,10 @@ else:
         st.markdown("---")
         st.markdown("### 👥 PARTICIPANTES EN VIVO")
         st.table(df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
-        time.sleep(3)
-        st.rerun()
             
     else:
         st.info("⚖️ Tribunal deliberando... espere.")
         st.markdown("---")
         st.markdown("### 👥 PARTICIPANTES EN VIVO")
         st.table(df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
-        time.sleep(3)
-        st.rerun()
+        time.sleep(4); st.rerun()
