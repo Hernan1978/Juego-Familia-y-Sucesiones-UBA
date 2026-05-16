@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
-import os
+import sqlite3
 import time
+import os
 
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
@@ -10,35 +11,40 @@ def reproducir_audio(url):
     audio_html = f'<audio autoplay><source src="{url}" type="audio/mp3"></audio>'
     st.markdown(audio_html, unsafe_allow_html=True)
 
-# GESTIÓN DE ARCHIVOS (MÁXIMA ESTABILIDAD)
-def leer_fase():
-    if not os.path.exists("f.txt"): return 0, 0.0
-    try:
-        with open("f.txt", "r") as f:
-            c = f.read().strip().split(",")
-            return int(c[0]), float(c[1])
-    except: return 0, 0.0
+# GESTIÓN DE BASE DE DATOS SQLITE (INSTANTÁNEA)
+def init_db():
+    conn = sqlite3.connect('lexplay.db', check_same_thread=False)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS sistema (id INTEGER PRIMARY KEY, fase INTEGER, tiempo REAL)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS alumnos (email TEXT PRIMARY KEY, nombre TEXT, puntos REAL, titulo TEXT)''')
+    c.execute('''INSERT OR IGNORE INTO sistema (id, fase, tiempo) VALUES (1, 0, 0.0)''')
+    conn.commit()
+    return conn
 
-def escribir_fase(f, t):
-    with open("f.txt", "w") as x:
-        x.write(f"{f},{t}")
+db_conn = init_db()
+
+def leer_sistema():
+    c = db_conn.cursor()
+    c.execute('SELECT fase, tiempo FROM sistema WHERE id=1')
+    return c.fetchone()
+
+def escribir_sistema(f, t):
+    c = db_conn.cursor()
+    c.execute('UPDATE sistema SET fase=?, tiempo=? WHERE id=1', (f, t))
+    db_conn.commit()
 
 def cargar_alumnos():
-    if not os.path.exists("a.csv"): return pd.DataFrame(columns=["E", "A", "P", "G"])
-    try: return pd.read_csv("a.csv")
-    except: return pd.DataFrame(columns=["E", "A", "P", "G"])
+    return pd.read_sql('SELECT titulo as G, nombre as A, puntos as P, email as E FROM alumnos ORDER BY puntos DESC', db_conn)
 
 def guardar_alumno(e, a, g):
-    df = cargar_alumnos()
-    if e not in df["E"].astype(str).values:
-        nuevo = pd.DataFrame([[e, a, 0.0, g]], columns=["E", "A", "P", "G"])
-        df = pd.concat([df, nuevo], ignore_index=True)
-        df.to_csv("a.csv", index=False)
+    c = db_conn.cursor()
+    c.execute('INSERT OR IGNORE INTO alumnos (email, nombre, puntos, titulo) VALUES (?, ?, 0.0, ?)', (e, a, g))
+    db_conn.commit()
 
 def sumar_puntos(e, pts):
-    df = cargar_alumnos()
-    df.loc[df["E"].astype(str) == str(e), "P"] += float(pts)
-    df.to_csv("a.csv", index=False)
+    c = db_conn.cursor()
+    c.execute('UPDATE alumnos SET puntos = puntos + ? WHERE email = ?', (pts, e))
+    db_conn.commit()
 
 # --- 2. ESTILOS ---
 st.markdown("""
@@ -90,7 +96,7 @@ if st.session_state.user is None:
     st.stop()
 
 # --- 5. LÓGICA ---
-fase_serv, t_limite = leer_fase()
+fase_serv, t_limite = leer_sistema()
 df_global = cargar_alumnos()
 ahora = time.time()
 fases_nombres = {0: "Inicio", 1: "P1", 2: "P2", 3: "P3", 4: "P4", 88: "Parcial", 99: "FINAL"}
@@ -111,19 +117,21 @@ if st.session_state.user["tipo"] == "juez":
     with c1:
         op_fase = st.selectbox("Cambiar Pregunta:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x], key="sel_fase")
         if st.button("📢 ACTUALIZAR FASE"):
-            escribir_fase(op_fase, 0.0)
+            escribir_sistema(op_fase, 0.0)
             st.rerun()
     with c2:
         t_set = st.number_input("Segundos:", 5, 60, 25)
         if st.button("⏱️ INICIAR RELOJ"):
-            escribir_fase(fase_serv, time.time() + t_set)
+            escribir_sistema(fase_serv, time.time() + t_set)
             st.rerun()
     with c3:
         if st.button("🔄 REFRESCAR"): st.rerun()
     with c4:
         if st.button("⚠️ RESET"):
-            if os.path.exists("a.csv"): os.remove("a.csv")
-            escribir_fase(0, 0.0)
+            c = db_conn.cursor()
+            c.execute('DELETE FROM alumnos')
+            db_conn.commit()
+            escribir_sistema(0, 0.0)
             st.rerun()
     
     st.table(df_global[['G', 'A', 'P']].sort_values(by='P', ascending=False))
@@ -135,13 +143,11 @@ else:
         st.balloons(); st.snow()
         podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
-            # LÓGICA DE FOTOS DE GANADORES
-            genero_ganador = podio[0][3]
+            genero_ganador = podio[0][0]
             img_file = "alumna_festejo_uba.png" if genero_ganador == "Dra." else "alumno_festejo_uba.png"
             img_url = f"https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/{img_file}"
             st.image(img_url, use_container_width=True)
-            
-            st.markdown(f"<h1 class='titulo-oro'>🏆 {podio[0][3]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
+            st.markdown(f"<h1 class='titulo-oro'>🏆 {podio[0][0]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
             st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][2])} PTS)</div><br>", unsafe_allow_html=True)
             if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]}</div><br>", unsafe_allow_html=True)
             if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]}</div>", unsafe_allow_html=True)
@@ -188,10 +194,19 @@ else:
         
         if ya_envio:
             st.info("✅ Sentencia enviada correctamente.")
-            time.sleep(2)
-            st.rerun()
+            
+        # TABLA DE PARTICIPANTES PARA ALUMNOS
+        st.markdown("---")
+        st.markdown("### 👥 PARTICIPANTES EN VIVO")
+        st.table(df_global[['G', 'A', 'P']].sort_values(by='P', ascending=False))
+        time.sleep(2)
+        st.rerun()
             
     else:
         st.info("⚖️ Tribunal deliberando... espere.")
+        # TABLA DE PARTICIPANTES PARA ALUMNOS
+        st.markdown("---")
+        st.markdown("### 👥 PARTICIPANTES EN VIVO")
+        st.table(df_global[['G', 'A', 'P']].sort_values(by='P', ascending=False))
         time.sleep(2)
         st.rerun()
