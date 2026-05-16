@@ -2,12 +2,18 @@ import streamlit as st
 import pandas as pd
 import time
 import requests
+# Nueva librería para refrescar en segundo plano sin congelar botones
+from streamlit_autorefresh import st_autorefresh
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# 🚨 PEGUE AQUÍ EL ENLACE QUE LE DIO GOOGLE APPS SCRIPT EN EL PASO 2 🚨
+# 🚨 PEGUE AQUÍ SU URL DE GOOGLE APPS SCRIPT 🚨
 URL_PUENTE_GOOGLE = "https://script.google.com/macros/s/AKfycbyN0oVHgwwGj45tF4zdOihsRfikAsNcG51ibWkZPmSukMKVvfaDzaNPAzm4WUqAp-82/exec"
+
+# Refresco automático en segundo plano cada 4 segundos (No congela la interfaz)
+if "user" in st.session_state and st.session_state.user is not None:
+    st_autorefresh(interval=4000, key="refresco_global")
 
 def reproducir_audio(url):
     audio_html = f'<audio autoplay><source src="{url}" type="audio/mp3"></audio>'
@@ -16,19 +22,17 @@ def reproducir_audio(url):
 def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
     try:
         if accion == "leer":
-            res = requests.get(URL_PUENTE_GOOGLE, timeout=8)
+            res = requests.get(URL_PUENTE_GOOGLE, timeout=4)
             df = pd.DataFrame(res.json())
         else:
             payload = {"accion": accion, "fase": fase, "tiempo": tiempo, "usuario": nuevo_usuario}
-            res = requests.post(URL_PUENTE_GOOGLE, json=payload, timeout=8)
+            res = requests.post(URL_PUENTE_GOOGLE, json=payload, timeout=4)
             df = pd.DataFrame(res.json())
     except:
-        # Contingencia por si falla la red en la facultad
         if "db_local" not in st.session_state:
             st.session_state.db_local = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=["E", "A", "F", "P", "G"])
         df = st.session_state.db_local
 
-    # Normalizar datos
     df.columns = [str(c).strip().upper() for c in df.columns]
     for col in ["E", "A", "F", "P", "G"]:
         if col not in df.columns: df[col] = ""
@@ -105,7 +109,8 @@ if st.session_state.user is None:
             st.session_state.user = {"tipo": "alumno", "e": m, "a": n, "g": g}
             gestionar_datos("nuevo_usuario", nuevo_usuario={"E": m, "A": n, "F": 0, "P": 0.0, "G": g})
         else: st.error("Ingresa un Email válido.")
-        st.rerun()
+        st.grid() # Forzar redibujado inicial estático limpio
+        st.invalidate() if hasattr(st, "invalidate") else st.rerun()
     st.stop()
 
 # --- 5. LÓGICA DE INTERFAZ ---
@@ -162,12 +167,10 @@ else:
         if t_limite == 0:
             st.warning("⚖️ El Tribunal aún no ha habilitado la votación. Espere...")
             voto_bloqueado = True
-            time.sleep(2); st.rerun()
         elif reloj_on and not ya_envio:
             secs_restantes = int(t_limite - ahora)
             st.markdown(f"<div style='text-align:center;'><div class='reloj-container'>⏱️ {secs_restantes}s</div></div>", unsafe_allow_html=True)
             voto_bloqueado = False
-            time.sleep(1); st.rerun()
         elif not ya_envio and not reloj_on:
             st.markdown("<div style='text-align:center;'><div class='reloj-container' style='color:gray; border-color:gray;'>⌛ TIEMPO AGOTADO</div></div>", unsafe_allow_html=True)
             voto_bloqueado = True
@@ -192,11 +195,9 @@ else:
         st.markdown("---")
         st.markdown("### 👥 PARTICIPANTES EN VIVO")
         st.table(df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
-        time.sleep(4); st.rerun()
             
     else:
         st.info("⚖️ Tribunal deliberando... espere.")
         st.markdown("---")
         st.markdown("### 👥 PARTICIPANTES EN VIVO")
         st.table(df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
-        time.sleep(4); st.rerun()
