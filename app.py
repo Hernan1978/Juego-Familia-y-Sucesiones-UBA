@@ -1,142 +1,89 @@
 import streamlit as st
+from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import time
-import requests
 
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# ID DE SU PLANILLA INTEGRADO AUTOMÁTICAMENTE
-GSHEET_ID = "1ZcXOkFeMgHZFchQfDKxPWaH516b7sO9LIiO9MibvP5Q"
-
-# OPCIÓN A (Lectura directa por CSV público)
-URL_LECTURA_DIRECTA = f"https://docs.google.com/spreadsheets/d/{GSHEET_ID}/gviz/tq?tqx=out:csv"
-
-# OPCIÓN B (Para escribir y guardar puntos usando Apps Script sin usar tarjetas ni cuentas de servicio)
-# Coloque aquí la URL que le dará Google tras seguir los pasos del final del mensaje:
-URL_SCRIPT_GOOGLE = "https://script.google.com/macros/s/AKfycbxP-nlxZgdHlDLwD1wZkoAzOYZtvO9e41F4-AiCCxpsy0EH5H8tdGeMZS2jx8roDkZewA/exec/exec"
+# CONEXIÓN A GOOGLE SHEETS
+conn = st.connection("gsheets", type=GSheetsConnection)
 
 def reproducir_audio(url):
     audio_html = f'<audio autoplay><source src="{url}" type="audio/mp3"></audio>'
     st.markdown(audio_html, unsafe_allow_html=True)
 
 def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
-    # Intentamos primero interactuar con el Apps Script para sincronizar el Sheets real en vivo
-    if URL_SCRIPT_GOOGLE and "ACA_VA_SU_ENLACE" not in URL_SCRIPT_GOOGLE:
-        try:
-            if accion == "leer":
-                res = requests.get(URL_SCRIPT_GOOGLE, timeout=5)
-                df = pd.DataFrame(res.json())
-            else:
-                payload = {"accion": accion, "fase": fase, "tiempo": tiempo, "usuario": nuevo_usuario}
-                res = requests.post(URL_SCRIPT_GOOGLE, json=payload, timeout=5)
-                df = pd.DataFrame(res.json())
-            st.session_state.db_local = df
-            return df
-        except:
-            pass # Si falla el script de Google, cae en el respaldo local interactivo automático
-
-    # RESPALDO LOCAL INTERACTIVO: Esto hace que todos los botones de la app anden AL INSTANTE 
-    # aunque Google Workspace tenga bloqueos en la red del aula.
-    if "db_local" not in st.session_state:
-        try:
-            # Intenta leer la planilla real por HTTP público como base inicial
-            df = pd.read_csv(URL_LECTURA_DIRECTA)
-        except:
-            # Estructura de contingencia si no hay internet en el aula al iniciar
+    try:
+        # Leer la hoja principal
+        df = conn.read(ttl=0)
+        
+        # SI LA PLANILLA ESTÁ VACÍA O GOOGLE DA ERROR, FORZAMOS LA ESTRUCTURA CORRECTA
+        if df is None or df.empty or len(df.columns) < 2:
             df = pd.DataFrame(columns=["E", "A", "F", "P", "G"])
-        st.session_state.db_local = df
+        
+        # Limpiar nombres de columnas
+        df.columns = [str(c).strip().upper() for c in df.columns]
+        
+        # Asegurar columnas básicas
+        for col in ["E", "A", "F", "P", "G"]:
+            if col not in df.columns: df[col] = ""
 
-    df = st.session_state.db_local
-
-    # Limpiar y normalizar columnas
-    df.columns = [str(c).strip().upper() for c in df.columns]
-    for col in ["E", "A", "F", "P", "G"]:
-        if col not in df.columns: df[col] = ""
-    df["E_STR"] = df["E"].astype(str).str.strip().str.upper()
-
-    # Asegurar fila de control de SISTEMA
-    if "SISTEMA" not in df["E_STR"].values:
-        nuevo_sys = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=["E", "A", "F", "P", "G"])
-        df = pd.concat([df, nuevo_sys], ignore_index=True)
+        # Normalizar columna E para búsqueda
         df["E_STR"] = df["E"].astype(str).str.strip().str.upper()
 
-    # Procesar acciones de los botones interactivamente
-    if accion == "escribir_sistema":
-        df.loc[df["E_STR"] == "SISTEMA", "F"] = int(fase)
-        df.loc[df["E_STR"] == "SISTEMA", "P"] = float(tiempo)
-    elif accion == "nuevo_usuario":
-        if nuevo_usuario["E"].strip().upper() not in df["E_STR"].values:
-            df = pd.concat([df, pd.DataFrame([nuevo_usuario])], ignore_index=True)
-    elif accion == "sumar_puntos":
-        mask = df["E_STR"] == str(nuevo_usuario["e"]).strip().upper()
-        df.loc[mask, "P"] = pd.to_numeric(df.loc[mask, "P"], errors='coerce').fillna(0) + float(nuevo_usuario["pts"])
+        if accion == "escribir_sistema":
+            if "SISTEMA" not in df["E_STR"].values:
+                nuevo_sys = pd.DataFrame([["SISTEMA", "CONTROL", int(fase), float(tiempo), "0"]], columns=["E", "A", "F", "P", "G"])
+                df = pd.concat([df.drop(columns=["E_STR"]), nuevo_sys], ignore_index=True)
+            else:
+                df.loc[df["E_STR"] == "SISTEMA", "F"] = int(fase)
+                df.loc[df["E_STR"] == "SISTEMA", "P"] = float(tiempo)
+                df = df.drop(columns=["E_STR"])
+            conn.update(data=df)
+            return df
+        
+        if accion == "nuevo_usuario":
+            if nuevo_usuario["E"] not in df["E"].astype(str).values:
+                nuevo_df = pd.DataFrame([nuevo_usuario])
+                df = pd.concat([df.drop(columns=["E_STR"]), nuevo_df], ignore_index=True)
+                conn.update(data=df)
+            return df
 
-    st.session_state.db_local = df.drop(columns=["E_STR"]) if "E_STR" in df.columns else df
-    return st.session_state.db_local
+        if accion == "sumar_puntos":
+            mask = df["E_STR"] == str(nuevo_usuario["e"]).strip().upper()
+            df.loc[mask, "P"] = pd.to_numeric(df.loc[mask, "P"], errors='coerce').fillna(0) + float(nuevo_usuario["pts"])
+            df = df.drop(columns=["E_STR"])
+            conn.update(data=df)
+            return df
 
-# --- 2. ESTILOS DE VISIBILIDAD DE ALTA DEFINICIÓN ---
+        # AUTO-REPARACIÓN: Si no hay SISTEMA, lo creamos
+        if "SISTEMA" not in df["E_STR"].values:
+            nuevo_sys = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=["E", "A", "F", "P", "G"])
+            df = pd.concat([df.drop(columns=["E_STR"]), nuevo_sys], ignore_index=True)
+            conn.update(data=df)
+            return df
+
+        return df.drop(columns=["E_STR"]) if "E_STR" in df.columns else df
+    except Exception as e:
+        # Si todo falla, devolvemos un DataFrame funcional para que NUNCA se congelen los botones
+        df_contingencia = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=["E", "A", "F", "P", "G"])
+        return df_contingencia
+
+# --- 2. ESTILOS DE ALTA VISIBILIDAD ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&display=swap');
     header, [data-testid="stHeader"] { display: none !important; }
-    .stApp { 
-        background-image: url("https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"); 
-        background-size: cover; 
-        background-attachment: fixed; 
-    }
-    .stApp, .stMarkdown, p, h1, h2, h3, h4, span { 
-        font-family: 'Poppins', sans-serif; 
-        text-align: center; 
-    }
-    
-    h2, .stMarkdown h2 { 
-        color: #FFFFFF !important; 
-        font-size: 2.5rem !important; 
-        font-weight: 800 !important; 
-        text-shadow: 3px 3px 10px #000000 !important; 
-    }
-    
-    .titulo-oro { 
-        color: #FFFFFF !important; 
-        font-size: 3.8rem !important; 
-        font-weight: 800; 
-        text-transform: uppercase; 
-        text-shadow: 0 0 10px #D4AF37, 0 0 20px #D4AF37, 3px 3px 5px #000 !important; 
-    }
-    
-    label, [data-testid="stWidgetLabel"] p, .stRadio label { 
-        color: #FFFFFF !important; 
-        font-weight: 800 !important; 
-        font-size: 1.25rem !important; 
-        text-shadow: 2px 2px 5px #000000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000 !important; 
-    }
-    
-    .stSelectbox div[data-baseweb="select"], .stNumberInput input, div[data-testid="stSelectbox"] span {
-        background-color: #FFFFFF !important;
-        color: #000000 !important;
-        text-shadow: none !important;
-        font-weight: 700 !important;
-    }
-    
-    div[data-testid="stSelectbox"] p, div[data-testid="stNumberInput"] p {
-        color: #000000 !important;
-        text-shadow: none !important;
-        font-weight: 700 !important;
-    }
-
-    [data-testid="stTable"] td, [data-testid="stTable"] th, .stDataFrame p, [data-testid="stExpander"] p, [data-testid="stExpander"] b { 
-        color: #000000 !important; 
-        font-weight: 700 !important; 
-        text-shadow: none !important; 
-    }
-    [data-testid="stTable"], .stTable, [data-testid="stExpander"], [data-testid="stDataFrame"] { 
-        background-color: rgba(255, 255, 255, 0.95) !important; 
-        border-radius: 10px; 
-    }
-    
+    .stApp { background-image: url("https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"); background-size: cover; background-attachment: fixed; }
+    .stApp, .stMarkdown, p, h1, h2, h3, h4, span { font-family: 'Poppins', sans-serif; text-align: center; }
+    h2, .stMarkdown h2 { color: #FFFFFF !important; font-size: 2.5rem !important; font-weight: 800 !important; text-shadow: 3px 3px 10px #000000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000 !important; }
+    .titulo-oro { color: #FFFFFF !important; font-size: 3.8rem !important; font-weight: 800; text-transform: uppercase; text-shadow: 0 0 10px #D4AF37, 0 0 20px #D4AF37, 3px 3px 5px #000 !important; }
+    label, [data-testid="stWidgetLabel"] p, .stSelectbox label, .stNumberInput label, .stRadio label, [data-testid="stMarkdownContainer"] p { color: #CCFF00 !important; font-weight: 800 !important; font-size: 1.2rem !important; text-shadow: 2px 2px 4px #000 !important; }
     .reloj-container { background-color: rgba(0, 0, 0, 0.8); color: #FF4B4B; font-size: 4rem; font-weight: 800; padding: 10px 30px; border-radius: 15px; border: 4px solid #FF4B4B; display: inline-block; margin: 20px 0; text-shadow: 0 0 10px #FF4B4B; }
-    .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 800 !important; border: 2px solid #000 !important; width: 100%; text-shadow: none !important; }
+    [data-testid="stTable"] td, [data-testid="stTable"] th, .stDataFrame p, [data-testid="stExpander"] p, [data-testid="stExpander"] b { color: #FFFFFF !important; font-weight: 600 !important; text-shadow: 1px 1px 2px #000000 !important; }
+    [data-testid="stTable"], .stTable, [data-testid="stExpander"] { background-color: rgba(0, 0, 0, 0.6) !important; border-radius: 10px; }
+    .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 800 !important; border: 2px solid #000 !important; width: 100%; }
     .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFF !important; padding: 25px; border-radius: 15px; width: 85%; font-size: 2.5rem; font-weight: 800; border: 4px solid #FFF; text-shadow: 2px 2px 5px #000 !important; margin: auto; }
     .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFF !important; padding: 15px; border-radius: 12px; width: 75%; font-size: 1.8rem; font-weight: 700; margin: auto; }
     .box-bronce { background: linear-gradient(145deg, #CD7F32, #8B4513); color: #FFF !important; padding: 12px; border-radius: 10px; width: 65%; font-size: 1.5rem; font-weight: 700; margin: auto; }
@@ -155,7 +102,7 @@ banco = {
 if 'user' not in st.session_state: st.session_state.user = None
 if 'f_voto' not in st.session_state: st.session_state.f_voto = -1
 
-df_global = gestionar_datos("leer")
+df_global = gestionar_datos()
 
 try:
     info_sistema = df_global[df_global["E"].astype(str).str.strip().str.upper() == "SISTEMA"].iloc[0]
@@ -201,7 +148,8 @@ if st.session_state.user["tipo"] == "juez":
         if st.button("🔄 REFRESCAR"): st.rerun()
     with c4:
         if st.button("⚠️ RESET"):
-            st.session_state.clear()
+            df_reset = df_global[df_global["E"].astype(str).str.strip().str.upper() == "SISTEMA"]
+            conn.update(data=df_reset)
             st.rerun()
     
     st.table(df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
@@ -234,12 +182,12 @@ else:
         if t_limite == 0:
             st.warning("⚖️ El Tribunal aún no ha habilitado la votación. Espere...")
             voto_bloqueado = True
-            time.sleep(3); st.rerun()
         elif reloj_on and not ya_envio:
             secs_restantes = int(t_limite - ahora)
             st.markdown(f"<div style='text-align:center;'><div class='reloj-container'>⏱️ {secs_restantes}s</div></div>", unsafe_allow_html=True)
             voto_bloqueado = False
-            time.sleep(1); st.rerun()
+            time.sleep(1)
+            st.rerun()
         elif not ya_envio and not reloj_on:
             st.markdown("<div style='text-align:center;'><div class='reloj-container' style='color:gray; border-color:gray;'>⌛ TIEMPO AGOTADO</div></div>", unsafe_allow_html=True)
             voto_bloqueado = True
@@ -261,13 +209,17 @@ else:
             st.session_state.f_voto = fase_serv
             st.rerun()
         
+        # TABLA DE PARTICIPANTES PARA ALUMNOS
         st.markdown("---")
         st.markdown("### 👥 PARTICIPANTES EN VIVO")
         st.table(df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
+        time.sleep(3)
+        st.rerun()
             
     else:
         st.info("⚖️ Tribunal deliberando... espere.")
         st.markdown("---")
         st.markdown("### 👥 PARTICIPANTES EN VIVO")
         st.table(df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
-        time.sleep(4); st.rerun()
+        time.sleep(3)
+        st.rerun()
