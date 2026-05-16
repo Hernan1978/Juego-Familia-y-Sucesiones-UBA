@@ -15,52 +15,34 @@ def reproducir_audio(url):
 
 def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
     try:
-        df = conn.read(ttl=0)
-        df.columns = [str(c).strip().upper() for c in df.columns]
+        # Leer las 3 pestañas
+        df_sis = conn.read(worksheet="SISTEMA", ttl=0)
+        df_pre = conn.read(worksheet="PREGUNTAS", ttl=0)
+        df_alu = conn.read(worksheet="ALUMNOS", ttl=0)
         
-        # Asegurar columnas básicas
-        for col in ["E", "A", "F", "P", "G"]:
-            if col not in df.columns: df[col] = ""
-
-        # Normalizar columna E para búsqueda (CORREGIDO)
-        df["E_STR"] = df["E"].astype(str).str.strip().str.upper()
-
         if accion == "escribir_sistema":
-            if "SISTEMA" not in df["E_STR"].values:
-                nuevo_sys = pd.DataFrame([["SISTEMA", "CONTROL", int(fase), float(tiempo), "0"]], columns=["E", "A", "F", "P", "G"])
-                df = pd.concat([df.drop(columns=["E_STR"]), nuevo_sys], ignore_index=True)
-            else:
-                df.loc[df["E_STR"] == "SISTEMA", "F"] = int(fase)
-                df.loc[df["E_STR"] == "SISTEMA", "P"] = float(tiempo)
-                df = df.drop(columns=["E_STR"])
-            conn.update(data=df)
-            return df
+            df_sis.loc[0, "FASE"] = int(fase)
+            df_sis.loc[0, "TIEMPO"] = float(tiempo)
+            conn.update(worksheet="SISTEMA", data=df_sis)
+            return df_sis, df_pre, df_alu
         
         if accion == "nuevo_usuario":
-            if nuevo_usuario["E"] not in df["E"].astype(str).values:
+            if nuevo_usuario["EMAIL"] not in df_alu["EMAIL"].astype(str).values:
                 nuevo_df = pd.DataFrame([nuevo_usuario])
-                df = pd.concat([df.drop(columns=["E_STR"]), nuevo_df], ignore_index=True)
-                conn.update(data=df)
-            return df
+                df_alu = pd.concat([df_alu, nuevo_df], ignore_index=True)
+                conn.update(worksheet="ALUMNOS", data=df_alu)
+            return df_sis, df_pre, df_alu
 
         if accion == "sumar_puntos":
-            mask = df["E_STR"] == str(nuevo_usuario["e"]).strip().upper()
-            df.loc[mask, "P"] = pd.to_numeric(df.loc[mask, "P"], errors='coerce').fillna(0) + float(nuevo_usuario["pts"])
-            df = df.drop(columns=["E_STR"])
-            conn.update(data=df)
-            return df
+            mask = df_alu["EMAIL"].astype(str) == str(nuevo_usuario["e"])
+            df_alu.loc[mask, "PUNTOS"] = df_alu.loc[mask, "PUNTOS"].astype(float) + float(nuevo_usuario["pts"])
+            conn.update(worksheet="ALUMNOS", data=df_alu)
+            return df_sis, df_pre, df_alu
 
-        # AUTO-REPARACIÓN
-        if "SISTEMA" not in df["E_STR"].values:
-            nuevo_sys = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=["E", "A", "F", "P", "G"])
-            df = pd.concat([df.drop(columns=["E_STR"]), nuevo_sys], ignore_index=True)
-            conn.update(data=df)
-            return df
-
-        return df.drop(columns=["E_STR"]) if "E_STR" in df.columns else df
+        return df_sis, df_pre, df_alu
     except Exception as e:
-        st.error(f"Error de conexión: {e}")
-        return pd.DataFrame()
+        st.error(f"Error de conexión con las pestañas: {e}. Asegúrate de tener las pestañas SISTEMA, PREGUNTAS y ALUMNOS.")
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
 # --- 2. ESTILOS ---
 st.markdown("""
@@ -82,30 +64,17 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. BANCO ---
-banco = {
-    1: {"q": "¿Cuál es la legítima de descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
-    2: {"q": "¿Plazo para aceptar herencia?", "o": ["5 años", "10 años", "20 años"], "k": "10 años"},
-    3: {"q": "¿Es válido testamento ológrafo a máquina?", "o": ["No", "Sí"], "k": "No"},
-    4: {"q": "¿Qué tipo de proceso es la sucesión?", "o": ["Contencioso", "Voluntario", "Ejecutivo"], "k": "Voluntario"}
-}
-
 # --- 4. ACCESO ---
 if 'user' not in st.session_state: st.session_state.user = None
 if 'f_voto' not in st.session_state: st.session_state.f_voto = -1
 
-df_global = gestionar_datos()
-if df_global.empty:
-    st.warning("⏳ Conectando con la base de datos...")
+df_sis, df_pre, df_alu = gestionar_datos()
+if df_sis.empty:
+    st.warning("⏳ Conectando con las pestañas del Excel...")
     st.stop()
 
-try:
-    info_sistema = df_global[df_global["E"].astype(str).str.strip().str.upper() == "SISTEMA"].iloc[0]
-    fase_serv = int(info_sistema["F"])
-    t_limite = float(info_sistema["P"])
-except:
-    st.error("❌ Error al leer la configuración. Intente refrescar.")
-    st.stop()
+fase_serv = int(df_sis.loc[0, "FASE"])
+t_limite = float(df_sis.loc[0, "TIEMPO"])
 
 if st.session_state.user is None:
     reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/bienvenida.mp3")
@@ -117,14 +86,15 @@ if st.session_state.user is None:
         if m == "derecho2024": st.session_state.user = {"tipo": "juez"}
         elif "@" in m and n:
             st.session_state.user = {"tipo": "alumno", "e": m, "a": n, "g": g}
-            gestionar_datos("nuevo_usuario", nuevo_usuario={"E": m, "A": n, "F": 0, "P": 0.0, "G": g})
+            gestionar_datos("nuevo_usuario", nuevo_usuario={"EMAIL": m, "NOMBRE": n, "PUNTOS": 0.0, "TITULO": g})
         else: st.error("Ingresa un Email válido.")
         st.rerun()
     st.stop()
 
 # --- 5. LÓGICA ---
 ahora = time.time()
-fases_nombres = {0: "Inicio", 1: "P1", 2: "P2", 3: "P3", 4: "P4", 88: "Parcial", 99: "FINAL"}
+banco = {row["ID"]: {"q": row["PREGUNTA"], "o": str(row["OPCIONES"]).split(", "), "k": str(row["CORRECTA"])} for _, row in df_pre.iterrows()}
+fases_nombres = {0: "Inicio", **{int(k): f"P{k}" for k in banco.keys()}, 88: "Parcial", 99: "FINAL"}
 
 if st.session_state.user["tipo"] == "juez":
     st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DOCENTE</h1>", unsafe_allow_html=True)
@@ -143,24 +113,25 @@ if st.session_state.user["tipo"] == "juez":
         if st.button("🔄 REFRESCAR"): st.rerun()
     with c4:
         if st.button("⚠️ RESET"):
-            df_reset = df_global[df_global["E"].astype(str).str.strip().str.upper() == "SISTEMA"]
-            conn.update(data=df_reset)
+            df_alu_reset = pd.DataFrame(columns=["EMAIL", "NOMBRE", "PUNTOS", "TITULO"])
+            conn.update(worksheet="ALUMNOS", data=df_alu_reset)
+            gestionar_datos("escribir_sistema", fase=0, tiempo=0.0)
             st.rerun()
     
-    st.table(df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
+    st.table(df_alu[['TITULO', 'NOMBRE', 'PUNTOS']].sort_values(by='PUNTOS', ascending=False))
 
 else:
     # --- PANTALLA ALUMNO ---
     if fase_serv == 99:
         reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/ganador.mp3")
         st.balloons(); st.snow()
-        podio = df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"].sort_values(by="P", ascending=False).head(3).values.tolist()
+        podio = df_alu.sort_values(by="PUNTOS", ascending=False).head(3).values.tolist()
         if podio:
-            img_file = "alumna_festejo_uba.png" if podio[0][4] == "Dra." else "alumno_festejo_uba.png"
+            img_file = "alumna_festejo_uba.png" if podio[0][3] == "Dra." else "alumno_festejo_uba.png"
             img_url = f"https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/{img_file}"
             st.image(img_url, use_container_width=True)
-            st.markdown(f"<h1 class='titulo-oro'>🏆 {podio[0][4]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
-            st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][3])} PTS)</div><br>", unsafe_allow_html=True)
+            st.markdown(f"<h1 class='titulo-oro'>🏆 {podio[0][3]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
+            st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][2])} PTS)</div><br>", unsafe_allow_html=True)
             if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]}</div><br>", unsafe_allow_html=True)
             if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]}</div>", unsafe_allow_html=True)
             if st.button("🚪 CERRAR SESIÓN"):
@@ -207,7 +178,7 @@ else:
         # TABLA DE PARTICIPANTES PARA ALUMNOS
         st.markdown("---")
         st.markdown("### 👥 PARTICIPANTES EN VIVO")
-        st.table(df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
+        st.table(df_alu[['TITULO', 'NOMBRE', 'PUNTOS']].sort_values(by='PUNTOS', ascending=False))
         time.sleep(3)
         st.rerun()
             
@@ -215,6 +186,6 @@ else:
         st.info("⚖️ Tribunal deliberando... espere.")
         st.markdown("---")
         st.markdown("### 👥 PARTICIPANTES EN VIVO")
-        st.table(df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
+        st.table(df_alu[['TITULO', 'NOMBRE', 'PUNTOS']].sort_values(by='PUNTOS', ascending=False))
         time.sleep(3)
         st.rerun()
