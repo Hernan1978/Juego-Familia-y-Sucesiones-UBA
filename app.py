@@ -329,15 +329,21 @@ fases_opciones[88] = "📊 Resultados Parciales"
 fases_opciones[99] = "🏆 PODIO FINAL"
 
 # ============================================================
-# AUTO-REFRESCO (solo alumnos, solo cuando el reloj corre)
+# AUTO-REFRESCO (solo alumnos)
+# CRITICO: siempre limpiar cache antes de refrescar
+# para que el alumno vea los cambios del docente al instante.
 # ============================================================
 if st.session_state.user.get("tipo") == "alumno":
     reloj_activo = (t_limite > ahora) and (fase_serv in banco)
-    if reloj_activo and (ahora - st.session_state.ultimo_refresh) > 2.5:
+    tiempo_desde_refresh = ahora - st.session_state.ultimo_refresh
+    # Con reloj: refresco rapido cada 2s para countdown
+    if reloj_activo and tiempo_desde_refresh > 2:
         st.session_state.ultimo_refresh = ahora
+        limpiar_cache()
         st.rerun()
-    # Refresco lento en sala de espera para ver participantes
-    elif not reloj_activo and (ahora - st.session_state.ultimo_refresh) > 8:
+    # Sin reloj (espera, tiempo agotado, ya voto): refresco cada 5s
+    # para detectar cambio de fase del docente
+    elif tiempo_desde_refresh > 5:
         st.session_state.ultimo_refresh = ahora
         limpiar_cache()
         st.rerun()
