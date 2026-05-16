@@ -14,7 +14,7 @@ URL_LECTURA_DIRECTA = f"https://docs.google.com/spreadsheets/d/{GSHEET_ID}/gviz/
 
 # OPCIÓN B (Para escribir y guardar puntos usando Apps Script sin usar tarjetas ni cuentas de servicio)
 # Coloque aquí la URL que le dará Google tras seguir los pasos del final del mensaje:
-URL_SCRIPT_GOOGLE = "https://script.google.com/macros/s/ACA_VA_SU_ENLACE_DE_GOOGLE/exec"
+URL_SCRIPT_GOOGLE = "https://script.google.com/macros/s/https://script.google.com/macros/s/AKfycbxP-nlxZgdHlDLwD1wZkoAzOYZtvO9e41F4-AiCCxpsy0EH5H8tdGeMZS2jx8roDkZewA/exec/exec"
 
 def reproducir_audio(url):
     audio_html = f'<audio autoplay><source src="{url}" type="audio/mp3"></audio>'
