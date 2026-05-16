@@ -1,50 +1,44 @@
 import streamlit as st
+from streamlit_gsheets import GSheetsConnection
 import pandas as pd
-import sqlite3
 import time
-import os
 
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
+
+# CONEXIÓN A GOOGLE SHEETS
+conn = st.connection("gsheets", type=GSheetsConnection)
 
 def reproducir_audio(url):
     audio_html = f'<audio autoplay><source src="{url}" type="audio/mp3"></audio>'
     st.markdown(audio_html, unsafe_allow_html=True)
 
-# GESTIÓN DE BASE DE DATOS SQLITE
-def init_db():
-    conn = sqlite3.connect('lexplay.db', check_same_thread=False)
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS sistema (id INTEGER PRIMARY KEY, fase INTEGER, tiempo REAL)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS alumnos (email TEXT PRIMARY KEY, nombre TEXT, puntos REAL, titulo TEXT)''')
-    c.execute('''INSERT OR IGNORE INTO sistema (id, fase, tiempo) VALUES (1, 0, 0.0)''')
-    conn.commit()
-    return conn
+def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
+    try:
+        df = conn.read(ttl=1) # Caché de 1 segundo para velocidad
+        df.columns = df.columns.str.strip()
+        
+        if accion == "escribir_sistema":
+            df.loc[df["E"] == "SISTEMA", "F"] = int(fase)
+            df.loc[df["E"] == "SISTEMA", "P"] = float(tiempo)
+            conn.update(data=df)
+            return df
+        
+        if accion == "nuevo_usuario":
+            if nuevo_usuario["E"] not in df["E"].astype(str).values:
+                nuevo_df = pd.DataFrame([nuevo_usuario])
+                df = pd.concat([df, nuevo_df], ignore_index=True)
+                conn.update(data=df)
+            return df
 
-db_conn = init_db()
+        if accion == "sumar_puntos":
+            df.loc[df["E"].astype(str) == str(nuevo_usuario["e"]), "P"] += float(nuevo_usuario["pts"])
+            conn.update(data=df)
+            return df
 
-def leer_sistema():
-    c = db_conn.cursor()
-    c.execute('SELECT fase, tiempo FROM sistema WHERE id=1')
-    return c.fetchone()
-
-def escribir_sistema(f, t):
-    c = db_conn.cursor()
-    c.execute('UPDATE sistema SET fase=?, tiempo=? WHERE id=1', (f, t))
-    db_conn.commit()
-
-def cargar_alumnos():
-    return pd.read_sql('SELECT titulo as G, nombre as A, puntos as P, email as E FROM alumnos ORDER BY puntos DESC', db_conn)
-
-def guardar_alumno(e, a, g):
-    c = db_conn.cursor()
-    c.execute('INSERT OR IGNORE INTO alumnos (email, nombre, puntos, titulo) VALUES (?, ?, 0.0, ?)', (e, a, g))
-    db_conn.commit()
-
-def sumar_puntos(e, pts):
-    c = db_conn.cursor()
-    c.execute('UPDATE alumnos SET puntos = puntos + ? WHERE email = ?', (pts, e))
-    db_conn.commit()
+        return df
+    except:
+        return pd.DataFrame()
 
 # --- 2. ESTILOS ---
 st.markdown("""
@@ -78,6 +72,19 @@ banco = {
 if 'user' not in st.session_state: st.session_state.user = None
 if 'f_voto' not in st.session_state: st.session_state.f_voto = -1
 
+df_global = gestionar_datos()
+if df_global.empty:
+    st.warning("⏳ Conectando con la base de datos...")
+    st.stop()
+
+try:
+    info_sistema = df_global[df_global["E"].astype(str) == "SISTEMA"].iloc[0]
+    fase_serv = int(info_sistema["F"])
+    t_limite = float(info_sistema["P"])
+except:
+    st.error("❌ Formato de planilla incorrecto.")
+    st.stop()
+
 if st.session_state.user is None:
     reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/bienvenida.mp3")
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
@@ -85,70 +92,53 @@ if st.session_state.user is None:
     n = st.text_input("Nombre Completo:")
     g = st.radio("Título:", ["Dr.", "Dra."])
     if st.button("INGRESAR"):
-        if m == "derecho2024": 
-            st.session_state.user = {"tipo": "juez"}
-            st.rerun()
+        if m == "derecho2024": st.session_state.user = {"tipo": "juez"}
         elif "@" in m and n:
             st.session_state.user = {"tipo": "alumno", "e": m, "a": n, "g": g}
-            guardar_alumno(m, n, g)
-            st.rerun()
-        else: st.error("Ingresa un Email válido y tu Nombre.")
+            gestionar_datos("nuevo_usuario", nuevo_usuario={"E": m, "A": n, "F": 0, "P": 0.0, "G": g})
+        else: st.error("Ingresa un Email válido.")
+        st.rerun()
     st.stop()
 
 # --- 5. LÓGICA ---
-fase_serv, t_limite = leer_sistema()
-df_global = cargar_alumnos()
 ahora = time.time()
 fases_nombres = {0: "Inicio", 1: "P1", 2: "P2", 3: "P3", 4: "P4", 88: "Parcial", 99: "FINAL"}
 
 if st.session_state.user["tipo"] == "juez":
     st.markdown("<h1 class='titulo-oro'>⚖️ PANEL DOCENTE</h1>", unsafe_allow_html=True)
-    with st.expander("📚 VER PREGUNTAS Y AUDIENCIA", expanded=False):
-        c_p1, c_p2 = st.columns(2)
-        with c_p1:
-            st.markdown("<b>Banco:</b>", unsafe_allow_html=True)
-            for k,v in banco.items(): st.write(f"**{k}.** {v['q']}")
-        with c_p2:
-            st.markdown("<b>Alumnos en Sala:</b>", unsafe_allow_html=True)
-            st.table(df_global[['G', 'A']])
-
-    st.markdown("---")
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         op_fase = st.selectbox("Cambiar Pregunta:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x], key="sel_fase")
         if st.button("📢 ACTUALIZAR FASE"):
-            escribir_sistema(op_fase, 0.0)
+            gestionar_datos("escribir_sistema", fase=op_fase, tiempo=0.0)
             st.rerun()
     with c2:
         t_set = st.number_input("Segundos:", 5, 60, 25)
         if st.button("⏱️ INICIAR RELOJ"):
-            escribir_sistema(fase_serv, time.time() + t_set)
+            gestionar_datos("escribir_sistema", fase=fase_serv, tiempo=time.time() + t_set)
             st.rerun()
     with c3:
         if st.button("🔄 REFRESCAR"): st.rerun()
     with c4:
         if st.button("⚠️ RESET"):
-            c = db_conn.cursor()
-            c.execute('DELETE FROM alumnos')
-            db_conn.commit()
-            escribir_sistema(0, 0.0)
+            df_reset = df_global[df_global["E"].astype(str) == "SISTEMA"]
+            conn.update(data=df_reset)
             st.rerun()
     
-    st.table(df_global[['G', 'A', 'P']].sort_values(by='P', ascending=False))
+    st.table(df_global[df_global["E"].astype(str) != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
 
 else:
     # --- PANTALLA ALUMNO ---
     if fase_serv == 99:
         reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/ganador.mp3")
         st.balloons(); st.snow()
-        podio = df_global.sort_values(by="P", ascending=False).head(3).values.tolist()
+        podio = df_global[df_global["E"].astype(str) != "SISTEMA"].sort_values(by="P", ascending=False).head(3).values.tolist()
         if podio:
-            genero_ganador = podio[0][0]
-            img_file = "alumna_festejo_uba.png" if genero_ganador == "Dra." else "alumno_festejo_uba.png"
+            img_file = "alumna_festejo_uba.png" if podio[0][4] == "Dra." else "alumno_festejo_uba.png"
             img_url = f"https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/{img_file}"
             st.image(img_url, use_container_width=True)
-            st.markdown(f"<h1 class='titulo-oro'>🏆 {podio[0][0]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
-            st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][2])} PTS)</div><br>", unsafe_allow_html=True)
+            st.markdown(f"<h1 class='titulo-oro'>🏆 {podio[0][4]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
+            st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][3])} PTS)</div><br>", unsafe_allow_html=True)
             if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]}</div><br>", unsafe_allow_html=True)
             if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]}</div>", unsafe_allow_html=True)
             if st.button("🚪 CERRAR SESIÓN"):
@@ -162,28 +152,28 @@ else:
         
         st.markdown(f"## {p['q']}")
         
-        # CONTENEDOR PARA EL RELOJ (EVITA TITILEO)
-        reloj_placeholder = st.empty()
-        
         if t_limite == 0:
             st.warning("⚖️ El Tribunal aún no ha habilitado la votación. Espere...")
             voto_bloqueado = True
         elif reloj_on and not ya_envio:
+            secs_restantes = int(t_limite - ahora)
+            st.markdown(f"<div style='text-align:center;'><div class='reloj-container'>⏱️ {secs_restantes}s</div></div>", unsafe_allow_html=True)
             voto_bloqueado = False
+            time.sleep(1)
+            st.rerun()
         elif not ya_envio and not reloj_on:
-            reloj_placeholder.markdown("<div style='text-align:center;'><div class='reloj-container' style='color:gray; border-color:gray;'>⌛ TIEMPO AGOTADO</div></div>", unsafe_allow_html=True)
+            st.markdown("<div style='text-align:center;'><div class='reloj-container' style='color:gray; border-color:gray;'>⌛ TIEMPO AGOTADO</div></div>", unsafe_allow_html=True)
             voto_bloqueado = True
         else:
             voto_bloqueado = True
 
-        # LAS OPCIONES SE QUEDAN QUIETAS
         opcion = st.radio("Dictamen:", p["o"], disabled=voto_bloqueado or ya_envio)
         
         if st.button("ENVIAR SENTENCIA", disabled=voto_bloqueado or ya_envio):
             if opcion == p["k"]:
                 reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/exito.mp3")
                 pts = 10 + min(int(t_limite - ahora), 10)
-                sumar_puntos(st.session_state.user['e'], pts)
+                gestionar_datos("sumar_puntos", nuevo_usuario={"e": st.session_state.user['e'], "pts": pts})
                 st.success("✅ REGISTRADO")
             else:
                 reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/error.mp3")
@@ -192,18 +182,17 @@ else:
             st.session_state.f_voto = fase_serv
             st.rerun()
         
-        if ya_envio:
-            st.info("✅ Sentencia enviada correctamente.")
-
-        # SOLO EL RELOJ SE ACTUALIZA CADA SEGUNDO
-        if reloj_on and not ya_envio:
-            while time.time() < t_limite:
-                secs = int(t_limite - time.time())
-                reloj_placeholder.markdown(f"<div style='text-align:center;'><div class='reloj-container'>⏱️ {secs}s</div></div>", unsafe_allow_html=True)
-                time.sleep(1)
-            st.rerun()
+        # TABLA DE PARTICIPANTES PARA ALUMNOS
+        st.markdown("---")
+        st.markdown("### 👥 PARTICIPANTES EN VIVO")
+        st.table(df_global[df_global["E"].astype(str) != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
+        time.sleep(3)
+        st.rerun()
             
     else:
         st.info("⚖️ Tribunal deliberando... espere.")
+        st.markdown("---")
+        st.markdown("### 👥 PARTICIPANTES EN VIVO")
+        st.table(df_global[df_global["E"].astype(str) != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
         time.sleep(3)
         st.rerun()
