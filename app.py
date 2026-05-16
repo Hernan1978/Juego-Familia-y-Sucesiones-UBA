@@ -162,7 +162,6 @@ def tictac_js():
     </script>
     """, unsafe_allow_html=True)
 
-@st.cache_data(ttl=3)
 def fetch_remoto():
     try:
         res = requests.get(URL_APPS_SCRIPT, timeout=6)
@@ -329,24 +328,32 @@ fases_opciones[88] = "📊 Resultados Parciales"
 fases_opciones[99] = "🏆 PODIO FINAL"
 
 # ============================================================
-# AUTO-REFRESCO (solo alumnos)
-# CRITICO: siempre limpiar cache antes de refrescar
-# para que el alumno vea los cambios del docente al instante.
+# AUTO-REFRESCO VIA JAVASCRIPT
+# Streamlit no puede refrescarse solo en background.
+# Usamos JS para hacer window.location.reload() automatico.
+# El intervalo cambia segun si el reloj esta corriendo o no.
 # ============================================================
+def inject_autoreload(intervalo_ms):
+    st.markdown(
+        f"""
+        <script>
+        (function(){{
+            if (window._lexReloadTimer) clearInterval(window._lexReloadTimer);
+            window._lexReloadTimer = setInterval(function(){{
+                window.location.reload();
+            }}, {intervalo_ms});
+        }})();
+        </script>
+        """,
+        unsafe_allow_html=True
+    )
+
 if st.session_state.user.get("tipo") == "alumno":
-    reloj_activo = (t_limite > ahora) and (fase_serv in banco)
-    tiempo_desde_refresh = ahora - st.session_state.ultimo_refresh
-    # Con reloj: refresco rapido cada 2s para countdown
-    if reloj_activo and tiempo_desde_refresh > 2:
-        st.session_state.ultimo_refresh = ahora
-        limpiar_cache()
-        st.rerun()
-    # Sin reloj (espera, tiempo agotado, ya voto): refresco cada 5s
-    # para detectar cambio de fase del docente
-    elif tiempo_desde_refresh > 5:
-        st.session_state.ultimo_refresh = ahora
-        limpiar_cache()
-        st.rerun()
+    reloj_activo = (t_limite > ahora) and (fase_serv in banco) and not st.session_state.enviado
+    if reloj_activo:
+        inject_autoreload(2000)   # cada 2s cuando corre el reloj
+    else:
+        inject_autoreload(4000)   # cada 4s en espera / entre preguntas
 
 # ============================================================
 # ██████  PANEL DOCENTE
