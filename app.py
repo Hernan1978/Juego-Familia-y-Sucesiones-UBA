@@ -1,51 +1,44 @@
 import streamlit as st
+from streamlit_gsheets import GSheetsConnection
 import pandas as pd
-import os
 import time
-import random
 
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
+
+# CONEXIÓN A GOOGLE SHEETS
+conn = st.connection("gsheets", type=GSheetsConnection)
 
 def reproducir_audio(url):
     audio_html = f'<audio autoplay><source src="{url}" type="audio/mp3"></audio>'
     st.markdown(audio_html, unsafe_allow_html=True)
 
-# GESTIÓN DE DATOS BLINDADA (Versión 10)
-def gestionar_datos(accion="leer", fase=None, tiempo=None):
-    archivo = "d.csv"
-    columnas = ["E", "A", "F", "P", "G"]
+def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
+    # Leer datos actuales de Google Sheets
+    df = conn.read(ttl=0) # ttl=0 para que no use caché y lea siempre lo último
     
-    # Bucle de reintentos para evitar bloqueos de archivo
-    for _ in range(10):
-        try:
-            if not os.path.exists(archivo):
-                df = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=columnas)
-                df.to_csv(archivo, index=False)
-            
-            df = pd.read_csv(archivo)
-            # Asegurar tipos de datos para evitar TypeError
-            df["F"] = pd.to_numeric(df["F"], errors='coerce').fillna(0).astype(int)
-            df["P"] = pd.to_numeric(df["P"], errors='coerce').fillna(0.0).astype(float)
-            
-            if "SISTEMA" not in df["E"].values:
-                extra = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=columnas)
-                df = pd.concat([df, extra], ignore_index=True)
+    if accion == "escribir_sistema":
+        # Actualizar fase y tiempo en la fila SISTEMA
+        df.loc[df["E"] == "SISTEMA", "F"] = int(fase)
+        df.loc[df["E"] == "SISTEMA", "P"] = float(tiempo)
+        conn.update(data=df)
+        return df
+    
+    if accion == "nuevo_usuario":
+        # Añadir un alumno nuevo
+        if nuevo_usuario["e"] not in df["E"].values:
+            nuevo_df = pd.DataFrame([nuevo_usuario])
+            df = pd.concat([df, nuevo_df], ignore_index=True)
+            conn.update(data=df)
+        return df
 
-            if accion == "escribir":
-                idx = df[df["E"] == "SISTEMA"].index[0]
-                df.at[idx, "F"] = int(fase)
-                df.at[idx, "P"] = float(tiempo)
-                # Escritura Atómica: Escribir en temporal y renombrar
-                temp_file = archivo + ".tmp"
-                df.to_csv(temp_file, index=False)
-                os.replace(temp_file, archivo)
-                return df
-            
-            return df
-        except Exception as e:
-            time.sleep(0.1) # Esperar y reintentar
-    return pd.DataFrame(columns=columnas) # Fallback
+    if accion == "sumar_puntos":
+        # Sumar puntos a un alumno
+        df.loc[df["E"] == nuevo_usuario["e"], "P"] += float(nuevo_usuario["pts"])
+        conn.update(data=df)
+        return df
+
+    return df
 
 # --- 2. ESTILOS ---
 st.markdown("""
@@ -79,6 +72,15 @@ banco = {
 if 'user' not in st.session_state: st.session_state.user = None
 if 'f_voto' not in st.session_state: st.session_state.f_voto = -1
 
+try:
+    df_global = gestionar_datos()
+    info_sistema = df_global[df_global["E"] == "SISTEMA"].iloc[0]
+    fase_serv = int(info_sistema["F"])
+    t_limite = float(info_sistema["P"])
+except:
+    st.error("⚠️ Error de conexión con Google Sheets. Verifica los Secrets.")
+    st.stop()
+
 if st.session_state.user is None:
     reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/bienvenida.mp3")
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
@@ -89,22 +91,11 @@ if st.session_state.user is None:
         if m == "derecho2024": st.session_state.user = {"tipo": "juez"}
         elif m and n:
             st.session_state.user = {"tipo": "alumno", "e": m, "a": n, "g": g}
-            df = gestionar_datos()
-            if m not in df['E'].values:
-                with open("d.csv", "a") as f:
-                    f.write(f"{m},{n},0,0.0,{g}\n")
+            gestionar_datos("nuevo_usuario", nuevo_usuario={"E": m, "A": n, "F": 0, "P": 0.0, "G": g})
         st.rerun()
     st.stop()
 
 # --- 5. LÓGICA ---
-df_global = gestionar_datos()
-if not df_global.empty:
-    info_sistema = df_global[df_global["E"] == "SISTEMA"].iloc[0]
-    fase_serv = int(info_sistema["F"])
-    t_limite = float(info_sistema["P"])
-else:
-    fase_serv, t_limite = 0, 0.0
-
 ahora = time.time()
 fases_nombres = {0: "Inicio", 1: "P1", 2: "P2", 3: "P3", 4: "P4", 88: "Parcial", 99: "FINAL"}
 
@@ -124,18 +115,20 @@ if st.session_state.user["tipo"] == "juez":
     with c1:
         op_fase = st.selectbox("Cambiar Pregunta:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x], key="sel_fase")
         if st.button("📢 ACTUALIZAR FASE", key="btn_fase"):
-            gestionar_datos("escribir", fase=op_fase, tiempo=0.0)
+            gestionar_datos("escribir_sistema", fase=op_fase, tiempo=0.0)
             st.rerun()
     with c2:
         t_set = st.number_input("Segundos:", 5, 60, 25, key="num_tiempo")
         if st.button("⏱️ INICIAR RELOJ", key="btn_reloj"):
-            gestionar_datos("escribir", fase=fase_serv, tiempo=time.time() + t_set)
+            gestionar_datos("escribir_sistema", fase=fase_serv, tiempo=time.time() + t_set)
             st.rerun()
     with c3:
         if st.button("🔄 REFRESCAR", key="btn_refrescar"): st.rerun()
     with c4:
         if st.button("⚠️ RESET", key="btn_reset"):
-            if os.path.exists("d.csv"): os.remove("d.csv")
+            # Para resetear en Sheets, simplemente limpiamos los alumnos
+            df_reset = df_global[df_global["E"] == "SISTEMA"]
+            conn.update(data=df_reset)
             st.rerun()
     
     st.table(df_global[df_global["E"] != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
@@ -187,9 +180,7 @@ else:
             if opcion == p["k"]:
                 reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/exito.mp3")
                 pts = 10 + min(int(t_limite - ahora), 10)
-                df_u = gestionar_datos()
-                df_u.loc[df_u['E'] == st.session_state.user['e'], 'P'] += pts
-                df_u.to_csv("d.csv", index=False)
+                gestionar_datos("sumar_puntos", nuevo_usuario={"e": st.session_state.user['e'], "pts": pts})
                 st.success("✅ REGISTRADO")
             else:
                 reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/error.mp3")
