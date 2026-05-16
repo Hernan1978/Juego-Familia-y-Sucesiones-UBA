@@ -22,14 +22,14 @@ def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
         if df.empty or len(df.columns) < 2:
             df = pd.DataFrame(columns=["E", "A", "F", "P", "G"])
         
-        # Limpiar nombres de columnas (CORREGIDO)
+        # Limpiar nombres de columnas
         df.columns = [str(c).strip().upper() for c in df.columns]
         
         # Asegurar columnas básicas
         for col in ["E", "A", "F", "P", "G"]:
             if col not in df.columns: df[col] = ""
 
-        # Normalizar columna E para búsqueda (CORREGIDO)
+        # Normalizar columna E para búsqueda
         df["E_STR"] = df["E"].astype(str).str.strip().str.upper()
 
         if accion == "escribir_sistema":
@@ -69,20 +69,73 @@ def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
         st.error(f"Error de conexión: {e}")
         return pd.DataFrame()
 
-# --- 2. ESTILOS ---
+# --- 2. ESTILOS DE VISIBILIDAD DE ALTA DEFINICIÓN ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&display=swap');
     header, [data-testid="stHeader"] { display: none !important; }
-    .stApp { background-image: url("https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"); background-size: cover; background-attachment: fixed; }
-    .stApp, .stMarkdown, p, h1, h2, h3, h4, span { font-family: 'Poppins', sans-serif; text-align: center; }
-    h2, .stMarkdown h2 { color: #FFFFFF !important; font-size: 2.5rem !important; font-weight: 800 !important; text-shadow: 3px 3px 10px #000000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000 !important; }
-    .titulo-oro { color: #FFFFFF !important; font-size: 3.8rem !important; font-weight: 800; text-transform: uppercase; text-shadow: 0 0 10px #D4AF37, 0 0 20px #D4AF37, 3px 3px 5px #000 !important; }
-    label, [data-testid="stWidgetLabel"] p, .stSelectbox label, .stNumberInput label, .stRadio label, [data-testid="stMarkdownContainer"] p { color: #CCFF00 !important; font-weight: 800 !important; font-size: 1.2rem !important; text-shadow: 2px 2px 4px #000 !important; }
+    .stApp { 
+        background-image: url("https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"); 
+        background-size: cover; 
+        background-attachment: fixed; 
+    }
+    .stApp, .stMarkdown, p, h1, h2, h3, h4, span { 
+        font-family: 'Poppins', sans-serif; 
+        text-align: center; 
+    }
+    
+    h2, .stMarkdown h2 { 
+        color: #FFFFFF !important; 
+        font-size: 2.5rem !important; 
+        font-weight: 800 !important; 
+        text-shadow: 3px 3px 10px #000000 !important; 
+    }
+    
+    .titulo-oro { 
+        color: #FFFFFF !important; 
+        font-size: 3.8rem !important; 
+        font-weight: 800; 
+        text-transform: uppercase; 
+        text-shadow: 0 0 10px #D4AF37, 0 0 20px #D4AF37, 3px 3px 5px #000 !important; 
+    }
+    
+    /* --- PANTALLAS DE INGRESO: TEXTO BLANCO CON SOMBRA NEGRA --- */
+    label, [data-testid="stWidgetLabel"] p, .stRadio label { 
+        color: #FFFFFF !important; 
+        font-weight: 800 !important; 
+        font-size: 1.25rem !important; 
+        text-shadow: 2px 2px 5px #000000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000 !important; 
+    }
+    
+    /* --- PANEL DOCENTE: TEXTOS EN NEGRO ABSOLUTO SOBRE CONTENEDORES CLAROS --- */
+    .stSelectbox div[data-baseweb="select"], .stNumberInput input, div[data-testid="stSelectbox"] span {
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+        text-shadow: none !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Forzar texto negro legible dentro de las opciones y títulos internos del panel del profesor */
+    div[data-testid="stSelectbox"] p, div[data-testid="stNumberInput"] p {
+        color: #000000 !important;
+        text-shadow: none !important;
+        font-weight: 700 !important;
+    }
+
+    /* Tablas y Contenedores */
+    [data-testid="stTable"] td, [data-testid="stTable"] th, .stDataFrame p, [data-testid="stExpander"] p, [data-testid="stExpander"] b { 
+        color: #000000 !important; 
+        font-weight: 700 !important; 
+        text-shadow: none !important; 
+    }
+    [data-testid="stTable"], .stTable, [data-testid="stExpander"], [data-testid="stDataFrame"] { 
+        background-color: rgba(255, 255, 255, 0.95) !important; 
+        border-radius: 10px; 
+    }
+    
+    /* Elementos específicos del Reloj y Podio */
     .reloj-container { background-color: rgba(0, 0, 0, 0.8); color: #FF4B4B; font-size: 4rem; font-weight: 800; padding: 10px 30px; border-radius: 15px; border: 4px solid #FF4B4B; display: inline-block; margin: 20px 0; text-shadow: 0 0 10px #FF4B4B; }
-    [data-testid="stTable"] td, [data-testid="stTable"] th, .stDataFrame p, [data-testid="stExpander"] p, [data-testid="stExpander"] b { color: #FFFFFF !important; font-weight: 600 !important; text-shadow: 1px 1px 2px #000000 !important; }
-    [data-testid="stTable"], .stTable, [data-testid="stExpander"] { background-color: rgba(0, 0, 0, 0.6) !important; border-radius: 10px; }
-    .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 800 !important; border: 2px solid #000 !important; width: 100%; }
+    .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 800 !important; border: 2px solid #000 !important; width: 100%; text-shadow: none !important; }
     .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFF !important; padding: 25px; border-radius: 15px; width: 85%; font-size: 2.5rem; font-weight: 800; border: 4px solid #FFF; text-shadow: 2px 2px 5px #000 !important; margin: auto; }
     .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFF !important; padding: 15px; border-radius: 12px; width: 75%; font-size: 1.8rem; font-weight: 700; margin: auto; }
     .box-bronce { background: linear-gradient(145deg, #CD7F32, #8B4513); color: #FFF !important; padding: 12px; border-radius: 10px; width: 65%; font-size: 1.5rem; font-weight: 700; margin: auto; }
@@ -185,7 +238,7 @@ else:
             st.warning("⚖️ El Tribunal aún no ha habilitado la votación. Espere...")
             voto_bloqueado = True
         elif reloj_on and not ya_envio:
-            secs_restantes = int(t_limite - ahora)
+            secs_restantes = int(t_limite - abrir)
             st.markdown(f"<div style='text-align:center;'><div class='reloj-container'>⏱️ {secs_restantes}s</div></div>", unsafe_allow_html=True)
             voto_bloqueado = False
             time.sleep(1)
@@ -211,7 +264,6 @@ else:
             st.session_state.f_voto = fase_serv
             st.rerun()
         
-        # TABLA DE PARTICIPANTES PARA ALUMNOS
         st.markdown("---")
         st.markdown("### 👥 PARTICIPANTES EN VIVO")
         st.table(df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
