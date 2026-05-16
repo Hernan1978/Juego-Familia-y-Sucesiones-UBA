@@ -170,7 +170,7 @@ def fetch_remoto():
         return None
 
 def limpiar_cache():
-    fetch_remoto.clear()
+    pass  # sin cache, no hay nada que limpiar
 
 def llamar_api(payload):
     limpiar_cache()
