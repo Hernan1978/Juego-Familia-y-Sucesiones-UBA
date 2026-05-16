@@ -15,12 +15,21 @@ def reproducir_audio(url):
 
 def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
     try:
-        df = conn.read(ttl=1) # Caché de 1 segundo para velocidad
+        df = conn.read(ttl=0)
         df.columns = df.columns.str.strip()
         
+        # Asegurar que existan las columnas necesarias
+        for col in ["E", "A", "F", "P", "G"]:
+            if col not in df.columns:
+                df[col] = 0
+        
         if accion == "escribir_sistema":
-            df.loc[df["E"] == "SISTEMA", "F"] = int(fase)
-            df.loc[df["E"] == "SISTEMA", "P"] = float(tiempo)
+            if "SISTEMA" not in df["E"].astype(str).values:
+                nuevo_sys = pd.DataFrame([["SISTEMA", "CONTROL", int(fase), float(tiempo), "0"]], columns=["E", "A", "F", "P", "G"])
+                df = pd.concat([df, nuevo_sys], ignore_index=True)
+            else:
+                df.loc[df["E"].astype(str) == "SISTEMA", "F"] = int(fase)
+                df.loc[df["E"].astype(str) == "SISTEMA", "P"] = float(tiempo)
             conn.update(data=df)
             return df
         
@@ -32,12 +41,13 @@ def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
             return df
 
         if accion == "sumar_puntos":
-            df.loc[df["E"].astype(str) == str(nuevo_usuario["e"]), "P"] += float(nuevo_usuario["pts"])
+            df.loc[df["E"].astype(str) == str(nuevo_usuario["e"]), "P"] = df.loc[df["E"].astype(str) == str(nuevo_usuario["e"]), "P"].astype(float) + float(nuevo_usuario["pts"])
             conn.update(data=df)
             return df
 
         return df
-    except:
+    except Exception as e:
+        st.error(f"Error técnico: {e}")
         return pd.DataFrame()
 
 # --- 2. ESTILOS ---
@@ -82,7 +92,7 @@ try:
     fase_serv = int(info_sistema["F"])
     t_limite = float(info_sistema["P"])
 except:
-    st.error("❌ Formato de planilla incorrecto.")
+    st.error("❌ No se encontró la fila SISTEMA en la planilla. Agrégala manualmente.")
     st.stop()
 
 if st.session_state.user is None:
