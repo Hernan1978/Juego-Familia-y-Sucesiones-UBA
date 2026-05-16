@@ -182,12 +182,60 @@ def llamar_api(payload):
         return {"ok": False}
 
 def cargar_datos():
-    """Carga datos desde Google o fallback local"""
+    """Carga datos desde Google. Compatible con formato nuevo (sistema/alumnos/preguntas)
+    y formato viejo (lista plana con columna E/F/P)."""
     data = fetch_remoto()
-    if data and "sistema" in data:
-        st.session_state._cache_sistema   = data.get("sistema",   {"fase": 0, "tiempo": 0})
+
+    if data is None:
+        # Sin conexión: usar caché local
+        return (
+            st.session_state.get("_cache_sistema",   {"fase": 0, "tiempo": 0}),
+            st.session_state.get("_cache_alumnos",   []),
+            st.session_state.get("_cache_preguntas", [])
+        )
+
+    # ── Formato NUEVO: {"sistema":{...}, "alumnos":[...], "preguntas":[...]} ──
+    if isinstance(data, dict) and "sistema" in data:
+        sistema_raw = data.get("sistema", {})
+        # Normalizar claves por si vienen en mayúsculas
+        sistema = {
+            "fase":   int(sistema_raw.get("fase",   sistema_raw.get("FASE",   0))),
+            "tiempo": float(sistema_raw.get("tiempo", sistema_raw.get("TIEMPO", 0.0)))
+        }
+        st.session_state._cache_sistema   = sistema
         st.session_state._cache_alumnos   = data.get("alumnos",   [])
         st.session_state._cache_preguntas = data.get("preguntas", [])
+
+    # ── Formato VIEJO: lista plana de filas con columnas E, F, P, A, G ──
+    elif isinstance(data, list) and len(data) > 0:
+        try:
+            df = pd.DataFrame(data)
+            df.columns = [str(c).strip().upper() for c in df.columns]
+            df["E_STR"] = df["E"].astype(str).str.strip().str.upper()
+
+            # Fila SISTEMA
+            fila_sis = df[df["E_STR"] == "SISTEMA"]
+            fase_v   = int(fila_sis["F"].iloc[0])   if not fila_sis.empty else 0
+            tiempo_v = float(fila_sis["P"].iloc[0]) if not fila_sis.empty else 0.0
+            st.session_state._cache_sistema = {"fase": fase_v, "tiempo": tiempo_v}
+
+            # Alumnos (todo excepto SISTEMA)
+            df_al = df[df["E_STR"] != "SISTEMA"]
+            alumnos_v = []
+            for _, row in df_al.iterrows():
+                alumnos_v.append({
+                    "EMAIL":  str(row.get("E", "")),
+                    "NOMBRE": str(row.get("A", "")),
+                    "TITULO": str(row.get("G", "Dr.")),
+                    "PUNTOS": float(row.get("P", 0))
+                })
+            st.session_state._cache_alumnos   = alumnos_v
+            st.session_state._cache_preguntas = st.session_state.get("_cache_preguntas", [])
+        except Exception as ex:
+            st.session_state.setdefault("_cache_sistema",   {"fase": 0, "tiempo": 0})
+            st.session_state.setdefault("_cache_alumnos",   [])
+            st.session_state.setdefault("_cache_preguntas", [])
+
     return (
         st.session_state.get("_cache_sistema",   {"fase": 0, "tiempo": 0}),
         st.session_state.get("_cache_alumnos",   []),
