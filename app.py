@@ -3,10 +3,10 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import time
 
-# --- 1. CONFIGURACIÓN ---
+# --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# CONEXIÓN A GOOGLE SHEETS
+# CONEXIÓN NATIVA A GOOGLE SHEETS
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def reproducir_audio(url):
@@ -15,21 +15,21 @@ def reproducir_audio(url):
 
 def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
     try:
-        # Leer la hoja principal
+        # Lectura en tiempo real (ttl=0 para evitar caché en clase)
         df = conn.read(ttl=0)
         
-        # SI LA PLANILLA ESTÁ VACÍA O GOOGLE DA ERROR, FORZAMOS LA ESTRUCTURA CORRECTA
+        # Salvaguarda si la planilla está en blanco o da error de formato
         if df is None or df.empty or len(df.columns) < 2:
             df = pd.DataFrame(columns=["E", "A", "F", "P", "G"])
         
-        # Limpiar nombres de columnas
+        # Normalizar y limpiar nombres de columnas
         df.columns = [str(c).strip().upper() for c in df.columns]
         
-        # Asegurar columnas básicas
+        # Asegurar que existan las 5 columnas requeridas
         for col in ["E", "A", "F", "P", "G"]:
-            if col not in df.columns: df[col] = ""
+            if col not in df.columns: 
+                df[col] = ""
 
-        # Normalizar columna E para búsqueda
         df["E_STR"] = df["E"].astype(str).str.strip().str.upper()
 
         if accion == "escribir_sistema":
@@ -43,21 +43,21 @@ def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
             conn.update(data=df)
             return df
         
-        if accion == "nuevo_usuario":
-            if nuevo_usuario["E"] not in df["E"].astype(str).values:
+        elif accion == "nuevo_usuario":
+            if nuevo_usuario["E"].strip().upper() not in df["E_STR"].values:
                 nuevo_df = pd.DataFrame([nuevo_usuario])
                 df = pd.concat([df.drop(columns=["E_STR"]), nuevo_df], ignore_index=True)
                 conn.update(data=df)
             return df
 
-        if accion == "sumar_puntos":
+        elif accion == "sumar_puntos":
             mask = df["E_STR"] == str(nuevo_usuario["e"]).strip().upper()
             df.loc[mask, "P"] = pd.to_numeric(df.loc[mask, "P"], errors='coerce').fillna(0) + float(nuevo_usuario["pts"])
             df = df.drop(columns=["E_STR"])
             conn.update(data=df)
             return df
 
-        # AUTO-REPARACIÓN: Si no hay SISTEMA, lo creamos
+        # Si entramos a leer y la fila de control no existe, la creamos de inmediato
         if "SISTEMA" not in df["E_STR"].values:
             nuevo_sys = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=["E", "A", "F", "P", "G"])
             df = pd.concat([df.drop(columns=["E_STR"]), nuevo_sys], ignore_index=True)
@@ -66,31 +66,78 @@ def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
 
         return df.drop(columns=["E_STR"]) if "E_STR" in df.columns else df
     except Exception as e:
-        # Si todo falla, devolvemos un DataFrame funcional para que NUNCA se congelen los botones
-        df_contingencia = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=["E", "A", "F", "P", "G"])
-        return df_contingencia
+        # Contingencia absoluta: si falla Google Sheets, la app sigue funcionando localmente en el aula
+        df_error = pd.DataFrame([["SISTEMA", "CONTROL", 0, 0.0, "0"]], columns=["E", "A", "F", "P", "G"])
+        return df_error
 
-# --- 2. ESTILOS DE ALTA VISIBILIDAD ---
+# --- 2. ESTILOS VISUALES DE ALTA DEFINICIÓN ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&display=swap');
     header, [data-testid="stHeader"] { display: none !important; }
-    .stApp { background-image: url("https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"); background-size: cover; background-attachment: fixed; }
-    .stApp, .stMarkdown, p, h1, h2, h3, h4, span { font-family: 'Poppins', sans-serif; text-align: center; }
-    h2, .stMarkdown h2 { color: #FFFFFF !important; font-size: 2.5rem !important; font-weight: 800 !important; text-shadow: 3px 3px 10px #000000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000 !important; }
-    .titulo-oro { color: #FFFFFF !important; font-size: 3.8rem !important; font-weight: 800; text-transform: uppercase; text-shadow: 0 0 10px #D4AF37, 0 0 20px #D4AF37, 3px 3px 5px #000 !important; }
-    label, [data-testid="stWidgetLabel"] p, .stSelectbox label, .stNumberInput label, .stRadio label, [data-testid="stMarkdownContainer"] p { color: #CCFF00 !important; font-weight: 800 !important; font-size: 1.2rem !important; text-shadow: 2px 2px 4px #000 !important; }
-    .reloj-container { background-color: rgba(0, 0, 0, 0.8); color: #FF4B4B; font-size: 4rem; font-weight: 800; padding: 10px 30px; border-radius: 15px; border: 4px solid #FF4B4B; display: inline-block; margin: 20px 0; text-shadow: 0 0 10px #FF4B4B; }
-    [data-testid="stTable"] td, [data-testid="stTable"] th, .stDataFrame p, [data-testid="stExpander"] p, [data-testid="stExpander"] b { color: #FFFFFF !important; font-weight: 600 !important; text-shadow: 1px 1px 2px #000000 !important; }
-    [data-testid="stTable"], .stTable, [data-testid="stExpander"] { background-color: rgba(0, 0, 0, 0.6) !important; border-radius: 10px; }
-    .stButton>button { background-color: #D4AF37 !important; color: #000000 !important; font-weight: 800 !important; border: 2px solid #000 !important; width: 100%; }
+    .stApp { 
+        background-image: url("https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=2070"); 
+        background-size: cover; 
+        background-attachment: fixed; 
+    }
+    .stApp, .stMarkdown, p, h1, h2, h3, h4, span { 
+        font-family: 'Poppins', sans-serif; 
+        text-align: center; 
+    }
+    h2, .stMarkdown h2 { 
+        color: #FFFFFF !important; 
+        font-size: 2.5rem !important; 
+        font-weight: 800 !important; 
+        text-shadow: 3px 3px 10px #000000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000 !important; 
+    }
+    .titulo-oro { 
+        color: #FFFFFF !important; 
+        font-size: 3.8rem !important; 
+        font-weight: 800; 
+        text-transform: uppercase; 
+        text-shadow: 0 0 10px #D4AF37, 0 0 20px #D4AF37, 3px 3px 5px #000 !important; 
+    }
+    label, [data-testid="stWidgetLabel"] p, .stSelectbox label, .stNumberInput label, .stRadio label, [data-testid="stMarkdownContainer"] p { 
+        color: #CCFF00 !important; 
+        font-weight: 800 !important; 
+        font-size: 1.2rem !important; 
+        text-shadow: 2px 2px 4px #000 !important; 
+    }
+    .reloj-container { 
+        background-color: rgba(0, 0, 0, 0.8); 
+        color: #FF4B4B; 
+        font-size: 4rem; 
+        font-weight: 800; 
+        padding: 10px 30px; 
+        border-radius: 15px; 
+        border: 4px solid #FF4B4B; 
+        display: inline-block; 
+        margin: 20px 0; 
+        text-shadow: 0 0 10px #FF4B4B; 
+    }
+    [data-testid="stTable"] td, [data-testid="stTable"] th, .stDataFrame p, [data-testid="stExpander"] p, [data-testid="stExpander"] b { 
+        color: #FFFFFF !important; 
+        font-weight: 600 !important; 
+        text-shadow: 1px 1px 2px #000000 !important; 
+    }
+    [data-testid="stTable"], .stTable, [data-testid="stExpander"] { 
+        background-color: rgba(0, 0, 0, 0.6) !important; 
+        border-radius: 10px; 
+    }
+    .stButton>button { 
+        background-color: #D4AF37 !important; 
+        color: #000000 !important; 
+        font-weight: 800 !important; 
+        border: 2px solid #000 !important; 
+        width: 100%; 
+    }
     .box-oro { background: linear-gradient(145deg, #D4AF37, #B8860B); color: #FFF !important; padding: 25px; border-radius: 15px; width: 85%; font-size: 2.5rem; font-weight: 800; border: 4px solid #FFF; text-shadow: 2px 2px 5px #000 !important; margin: auto; }
     .box-plata { background: linear-gradient(145deg, #C0C0C0, #808080); color: #FFF !important; padding: 15px; border-radius: 12px; width: 75%; font-size: 1.8rem; font-weight: 700; margin: auto; }
     .box-bronce { background: linear-gradient(145deg, #CD7F32, #8B4513); color: #FFF !important; padding: 12px; border-radius: 10px; width: 65%; font-size: 1.5rem; font-weight: 700; margin: auto; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. BANCO ---
+# --- 3. BANCO DE PREGUNTAS ---
 banco = {
     1: {"q": "¿Cuál es la legítima de descendientes?", "o": ["1/2", "2/3", "3/4"], "k": "2/3"},
     2: {"q": "¿Plazo para aceptar herencia?", "o": ["5 años", "10 años", "20 años"], "k": "10 años"},
@@ -98,11 +145,11 @@ banco = {
     4: {"q": "¿Qué tipo de proceso es la sucesión?", "o": ["Contencioso", "Voluntario", "Ejecutivo"], "k": "Voluntario"}
 }
 
-# --- 4. ACCESO ---
+# --- 4. CONTROL DE ACCESO ---
 if 'user' not in st.session_state: st.session_state.user = None
 if 'f_voto' not in st.session_state: st.session_state.f_voto = -1
 
-df_global = gestionar_datos()
+df_global = gestionar_datos("leer")
 
 try:
     info_sistema = df_global[df_global["E"].astype(str).str.strip().str.upper() == "SISTEMA"].iloc[0]
@@ -119,15 +166,17 @@ if st.session_state.user is None:
     n = st.text_input("Nombre Completo:")
     g = st.radio("Título:", ["Dr.", "Dra."])
     if st.button("INGRESAR"):
-        if m == "derecho2024": st.session_state.user = {"tipo": "juez"}
+        if m == "derecho2024": 
+            st.session_state.user = {"tipo": "juez"}
         elif "@" in m and n:
             st.session_state.user = {"tipo": "alumno", "e": m, "a": n, "g": g}
             gestionar_datos("nuevo_usuario", nuevo_usuario={"E": m, "A": n, "F": 0, "P": 0.0, "G": g})
-        else: st.error("Ingresa un Email válido.")
+        else: 
+            st.error("Ingresa un Email válido.")
         st.rerun()
     st.stop()
 
-# --- 5. LÓGICA ---
+# --- 5. LÓGICA DE INTERFAZ ---
 ahora = time.time()
 fases_nombres = {0: "Inicio", **{int(k): f"P{k}" for k in banco.keys()}, 88: "Parcial", 99: "FINAL"}
 
@@ -145,7 +194,8 @@ if st.session_state.user["tipo"] == "juez":
             gestionar_datos("escribir_sistema", fase=fase_serv, tiempo=time.time() + t_set)
             st.rerun()
     with c3:
-        if st.button("🔄 REFRESCAR"): st.rerun()
+        if st.button("🔄 REFRESCAR"): 
+            st.rerun()
     with c4:
         if st.button("⚠️ RESET"):
             df_reset = df_global[df_global["E"].astype(str).str.strip().str.upper() == "SISTEMA"]
@@ -175,7 +225,8 @@ else:
         p = banco[fase_serv]
         reloj_on = t_limite > ahora
         ya_envio = st.session_state.get('enviado', False)
-        if st.session_state.f_voto != fase_serv: st.session_state.enviado = False
+        if st.session_state.f_voto != fase_serv: 
+            st.session_state.enviado = False
         
         st.markdown(f"## {p['q']}")
         
@@ -209,7 +260,6 @@ else:
             st.session_state.f_voto = fase_serv
             st.rerun()
         
-        # TABLA DE PARTICIPANTES PARA ALUMNOS
         st.markdown("---")
         st.markdown("### 👥 PARTICIPANTES EN VIVO")
         st.table(df_global[df_global["E"].astype(str).str.strip().str.upper() != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
