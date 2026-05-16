@@ -9,7 +9,7 @@ import requests
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
 # 🚨 REEMPLAZÁ con tu nueva URL de Google Apps Script 🚨
-URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbyN0oVHgwwGj45tF4zdOihsRfikAsNcG51ibWkZPmSukMKVvfaDzaNPAzm4WUqAp-82/exec"
+URL_APPS_SCRIPT = "https://docs.google.com/spreadsheets/d/1ZcXOkFeMgHZFchQfDKxPWaH516b7sO9LIiO9MibvP5Q/edit?usp=sharing"
 
 CLAVE_DOCENTE = "derecho2024"
 
