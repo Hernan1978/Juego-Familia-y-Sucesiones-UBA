@@ -1,52 +1,44 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
 import pandas as pd
+import os
 import time
 
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# CONEXIÓN ROBUSTA
-try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
-except Exception as e:
-    st.error(f"Error crítico de configuración: {e}")
-    st.stop()
-
 def reproducir_audio(url):
     audio_html = f'<audio autoplay><source src="{url}" type="audio/mp3"></audio>'
     st.markdown(audio_html, unsafe_allow_html=True)
 
-def gestionar_datos(accion="leer", fase=None, tiempo=None, nuevo_usuario=None):
+# GESTIÓN DE ARCHIVOS SEPARADOS PARA EVITAR BLOQUEOS
+def leer_fase():
+    if not os.path.exists("fase.txt"): return 0, 0.0
     try:
-        # Leer siempre la primera hoja disponible
-        df = conn.read(ttl=0)
-        
-        # Limpiar nombres de columnas por si acaso hay espacios invisibles
-        df.columns = df.columns.str.strip()
-        
-        if accion == "escribir_sistema":
-            df.loc[df["E"] == "SISTEMA", "F"] = int(fase)
-            df.loc[df["E"] == "SISTEMA", "P"] = float(tiempo)
-            conn.update(data=df)
-            return df
-        
-        if accion == "nuevo_usuario":
-            if nuevo_usuario["E"] not in df["E"].astype(str).values:
-                nuevo_df = pd.DataFrame([nuevo_usuario])
-                df = pd.concat([df, nuevo_df], ignore_index=True)
-                conn.update(data=df)
-            return df
+        with open("fase.txt", "r") as f:
+            c = f.read().strip().split(",")
+            return int(c[0]), float(c[1])
+    except: return 0, 0.0
 
-        if accion == "sumar_puntos":
-            df.loc[df["E"].astype(str) == str(nuevo_usuario["e"]), "P"] += float(nuevo_usuario["pts"])
-            conn.update(data=df)
-            return df
+def escribir_fase(f, t):
+    with open("fase.txt", "w") as x:
+        x.write(f"{f},{t}")
 
-        return df
-    except Exception as e:
-        st.error(f"Error al acceder a los datos: {e}")
-        return pd.DataFrame()
+def cargar_alumnos():
+    if not os.path.exists("alumnos.csv"): return pd.DataFrame(columns=["Email", "Nombre", "Puntos", "Titulo"])
+    try: return pd.read_csv("alumnos.csv")
+    except: return pd.DataFrame(columns=["Email", "Nombre", "Puntos", "Titulo"])
+
+def guardar_alumno(email, nombre, titulo):
+    df = cargar_alumnos()
+    if email not in df["Email"].values:
+        nuevo = pd.DataFrame([[email, nombre, 0, titulo]], columns=["Email", "Nombre", "Puntos", "Titulo"])
+        df = pd.concat([df, nuevo], ignore_index=True)
+        df.to_csv("alumnos.csv", index=False)
+
+def sumar_puntos(email, pts):
+    df = cargar_alumnos()
+    df.loc[df["Email"] == email, "Puntos"] += pts
+    df.to_csv("alumnos.csv", index=False)
 
 # --- 2. ESTILOS ---
 st.markdown("""
@@ -80,34 +72,27 @@ banco = {
 if 'user' not in st.session_state: st.session_state.user = None
 if 'f_voto' not in st.session_state: st.session_state.f_voto = -1
 
-df_global = gestionar_datos()
-if df_global.empty:
-    st.warning("⏳ Conectando con la base de datos... por favor espera.")
-    st.stop()
-
-try:
-    info_sistema = df_global[df_global["E"].astype(str) == "SISTEMA"].iloc[0]
-    fase_serv = int(info_sistema["F"])
-    t_limite = float(info_sistema["P"])
-except:
-    st.error("❌ La planilla no tiene el formato correcto. Revisa la fila SISTEMA.")
-    st.stop()
-
 if st.session_state.user is None:
     reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/bienvenida.mp3")
     st.markdown("<h1 class='titulo-oro'>🏛️ LEXPLAY UBA</h1>", unsafe_allow_html=True)
-    m = st.text_input("Clave de Acceso:")
+    m = st.text_input("Email de Acceso (Alumnos) o Clave (Docente):")
     n = st.text_input("Nombre Completo:")
     g = st.radio("Título:", ["Dr.", "Dra."])
     if st.button("INGRESAR"):
-        if m == "derecho2024": st.session_state.user = {"tipo": "juez"}
-        elif m and n:
+        if m == "derecho2024": 
+            st.session_state.user = {"tipo": "juez"}
+            st.rerun()
+        elif "@" in m and n:
             st.session_state.user = {"tipo": "alumno", "e": m, "a": n, "g": g}
-            gestionar_datos("nuevo_usuario", nuevo_usuario={"E": m, "A": n, "F": 0, "P": 0.0, "G": g})
-        st.rerun()
+            guardar_alumno(m, n, g)
+            st.rerun()
+        else:
+            st.error("Por favor, ingresa un Email válido y tu Nombre.")
     st.stop()
 
 # --- 5. LÓGICA ---
+fase_serv, t_limite = leer_fase()
+df_global = cargar_alumnos()
 ahora = time.time()
 fases_nombres = {0: "Inicio", 1: "P1", 2: "P2", 3: "P3", 4: "P4", 88: "Parcial", 99: "FINAL"}
 
@@ -120,43 +105,42 @@ if st.session_state.user["tipo"] == "juez":
             for k,v in banco.items(): st.write(f"**{k}.** {v['q']}")
         with c_p2:
             st.markdown("<b>Alumnos en Sala:</b>", unsafe_allow_html=True)
-            st.table(df_global[df_global["E"].astype(str) != "SISTEMA"][['G', 'A']])
+            st.table(df_global[['Titulo', 'Nombre']])
 
     st.markdown("---")
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         op_fase = st.selectbox("Cambiar Pregunta:", options=list(fases_nombres.keys()), format_func=lambda x: fases_nombres[x], key="sel_fase")
-        if st.button("📢 ACTUALIZAR FASE", key="btn_fase"):
-            gestionar_datos("escribir_sistema", fase=op_fase, tiempo=0.0)
+        if st.button("📢 ACTUALIZAR FASE"):
+            escribir_fase(op_fase, 0.0)
             st.rerun()
     with c2:
-        t_set = st.number_input("Segundos:", 5, 60, 25, key="num_tiempo")
-        if st.button("⏱️ INICIAR RELOJ", key="btn_reloj"):
-            gestionar_datos("escribir_sistema", fase=fase_serv, tiempo=time.time() + t_set)
+        t_set = st.number_input("Segundos:", 5, 60, 25)
+        if st.button("⏱️ INICIAR RELOJ"):
+            escribir_fase(fase_serv, time.time() + t_set)
             st.rerun()
     with c3:
-        if st.button("🔄 REFRESCAR", key="btn_refrescar"): st.rerun()
+        if st.button("🔄 REFRESCAR"): st.rerun()
     with c4:
-        if st.button("⚠️ RESET", key="btn_reset"):
-            df_reset = df_global[df_global["E"].astype(str) == "SISTEMA"]
-            conn.update(data=df_reset)
+        if st.button("⚠️ RESET"):
+            if os.path.exists("alumnos.csv"): os.remove("alumnos.csv")
+            escribir_fase(0, 0.0)
             st.rerun()
     
-    st.table(df_global[df_global["E"].astype(str) != "SISTEMA"][['G', 'A', 'P']].sort_values(by='P', ascending=False))
+    st.table(df_global[['Titulo', 'Nombre', 'Puntos']].sort_values(by='Puntos', ascending=False))
 
 else:
     # --- PANTALLA ALUMNO ---
     if fase_serv == 99:
         reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/ganador.mp3")
         st.balloons(); st.snow()
-        podio = df_global[df_global["E"].astype(str) != "SISTEMA"].sort_values(by="P", ascending=False).head(3).values.tolist()
+        podio = df_global.sort_values(by="Puntos", ascending=False).head(3).values.tolist()
         if podio:
-            genero_ganador = podio[0][4]
-            img_file = "alumna_festejo_uba.png" if genero_ganador == "Dra." else "alumno_festejo_uba.png"
+            img_file = "alumna_festejo_uba.png" if podio[0][3] == "Dra." else "alumno_festejo_uba.png"
             img_url = f"https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/{img_file}"
             st.image(img_url, use_container_width=True)
-            st.markdown(f"<h1 class='titulo-oro'>🏆 {podio[0][4]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
-            st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][3])} PTS)</div><br>", unsafe_allow_html=True)
+            st.markdown(f"<h1 class='titulo-oro'>🏆 {podio[0][3]} {podio[0][1]} 🏆</h1>", unsafe_allow_html=True)
+            st.markdown(f"<div class='box-oro'>🥇 ORO: {podio[0][1]} ({int(podio[0][2])} PTS)</div><br>", unsafe_allow_html=True)
             if len(podio) > 1: st.markdown(f"<div class='box-plata'>🥈 PLATA: {podio[1][1]}</div><br>", unsafe_allow_html=True)
             if len(podio) > 2: st.markdown(f"<div class='box-bronce'>🥉 BRONCE: {podio[2][1]}</div>", unsafe_allow_html=True)
             if st.button("🚪 CERRAR SESIÓN"):
@@ -191,7 +175,7 @@ else:
             if opcion == p["k"]:
                 reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/exito.mp3")
                 pts = 10 + min(int(t_limite - ahora), 10)
-                gestionar_datos("sumar_puntos", nuevo_usuario={"e": st.session_state.user['e'], "pts": pts})
+                sumar_puntos(st.session_state.user['e'], pts)
                 st.success("✅ REGISTRADO")
             else:
                 reproducir_audio("https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/error.mp3")
