@@ -11,7 +11,7 @@ def reproducir_audio(url):
     audio_html = f'<audio autoplay><source src="{url}" type="audio/mp3"></audio>'
     st.markdown(audio_html, unsafe_allow_html=True)
 
-# GESTIÓN DE BASE DE DATOS SQLITE (INSTANTÁNEA)
+# GESTIÓN DE BASE DE DATOS SQLITE
 def init_db():
     conn = sqlite3.connect('lexplay.db', check_same_thread=False)
     c = conn.cursor()
@@ -162,21 +162,21 @@ else:
         
         st.markdown(f"## {p['q']}")
         
+        # CONTENEDOR PARA EL RELOJ (EVITA TITILEO)
+        reloj_placeholder = st.empty()
+        
         if t_limite == 0:
             st.warning("⚖️ El Tribunal aún no ha habilitado la votación. Espere...")
             voto_bloqueado = True
         elif reloj_on and not ya_envio:
-            secs_restantes = int(t_limite - ahora)
-            st.markdown(f"<div style='text-align:center;'><div class='reloj-container'>⏱️ {secs_restantes}s</div></div>", unsafe_allow_html=True)
             voto_bloqueado = False
-            time.sleep(1)
-            st.rerun()
         elif not ya_envio and not reloj_on:
-            st.markdown("<div style='text-align:center;'><div class='reloj-container' style='color:gray; border-color:gray;'>⌛ TIEMPO AGOTADO</div></div>", unsafe_allow_html=True)
+            reloj_placeholder.markdown("<div style='text-align:center;'><div class='reloj-container' style='color:gray; border-color:gray;'>⌛ TIEMPO AGOTADO</div></div>", unsafe_allow_html=True)
             voto_bloqueado = True
         else:
             voto_bloqueado = True
 
+        # LAS OPCIONES SE QUEDAN QUIETAS
         opcion = st.radio("Dictamen:", p["o"], disabled=voto_bloqueado or ya_envio)
         
         if st.button("ENVIAR SENTENCIA", disabled=voto_bloqueado or ya_envio):
@@ -194,19 +194,16 @@ else:
         
         if ya_envio:
             st.info("✅ Sentencia enviada correctamente.")
-            
-        # TABLA DE PARTICIPANTES PARA ALUMNOS
-        st.markdown("---")
-        st.markdown("### 👥 PARTICIPANTES EN VIVO")
-        st.table(df_global[['G', 'A', 'P']].sort_values(by='P', ascending=False))
-        time.sleep(2)
-        st.rerun()
+
+        # SOLO EL RELOJ SE ACTUALIZA CADA SEGUNDO
+        if reloj_on and not ya_envio:
+            while time.time() < t_limite:
+                secs = int(t_limite - time.time())
+                reloj_placeholder.markdown(f"<div style='text-align:center;'><div class='reloj-container'>⏱️ {secs}s</div></div>", unsafe_allow_html=True)
+                time.sleep(1)
+            st.rerun()
             
     else:
         st.info("⚖️ Tribunal deliberando... espere.")
-        # TABLA DE PARTICIPANTES PARA ALUMNOS
-        st.markdown("---")
-        st.markdown("### 👥 PARTICIPANTES EN VIVO")
-        st.table(df_global[['G', 'A', 'P']].sort_values(by='P', ascending=False))
-        time.sleep(2)
+        time.sleep(3)
         st.rerun()
