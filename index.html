@@ -68,7 +68,6 @@
     <script>
         const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzIkrNfH2Ji_YnAXAL7Rw3cVghN97cVNtt80AAJulZ1if5QIRKu-v1QloCnZNwuyoYGlg/exec";
         const CLAVE_DOCENTE = "derecho2024";
-        const IMG_BASE = "https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/";
         
         const AUDIO = {
             "bienvenida": "https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/bienvenida.mp3",
@@ -102,8 +101,7 @@
                 USER = { tipo: "juez" };
                 playAudio("bienvenida");
                 document.getElementById("pantalla-dinamica").innerHTML = "<div class='espera-box'>⚖️ Abriendo Estrado Presidencial...</div>";
-                // ⏱️ VELOCIDAD MEJORADA: Consulta cada 1.5 segundos
-                setInterval(sincronizarNucleo, 1500);
+                setInterval(sincronizarNucleo, 1500); // ⏱️ Consulta rápida cada 1.5s
                 sincronizarNucleo();
             } else {
                 let nombre = document.getElementById("login-nombre").value.trim();
@@ -123,8 +121,7 @@
                         method: 'POST',
                         body: JSON.stringify({ accion: "nuevo_usuario", usuario: { EMAIL: idInput, NOMBRE: nombre, TITULO: titulo } })
                     });
-                    // ⏱️ VELOCIDAD MEJORADA: Consulta cada 1 segundos
-                    setInterval(sincronizarNucleo, 1000);
+                    setInterval(sincronizarNucleo, 1500); // ⏱️ Consulta rápida cada 1.5s
                     sincronizarNucleo();
                 } catch(e) { alert("Falla al conectar con Google Sheets."); }
             }
@@ -167,190 +164,4 @@
             else if (fase === 88) {
                 alumnos.sort((a,b) => b.PUNTOS - a.PUNTOS);
                 let filas = alumnos.map((al, idx) => {
-                    let medal = idx < 3 ? ["🥇","🥈","🥉"][idx] : `${idx+1}°`;
-                    let colBorder = idx < 3 ? ["#D4AF37","#C0C0C0","#CD7F32"][idx] : "#444";
-                    return `<div style='background:rgba(0,0,0,0.7);border-left:6px solid ${colBorder};border-radius:10px;padding:12px 20px;margin:6px auto;width:70%;color:#FFF;font-size:1.2rem;font-weight:700;text-align:left;'>
-                        ${medal} ${al.TITULO || 'Dr.'} ${al.NOMBRE} — ${parseInt(al.PUNTOS)} pts
-                    </div>`;
-                }).join('');
-                htmlInyectar = `<h2>📊 Resultados Parciales</h2>${filas}`;
-            } 
-            else if (fase === 99) {
-                if (audioReproducido !== "ganador") { playAudio("ganador"); audioReproducido = "ganador"; }
-                alumnos.sort((a,b) => b.PUNTOS - a.PUNTOS);
-                let podioHtml = "";
-                if(alumnos[0]) {
-                    let t = (alumnos[0].TITULO || "").toLowerCase();
-                    let n = (alumnos[0].NOMBRE || "").toLowerCase();
-                    let esDra = t.includes("dra") || n.startsWith("dra") || n.includes("dra.");
-                    
-                    // 🌐 COPIE AQUÍ LOS ENLACES DIRECTOS QUE LE DIO LA PÁGINA POSTIMAGES:
-                    let rutaFoto = esDra 
-                        ? "https://i.postimg.cc/DwHwMFBW/alumna-festejando.jpg" 
-                        : "https://i.postimg.cc/8Cvz830r/alumno-festejando.jpg
-";
-                    
-                    podioHtml += `<div style="margin: 20px auto; min-height: 250px;"><img src="${rutaFoto}" class="img-ganador" style="max-height: 300px; border-radius:15px; border:4px solid #D4AF37; object-fit: contain;"></div>`;
-                    podioHtml += `<h1 class='titulo-oro'>🏆 ${alumnos[0].TITULO || 'Dr.'} ${alumnos[0].NOMBRE} 🏆</h1>`;
-                    podioHtml += `<div class='box-oro'>🥇 ORO: ${alumnos[0].NOMBRE}<br><span style='font-size:1.5rem'>${parseInt(alumnos[0].PUNTOS)} puntos</span></div><br>`;
-                }
-                if(alumnos[1]) podioHtml += `<div class='box-plata'>🥈 PLATA: ${alumnos[1].NOMBRE} — ${parseInt(alumnos[1].PUNTOS)} pts</div><br>`;
-                if(alumnos[2]) podioHtml += `<div class='box-bronce'>🥉 BRONCE: ${alumnos[2].NOMBRE} — ${parseInt(alumnos[2].PUNTOS)} pts</div>`;
-                htmlInyectar = podioHtml;
-            }
-            else {
-                let p = preguntas.find(preg => preg.ID == fase);
-                if (!p) return;
-
-                let relojHtml = (tLimite > ahora && yaVotoFase !== fase) ? `<div style='text-align:center'><div class='reloj-container' id='cronometro'>⏱️ --s</div></div>` : '';
-                let opcionesHtml = "";
-                let opcionesArr = [p.OP1, p.OP2, p.OP3, p.OP4].filter(o => o);
-                
-                if (yaVotoFase === fase) {
-                    opcionesHtml = `<div class='espera-box'>📥 Tu dictamen fue enviado. Esperando resolución general...</div>`;
-                } else {
-                    opcionesHtml = `<div class='grid-opciones'>` + opcionesArr.map((op, i) => `
-                        <button class='kahoot-btn' style='background:${COLORES[i]}' onclick='votarAlumno("${op.replace(/"/g, '&quot;')}", "${p.CORRECTA.replace(/"/g, '&quot;')}", ${tLimite})' ${tLimite <= ahora ? 'disabled':''}>
-                            ${ICONOS[i]} ${op}
-                        </button>
-                    `).join('') + `</div>`;
-                }
-
-                alumnos.sort((a,b) => b.PUNTOS - a.PUNTOS);
-                let filasTabla = alumnos.map((al, idx) => `<tr><td>${idx+1}°</td><td style="color:#FFF;">${al.TITULO || 'Dr.'} ${al.NOMBRE}</td><td>${parseInt(al.PUNTOS)} pts</td></tr>`).join('');
-
-                htmlInyectar = `
-                    <div class='pregunta-card'>❓ ${p.PREGUNTA}</div>
-                    ${relojHtml}
-                    ${opcionesHtml}
-                    <hr style='border-color:#D4AF37; margin:30px 0;'>
-                    <h3>👥 Calificaciones del Estrado en Vivo</h3>
-                    <table>
-                        <thead><tr><th>Rango</th><th>Magistrado</th><th>Puntos</th></tr></thead>
-                        <tbody>${filasTabla || '<tr><td colspan="3">Sin registros</td></tr>'}</tbody>
-                    </table>
-                `;
-
-                panel.innerHTML = htmlInyectar;
-
-                if (tLimite > ahora && yaVotoFase !== fase) {
-                    cronometroInterval = setInterval(() => {
-                        let secRestantes = Math.max(0, Math.floor(tLimite - (Date.now() / 1000)));
-                        let el = document.getElementById('cronometro');
-                        if (el) el.innerText = `⏱️ ${secRestantes}s`;
-                        if (secRestantes <= 0) { clearInterval(cronometroInterval); sincronizarNucleo(); }
-                    }, 250);
-                }
-                return;
-            }
-            panel.innerHTML = htmlInyectar;
-        }
-
-        async function votarAlumno(opcionSeleccionada, opcionCorrecta, tLimite) {
-            yaVotoFase = faseActual;
-            let ahora = Date.now() / 1000;
-            let esCorrecto = (opcionSeleccionada === opcionCorrecta);
-            
-            playAudio(esCorrecto ? "exito" : "error");
-            let bonus = Math.max(0, Math.min(parseInt(tLimite - ahora), 15));
-            let puntosA_Sumar = esCorrecto ? (10 + bonus) : 0;
-
-            try {
-                await fetch(URL_APPS_SCRIPT, {
-                    method: 'POST',
-                    body: JSON.stringify({ accion: "sumar_puntos", usuario: { email: USER.email, pts: puntosA_Sumar } })
-                });
-                sincronizarNucleo();
-            } catch(e) { console.error(e); }
-        }
-
-        function renderizarDocente(fase, tLimite, alumnos, preguntas) {
-            const panel = document.getElementById("pantalla-dinamica");
-            
-            if (faseActual === -1) {
-                opcionSelectorDocenteLocal = fase.toString();
-                faseActual = fase;
-            }
-
-            let tiempoEscrito = document.getElementById("docente-tiempo") ? document.getElementById("docente-tiempo").value : "30";
-
-            let opcionesFases = `<option value="0" ${opcionSelectorDocenteLocal==="0"?'selected':''}>⏸️ Sala de Espera</option>`;
-            preguntas.forEach(p => {
-                opcionesFases = opcionesFases + `<option value="${p.ID}" ${opcionSelectorDocenteLocal===p.ID.toString()?'selected':''}>❓ Pregunta ${p.ID}</option>`;
-            });
-            opcionesFases += `<option value="88" ${opcionSelectorDocenteLocal==="88"?'selected':''}>📊 Resultados Parciales</option>`;
-            opcionesFases += `<option value="99" ${opcionSelectorDocenteLocal==="99"?'selected':''}>🏆 PODIO FINAL</option>`;
-
-            let pActiva = preguntas.find(p => p.ID == fase);
-            let InfoPreguntaHtml = pActiva 
-                ? `<div class="pregunta-card" style="text-align:left; font-size:1.3rem; border-color:#1368CE;"><b>Fase activa: Pregunta ${pActiva.ID}</b><br>${pActiva.PREGUNTA}<br><small style="color:#CCFF00;">✅ Respuesta Correcta: ${pActiva.CORRECTA}</small></div>`
-                : `<div class="espera-box" style="font-size:1.2rem;">Fase activa: ${fase === 0 ? 'Sala de Espera' : fase === 88 ? 'Resultados Parciales' : 'Podio Final'}</div>`;
-
-            alumnos.sort((a,b) => b.PUNTOS - a.PUNTOS);
-            let filasAlumnos = alumnos.map(al => `<tr><td style="color:#FFF;">${al.TITULO || 'Dr.'}</td><td style="color:#FFF;">${al.NOMBRE}</td><td style="color:#FFF;"><b>${parseInt(al.PUNTOS)} pts</b></td></tr>`).join('');
-
-            panel.innerHTML = `
-                <div class="panel-juez">
-                    <h2 style="color:#D4AF37; margin-top:0;">⚖️ CONTROL CENTRAL DEL TRIBUNAL</h2>
-                    <div id="flash-alerta" class="notif-flash">¡Fase Enviada al Servidor con éxito! 🎉</div>
-                    
-                    <div class="grid-docente-controles">
-                        <div>
-                            <label>📋 Seleccionar Escenario:</label>
-                            <select id="docente-sel-fase" onchange="opcionSelectorDocenteLocal=this.value" style="width:100%; padding:10px; border-radius:5px;">${opcionesFases}</select>
-                            <button class="docente-btn" style="margin-top:8px;" onclick="ejecutarComandoDocente('cambiar')">📢 Lanzar Fase</button>
-                        </div>
-                        <div>
-                            <label>⏱️ Temporizador (Seg):</label>
-                            <input type="number" id="docente-tiempo" value="${tiempoEscrito}" style="width:100%; padding:10px; border-radius:5px;">
-                            <button class="docente-btn" style="margin-top:8px; background:#26890C; color:#FFF;" onclick="ejecutarComandoDocente('reloj')">▶️ Iniciar Cuenta</button>
-                        </div>
-                        <div>
-                            <label>🔄 Acciones Rápidas:</label>
-                            <button class="docente-btn" style="margin-bottom:5px; background:#555; color:#FFF;" onclick="sincronizarNucleo();">🔄 Forzar Refresco</button>
-                            <button class="docente-btn" style="background:#E21B3C; color:#FFF;" onclick="ejecutarComandoDocente('reset')">⚠️ Resetear Todo</button>
-                        </div>
-                    </div>
-
-                    ${InfoPreguntaHtml}
-                    
-                    <div style="margin:20px 0;">
-                        <span class="votos-badge">👤 Alumnos Registrados: ${alumnos.length}</span>
-                    </div>
-
-                    <h3>👥 Lista de Calificaciones Generales</h3>
-                    <table>
-                        <thead><tr><th>Título</th><th>Magistrado</th><th>Calificación acumulada</th></tr></thead>
-                        <tbody>${filasAlumnos || '<tr><td colspan="3" style="color:#FFF;">Aún no hay alumnos en sala.</td></tr>'}</tbody>
-                    </table>
-                </div>
-            `;
-        }
-
-        async function ejecutarComandoDocente(tipo) {
-            let f = document.getElementById("docente-sel-fase").value;
-            if (tipo === 'cambiar') {
-                await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ accion: "escribir_sistema", fase: parseInt(f), tiempo: 0.0 }) });
-                mostrarFlash(); sincronizarNucleo(); 
-            } 
-            else if (tipo === 'reloj') {
-                let s = parseInt(document.getElementById("docente-tiempo").value);
-                let target = (Date.now() / 1000) + s;
-                await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ accion: "escribir_sistema", fase: parseInt(f), tiempo: target }) });
-                mostrarFlash(); sincronizarNucleo(); 
-            } 
-            else if (tipo === 'reset') {
-                if(confirm("🚨 ¿Está seguro de vaciar la lista de participantes y reiniciar el juego por completo?")) {
-                    await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ accion: "reset_alumnos" }) });
-                    alert("Tribunal reiniciado."); window.location.reload(); return;
-                }
-            }
-        }
-
-        function mostrarFlash() {
-            let flash = document.getElementById("flash-alerta");
-            if (flash) { flash.style.display = "block"; setTimeout(() => { flash.style.display = "none"; }, 2000); }
-        }
-    </script>
-</body>
-</html>
+                    let medal = idx < 3 ?
