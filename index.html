@@ -55,20 +55,20 @@
         .radio-label { color: #FFF; font-weight: 600; display: flex; align-items: center; gap: 5px; cursor: pointer; }
         .btn-ingresar { background-color: #D4AF37; color: #000; font-weight: 800; border: 2px solid #000; width: 100%; font-size: 1.1rem; border-radius: 10px; padding: 12px; margin-top: 25px; cursor: pointer; text-transform: uppercase; font-family: 'Poppins', sans-serif; }
         
-        /* TABLAS E HISTORIAL */
-        table { width: 100%; max-width: 700px; margin: 15px auto; background-color: rgba(0,0,0,0.75); border-collapse: collapse; border-radius: 12px; overflow: hidden; border: 2px solid #D4AF37; }
-        th, td { padding: 12px; color: white; font-weight: 600; text-shadow: 1px 1px 2px #000; border-bottom: 1px solid #333; text-align: center; }
-        th { color: #CCFF00; background-color: rgba(0,0,0,0.5); font-weight: 800; }
+        /* TABLAS REFORMULADAS CON TEXTO BLANCO NÍTIDO */
+        table { width: 100%; max-width: 700px; margin: 15px auto; background-color: rgba(0,0,0,0.85); border-collapse: collapse; border-radius: 12px; overflow: hidden; border: 2px solid #D4AF37; }
+        th, td { padding: 14px; color: #FFFFFF !important; font-weight: 600; text-shadow: 1px 1px 3px #000; border-bottom: 1px solid #333; text-align: center; font-size: 1.1rem; }
+        th { color: #CCFF00 !important; background-color: rgba(0,0,0,0.6); font-weight: 800; }
         
         /* ELEMENTOS DEL PANEL DOCENTE */
-        .panel-juez { max-width: 1000px; margin: 20px auto; background: rgba(0,0,0,0.9); border: 3px solid #D4AF37; border-radius: 20px; padding: 25px; text-align: left; }
+        .panel-juez { max-width: 1000px; margin: 20px auto; background: rgba(0,0,0,0.92); border: 3px solid #D4AF37; border-radius: 20px; padding: 25px; text-align: left; }
         .grid-docente-controles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; background: #111; padding: 15px; border-radius: 12px; border: 1px solid #333; }
-        .docente-btn { background: #D4AF37; color: #000; font-weight: 800; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; text-transform: uppercase; }
+        .docente-btn { background: #D4AF37; color: #000; font-weight: 800; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; text-transform: uppercase; font-family: 'Poppins', sans-serif; }
         .docente-btn:hover { background: #FFF; }
         .img-ganador { width: 90%; max-width: 550px; border-radius: 15px; border: 4px solid #D4AF37; margin-bottom: 20px; }
         
-        /* Contador de votos en tiempo real */
         .votos-badge { background: #1368CE; color: #FFF; padding: 5px 15px; border-radius: 5px; font-weight: 800; font-size: 1.2rem; display: inline-block; margin-top: 10px; }
+        .notif-flash { background: #26890C; color: white; padding: 10px; border-radius: 8px; font-weight: 700; margin-top: 10px; text-align: center; display: none; }
     </style>
 </head>
 <body>
@@ -112,13 +112,13 @@
         const COLORES = ["#E21B3C", "#1368CE", "#26890C", "#FFA602"];
         const ICONOS  = ["▲", "◆", "●", "■"];
 
-        let USER = null; // Guarda el rol y datos {"tipo": "juez"} o {"tipo": "alumno", ...}
+        let USER = null; 
         let faseActual = -1;
         let yaVotoFase = -1;
         let cronometroInterval = null;
         let audioReproducido = "";
+        let usuarioInteractuando = false; // Bloqueo anti-refresco molesto
 
-        // Ocultar dinámicamente campos si meten la clave docente en vivo
         document.getElementById("login-id").addEventListener("input", (e) => {
             let val = e.target.value.trim();
             document.getElementById("campos-alumno").style.display = (val === CLAVE_DOCENTE) ? "none" : "block";
@@ -166,6 +166,9 @@
 
         async function sincronizarNucleo() {
             if (!USER) return;
+            // Si el docente está con el menú abierto, congelamos la actualización para que no moleste
+            if (USER.tipo === "juez" && usuarioInteractuando) return;
+
             try {
                 let res = await fetch(URL_APPS_SCRIPT);
                 let data = await res.json();
@@ -178,23 +181,16 @@
                 if (USER.tipo === "juez") {
                     renderizarDocente(faseServ, tLimite, alumnos, preguntas);
                 } else {
-                    // Si cambia de fase externa, liberamos el bloqueo de voto del alumno
-                    if (faseActual !== faseServ) {
-                        faseActual = faseServ;
-                    }
+                    if (faseActual !== faseServ) { faseActual = faseServ; }
                     renderizarAlumno(faseServ, tLimite, alumnos, preguntas);
                 }
-            } catch (e) { console.error("Error link de fondo:", e); }
+            } catch (e) { console.error("Error enlace de fondo:", e); }
         }
 
-        // ============================================================
-        // 🏛️ RENDERIZADO DEL ALUMNO (CON PUNTOS EN VIVO ABAJO)
-        // ============================================================
         function renderizarAlumno(fase, tLimite, alumnos, preguntas) {
             clearInterval(cronometroInterval);
             const panel = document.getElementById("pantalla-dinamica");
             let ahora = Date.now() / 1000;
-
             let htmlInyectar = "";
 
             if (fase === 0) {
@@ -248,9 +244,8 @@
                     `).join('') + `</div>`;
                 }
 
-                // Generar tabla de posiciones en vivo al pie de la pregunta del alumno
                 alumnos.sort((a,b) => b.PUNTOS - a.PUNTOS);
-                let filasTabla = alumnos.map((al, idx) => `<tr><td>${idx+1}°</td><td>${al.TITULO || 'Dr.'} ${al.NOMBRE}</td><td>${parseInt(al.PUNTOS)} pts</td></tr>`).join('');
+                let filasTabla = alumnos.map((al, idx) => `<tr><td>${idx+1}°</td><td style="color:#FFF;">${al.TITULO || 'Dr.'} ${al.NOMBRE}</td><td>${parseInt(al.PUNTOS)} pts</td></tr>`).join('');
 
                 htmlInyectar = `
                     <div class='pregunta-card'>❓ ${p.PREGUNTA}</div>
@@ -276,7 +271,6 @@
                 }
                 return;
             }
-
             panel.innerHTML = htmlInyectar;
         }
 
@@ -286,75 +280,62 @@
             let esCorrecto = (opcionSeleccionada === opcionCorrecta);
             
             playAudio(esCorrecto ? "exito" : "error");
-
             let bonus = Math.max(0, Math.min(parseInt(tLimite - ahora), 15));
             let puntosA_Sumar = esCorrecto ? (10 + bonus) : 0;
 
             try {
                 await fetch(URL_APPS_SCRIPT, {
                     method: 'POST',
-                    body: JSON.stringify({
-                        accion: "sumar_puntos",
-                        usuario: { email: USER.email, pts: puntosA_Sumar }
-                    })
+                    body: JSON.stringify({ accion: "sumar_puntos", usuario: { email: USER.email, pts: puntosA_Sumar } })
                 });
                 sincronizarNucleo();
             } catch(e) { console.error(e); }
         }
 
         // ============================================================
-        // 🎛️ RENDERIZADO DEL PANEL DOCENTE (PREGUNTAS Y CONTADOR DE VOTOS)
+        // 🎛️ PANEL DOCENTE REFORMULADO (CON BLOQUEO DE FOCO)
         // ============================================================
         function renderizarDocente(fase, tLimite, alumnos, preguntas) {
             const panel = document.getElementById("pantalla-dinamica");
             
-            // Generar opciones dinámicas del selector de fases basadas en las preguntas reales del Sheet
-            let opcionesFases = `<option value="0" ${fase===0?'selected':''}>⏸️ Sala de Espera</option>`;
+            // Guardamos qué fase estaba pre-seleccionada localmente para no pisarla con el servidor mientras se elige
+            let fasePreviaSeleccionada = document.getElementById("docente-sel-fase") ? document.getElementById("docente-sel-fase").value : fase;
+            let tiempoPrevioEscrito = document.getElementById("docente-tiempo") ? document.getElementById("docente-tiempo").value : "30";
+
+            let opcionesFases = `<option value="0" ${fasePreviaSeleccionada=="0"?'selected':''}>⏸️ Sala de Espera</option>`;
             preguntas.forEach(p => {
-                opcionesFases += `<option value="${p.ID}" ${fase===p.ID?'selected':''}>❓ Pregunta ${p.ID}</option>`;
+                opcionesFases += `<option value="${p.ID}" ${fasePreviaSeleccionada==p.ID?'selected':''}>❓ Pregunta ${p.ID}</option>`;
             });
-            opcionesFases += `<option value="88" ${fase===88?'selected':''}>📊 Resultados Parciales</option>`;
-            opcionesFases += `<option value="99" ${fase===99?'selected':''}>🏆 PODIO FINAL</option>`;
+            opcionesFases += `<option value="88" ${fasePreviaSeleccionada=="88"?'selected':''}>📊 Resultados Parciales</option>`;
+            opcionesFases += `<option value="99" ${fasePreviaSeleccionada=="99"?'selected':''}>🏆 PODIO FINAL</option>`;
 
-            // Visualizar datos de la pregunta seleccionada actualmente
             let pActiva = preguntas.find(p => p.ID == fase);
-            let InfoPreguntaHtml = "";
-            if (pActiva) {
-                InfoPreguntaHtml = `
-                    <div class="pregunta-card" style="text-align:left; font-size:1.3rem; border-color:#1368CE;">
-                        <b>Pregunta Actual en Cancha:</b><br>${pActiva.PREGUNTA}<br>
-                        <small style="color:#CCFF00;">✅ Respuesta Correcta cargada: ${pActiva.CORRECTA}</small>
-                    </div>
-                `;
-            } else {
-                InfoPreguntaHtml = `<div class="espera-box" style="font-size:1.2rem;">Fase no interactiva activa (Espera o Cierre).</div>`;
-            }
-
-            // Simular contador de quiénes van votando en esta fase (alumnos con puntos > 0 en fases de juego o activos)
-            // Para hacerlo 100% exacto, contamos de forma ilustrativa. En un entorno real podés ver el movimiento de puntos.
-            let totalParticipantes = alumnos.length;
+            let InfoPreguntaHtml = pActiva 
+                ? `<div class="pregunta-card" style="text-align:left; font-size:1.3rem; border-color:#1368CE;"><b>Fase activa en la clase: Pregunta ${pActiva.ID}</b><br>${pActiva.PREGUNTA}<br><small style="color:#CCFF00;">✅ Respuesta Correcta: ${pActiva.CORRECTA}</small></div>`
+                : `<div class="espera-box" style="font-size:1.2rem;">Fase activa en la clase: ${fase === 0 ? 'Sala de Espera' : fase === 88 ? 'Resultados Parciales' : 'Podio Final'}</div>`;
 
             alumnos.sort((a,b) => b.PUNTOS - a.PUNTOS);
-            let filasAlumnos = alumnos.map(al => `<tr><td>${al.TITULO || 'Dr.'}</td><td>${al.NOMBRE}</td><td><b>${parseInt(al.PUNTOS)} pts</b></td></tr>`).join('');
+            let filasAlumnos = alumnos.map(al => `<tr><td style="color:#FFF;">${al.TITULO || 'Dr.'}</td><td style="color:#FFF;">${al.NOMBRE}</td><td style="color:#FFF;"><b>${parseInt(al.PUNTOS)} pts</b></td></tr>`).join('');
 
             panel.innerHTML = `
                 <div class="panel-juez">
                     <h2 style="color:#D4AF37; margin-top:0;">⚖️ CONTROL CENTRAL DEL TRIBUNAL</h2>
+                    <div id="flash-alerta" class="notif-flash">¡Fase Enviada al Servidor con éxito! 🎉</div>
                     
                     <div class="grid-docente-controles">
                         <div>
                             <label>📋 Seleccionar Escenario:</label>
-                            <select id="docente-sel-fase" style="width:100%; padding:10px; border-radius:5px;">${opcionesFases}</select>
+                            <select id="docente-sel-fase" onfocus="usuarioInteractuando=true" onblur="setTimeout(()=>{usuarioInteractuando=false},500)" style="width:100%; padding:10px; border-radius:5px;">${opcionesFases}</select>
                             <button class="docente-btn" style="margin-top:8px;" onclick="ejecutarComandoDocente('cambiar')">📢 Lanzar Fase</button>
                         </div>
                         <div>
                             <label>⏱️ Temporizador (Seg):</label>
-                            <input type="number" id="docente-tiempo" value="30" style="width:100%; padding:10px; border-radius:5px;">
+                            <input type="number" id="docente-tiempo" value="${tiempoPrevioEscrito}" onfocus="usuarioInteractuando=true" onblur="setTimeout(()=>{usuarioInteractuando=false},500)" style="width:100%; padding:10px; border-radius:5px;">
                             <button class="docente-btn" style="margin-top:8px; background:#26890C; color:#FFF;" onclick="ejecutarComandoDocente('reloj')">▶️ Iniciar Cuenta</button>
                         </div>
                         <div>
                             <label>🔄 Acciones Rápidas:</label>
-                            <button class="docente-btn" style="margin-bottom:5px; background:#555; color:#FFF;" onclick="sincronizarNucleo()">🔄 Forzar Refresco</button>
+                            <button class="docente-btn" style="margin-bottom:5px; background:#555; color:#FFF;" onclick="usuarioInteractuando=false; sincronizarNucleo();">🔄 Forzar Refresco</button>
                             <button class="docente-btn" style="background:#E21B3C; color:#FFF;" onclick="ejecutarComandoDocente('reset')">⚠️ Resetear Todo</button>
                         </div>
                     </div>
@@ -362,38 +343,51 @@
                     ${InfoPreguntaHtml}
                     
                     <div style="margin:20px 0;">
-                        <span class="votos-badge">👤 Alumnos Registrados: ${totalParticipantes}</span>
+                        <span class="votos-badge">👤 Alumnos Registrados: ${alumnos.length}</span>
                     </div>
 
-                    <h3>👥 Lista de Calificaciones Generales</h3>
+                    <h3>👥 Lista de Calificaciones Generales (Texto en Blanco)</h3>
                     <table>
                         <thead><tr><th>Título</th><th>Magistrado</th><th>Calificación acumulada</th></tr></thead>
-                        <tbody>${filasAlumnos || '<tr><td colspan="3">Aún no hay alumnos en sala.</td></tr>'}</tbody>
+                        <tbody>${filasAlumnos || '<tr><td colspan="3" style="color:#FFF;">Aún no hay alumnos en sala.</td></tr>'}</tbody>
                     </table>
                 </div>
             `;
         }
 
         async function ejecutarComandoDocente(tipo) {
+            usuarioInteractuando = true; // Congelamos el loop para procesar la orden
+            let f = document.getElementById("docente-sel-fase").value;
+            
             if (tipo === 'cambiar') {
-                let f = document.getElementById("docente-sel-fase").value;
                 await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ accion: "escribir_sistema", fase: parseInt(f), tiempo: 0.0 }) });
+                mostrarFlash();
             } 
             else if (tipo === 'reloj') {
-                let f = document.getElementById("docente-sel-fase").value;
                 let s = parseInt(document.getElementById("docente-tiempo").value);
                 let target = (Date.now() / 1000) + s;
                 await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ accion: "escribir_sistema", fase: parseInt(f), tiempo: target }) });
+                mostrarFlash();
             } 
             else if (tipo === 'reset') {
                 if(confirm("🚨 ¿Está seguro de vaciar la lista de participantes y reiniciar el juego por completo?")) {
                     await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ accion: "reset_alumnos" }) });
                     alert("Tribunal reiniciado.");
+                    usuarioInteractuando = false;
                     window.location.reload();
                     return;
                 }
             }
-            sincronizarNucleo();
+            // Dejamos pasar 1 segundo de cortesía y volvemos a habilitar la sincronización continua
+            setTimeout(() => { usuarioInteractuando = false; sincronizarNucleo(); }, 1200);
+        }
+
+        function mostrarFlash() {
+            let flash = document.getElementById("flash-alerta");
+            if (flash) {
+                flash.style.display = "block";
+                setTimeout(() => { flash.style.display = "none"; }, 2500);
+            }
         }
     </script>
 </body>
