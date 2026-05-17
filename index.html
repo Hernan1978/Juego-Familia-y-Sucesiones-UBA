@@ -183,24 +183,29 @@
                 htmlInyectar = `<h2>📊 Resultados Parciales</h2>${filas}`;
             } 
             else if (fase === 99) {
-                if (audioReproducido !== "ganador") { playAudio("ganador"); audioReproducido = "ganador"; }
-                alumnos.sort((a,b) => b.PUNTOS - a.PUNTOS);
-                let podioHtml = "";
-                if(alumnos[0]) {
-                    let t = (alumnos[0].TITULO || "").toLowerCase();
-                    let n = (alumnos[0].NOMBRE || "").toLowerCase();
-                    let esDra = t.includes("dra") || n.startsWith("dra");
-                    
-                    let imgGanador = esDra ? "alumna_festejo_uba.png" : "alumno_festejo_uba.png";
-                    
-                    podioHtml += `<img src="${IMG_BASE + imgGanador}" class="img-ganador" onerror="this.src='${IMG_BASE + imgGanador.toUpperCase()}'">`;
-                    podioHtml += `<h1 class='titulo-oro'>🏆 ${alumnos[0].TITULO || 'Dr.'} ${alumnos[0].NOMBRE} 🏆</h1>`;
-                    podioHtml += `<div class='box-oro'>🥇 ORO: ${alumnos[0].NOMBRE}<br><span style='font-size:1.5rem'>${parseInt(alumnos[0].PUNTOS)} puntos</span></div><br>`;
-                }
-                if(alumnos[1]) podioHtml += `<div class='box-plata'>🥈 PLATA: ${alumnos[1].NOMBRE} — ${parseInt(alumnos[1].PUNTOS)} pts</div><br>`;
-                if(alumnos[2]) podioHtml += `<div class='box-bronce'>🥉 BRONCE: ${alumnos[2].NOMBRE} — ${parseInt(alumnos[2].PUNTOS)} pts</div>`;
-                htmlInyectar = podioHtml;
-            } 
+    if (audioReproducido !== "ganador") { playAudio("ganador"); audioReproducido = "ganador"; }
+    alumnos.sort((a,b) => b.PUNTOS - a.PUNTOS);
+    let podioHtml = "";
+    if(alumnos[0]) {
+        let t = (alumnos[0].TITULO || "").toLowerCase();
+        let n = (alumnos[0].NOMBRE || "").toLowerCase();
+        let esDra = t.includes("dra") || n.startsWith("dra") || n.includes("dra.");
+        
+        let imgGanador = esDra ? "alumna_festejo_uba.png" : "alumno_festejo_uba.png";
+        
+        // SALVAVIDAS: Si la foto de tu GitHub falla, carga automáticamente una silueta de graduado académica genérica de internet
+        let fotoAlternativa = esDra 
+            ? "https://cdn-icons-png.flaticon.com/512/4114/4114251.png" 
+            : "https://cdn-icons-png.flaticon.com/512/4114/4114256.png";
+        
+        podioHtml += `<img src="${IMG_BASE + imgGanador}" class="img-ganador" onerror="this.onerror=null; this.src='${fotoAlternativa}';">`;
+        podioHtml += `<h1 class='titulo-oro'>🏆 ${alumnos[0].TITULO || 'Dr.'} ${alumnos[0].NOMBRE} 🏆</h1>`;
+        podioHtml += `<div class='box-oro'>🥇 ORO: ${alumnos[0].NOMBRE}<br><span style='font-size:1.5rem'>${parseInt(alumnos[0].PUNTOS)} puntos</span></div><br>`;
+    }
+    if(alumnos[1]) podioHtml += `<div class='box-plata'>🥈 PLATA: ${alumnos[1].NOMBRE} — ${parseInt(alumnos[1].PUNTOS)} pts</div><br>`;
+    if(alumnos[2]) podioHtml += `<div class='box-bronce'>🥉 BRONCE: ${alumnos[2].NOMBRE} — ${parseInt(alumnos[2].PUNTOS)} pts</div>`;
+    htmlInyectar = podioHtml;
+}
             else {
                 let p = preguntas.find(preg => preg.ID == fase);
                 if (!p) return;
