@@ -66,7 +66,8 @@
     </div>
 
     <script>
-        const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzjmbp87OPFh3-L1sYQN_dYlyew5Mx5tL1TJpzZskVnQGdO_OOZgF7xOQ_vDvZb4kmByw/exec";
+        // 🌐 ENLACE REPARADO: Se eliminó el guion bajo inválido del ID de Google Script
+        const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzjmbp87OPFh3-L1sYQN_dYlyew5Mx5tL1TJpzZskVnQGdOOOZgF7xOQ_vDvZb4kmByw/exec";
         const CLAVE_DOCENTE = "derecho2024";
         
         const AUDIO = {
@@ -101,7 +102,7 @@
                 USER = { tipo: "juez" };
                 playAudio("bienvenida");
                 document.getElementById("pantalla-dinamica").innerHTML = "<div class='espera-box'>⚖️ Abriendo Estrado Presidencial...</div>";
-                setInterval(sincronizarNucleo, 1500); // ⏱️ Consulta rápida cada 1.5s
+                setInterval(sincronizarNucleo, 1500);
                 sincronizarNucleo();
             } else {
                 let nombre = document.getElementById("login-nombre").value.trim();
@@ -121,9 +122,11 @@
                         method: 'POST',
                         body: JSON.stringify({ accion: "nuevo_usuario", usuario: { EMAIL: idInput, NOMBRE: nombre, TITULO: titulo } })
                     });
-                    setInterval(sincronizarNucleo, 1500); // ⏱️ Consulta rápida cada 1.5s
+                    setInterval(sincronizarNucleo, 1500);
                     sincronizarNucleo();
-                } catch(e) { alert("Falla al conectar con Google Sheets."); }
+                } catch(e) { 
+                    alert("⚠️ Error de enlace. Si el botón no avanza, revise que la opción 'Cualquiera' esté activa en la Implementación de Google Sheets."); 
+                }
             }
         }
 
@@ -144,7 +147,7 @@
                     if (faseActual !== faseServ) { faseActual = faseServ; }
                     renderizarAlumno(faseServ, tLimite, alumnos, preguntas);
                 }
-            } catch (e) { console.error("Error:", e); }
+            } catch (e) { console.error("Error de sincronización:", e); }
         }
 
         function renderizarAlumno(fase, tLimite, alumnos, preguntas) {
@@ -181,7 +184,6 @@
                     let n = (alumnos[0].NOMBRE || "").toLowerCase();
                     let esDra = t.includes("dra") || n.startsWith("dra") || n.includes("dra.");
                     
-                    // 🌐 COPIE AQUÍ LOS ENLACES DIRECTOS QUE LE DIO LA PÁGINA POSTIMAGES:
                     let rutaFoto = esDra 
                         ? "https://i.postimg.cc/DwHwMFBW/alumna-festejando.jpg" 
                         : "https://i.postimg.cc/8Cvz830r/alumno-festejando.jpg";
@@ -198,7 +200,7 @@
                 let p = preguntas.find(preg => preg.ID == fase);
                 if (!p) return;
 
-                let relojHtml = (tLimite > ahora && yaVotoFase !== fase) ? `<div style='text-align:center'><div class='reloj-container' id='cronometro'>⏱️ --s</div></div>` : '';
+                let relojHtml = (tLimite > bandwidth && yaVotoFase !== fase) ? `<div style='text-align:center'><div class='reloj-container' id='cronometro'>⏱️ --s</div></div>` : '';
                 let opcionesHtml = "";
                 let opcionesArr = [p.OP1, p.OP2, p.OP3, p.OP4].filter(o => o);
                 
@@ -272,7 +274,7 @@
 
             let opcionesFases = `<option value="0" ${opcionSelectorDocenteLocal==="0"?'selected':''}>⏸️ Sala de Espera</option>`;
             preguntas.forEach(p => {
-                opcionesFases = opcionesFases + `<option value="${p.ID}" ${opcionSelectorDocenteLocal===p.ID.toString()?'selected':''}>❓ Pregunta ${p.ID}</option>`;
+                optionsFases = opcionesFases + `<option value="${p.ID}" ${opcionSelectorDocenteLocal===p.ID.toString()?'selected':''}>❓ Pregunta ${p.ID}</option>`;
             });
             opcionesFases += `<option value="88" ${opcionSelectorDocenteLocal==="88"?'selected':''}>📊 Resultados Parciales</option>`;
             opcionesFases += `<option value="99" ${opcionSelectorDocenteLocal==="99"?'selected':''}>🏆 PODIO FINAL</option>`;
