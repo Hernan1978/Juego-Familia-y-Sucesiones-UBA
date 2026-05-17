@@ -123,8 +123,8 @@
                         method: 'POST',
                         body: JSON.stringify({ accion: "nuevo_usuario", usuario: { EMAIL: idInput, NOMBRE: nombre, TITULO: titulo } })
                     });
-                    // ⏱️ VELOCIDAD MEJORADA: Consulta cada 1.5 segundos
-                    setInterval(sincronizarNucleo, 1500);
+                    // ⏱️ VELOCIDAD MEJORADA: Consulta cada 1 segundos
+                    setInterval(sincronizarNucleo, 1000);
                     sincronizarNucleo();
                 } catch(e) { alert("Falla al conectar con Google Sheets."); }
             }
