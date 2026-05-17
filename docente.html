@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LexPlay UBA - Panel Juez</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #111; color: #FFF; padding: 20px; text-align: center; }
+        .titulo { color: #D4AF37; text-shadow: 0 0 10px rgba(214,175,55,0.5); font-size: 2.2rem; font-weight: 800; }
+        .grid-control { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; background: #222; border: 2px solid #D4AF37; padding: 20px; border-radius: 15px; max-width: 900px; margin: 20px auto; text-align: left; }
+        label { color: #CCFF00; font-weight: 700; display: block; margin-bottom: 5px; }
+        select, input { width: 100%; padding: 10px; border-radius: 8px; border: none; font-size: 1rem; box-sizing: border-box; }
+        button { background-color: #D4AF37; color: black; font-weight: 800; border: none; padding: 12px; border-radius: 8px; cursor: pointer; text-transform: uppercase; width: 100%; transition: background 0.2s; }
+        button:hover { background-color: white; }
+        .flex-tablas { display: flex; flex-wrap: wrap; gap: 20px; max-width: 1000px; margin: 20px auto; justify-content: center; }
+        .bloque { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 15px; flex: 1; min-width: 300px; text-align: left; }
+        .bloque h3 { color: #D4AF37; margin-top: 0; border-bottom: 2px solid #222; padding-bottom: 8px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border-bottom: 1px solid #333; text-align: left; }
+        th { color: #CCFF00; }
+    </style>
+</head>
+<body>
+
+    <h1 class="titulo">⚖️ PANEL DOCENTE - CONTROL DE ESTRADO</h1>
+    <div id="status-consola" style="background:#222; padding:8px; display:inline-block; border-radius:5px; color:#CCFF00; font-weight:700;">Conectando...</div>
+
+    <div class="grid-control">
+        <div>
+            <label>📋 Escenario:</label>
+            <select id="sel-fase">
+                <option value="0">⏸️ Sala de Espera</option>
+                <option value="1">❓ Pregunta 1</option>
+                <option value="2">❓ Pregunta 2</option>
+                <option value="3">❓ Pregunta 3</option>
+                <option value="4">❓ Pregunta 4</option>
+                <option value="88">📊 Resultados Parciales</option>
+                <option value="99">🏆 PODIO FINAL</option>
+            </select>
+        </div>
+        <div>
+            <label>📢 Comando:</label>
+            <button onclick="cambiarFase()">Enviar Fase</button>
+        </div>
+        <div>
+            <label>⏱️ Cuenta Regresiva:</label>
+            <input type="number" id="num-tiempo" value="30">
+        </div>
+        <div>
+            <label>▶️ Reloj:</label>
+            <button onclick="lanzarReloj()" style="background-color:#26890C; color:white;">Iniciar Cuenta</button>
+        </div>
+    </div>
+
+    <div class="flex-tablas">
+        <div class="bloque">
+            <h3>👥 Alumnos en el Tribunal</h3>
+            <table>
+                <thead><tr><th>Título</th><th>Nombre</th><th>Puntos</th></tr></thead>
+                <tbody id="lista-alumnos"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzIkrNfH2Ji_YnAXAL7Rw3cVghN97cVNtt80AAJulZ1if5QIRKu-v1QloCnZNwuyoYGlg/exec";
+
+        async function actualizarConsola() {
+            try {
+                let res = await fetch(URL_APPS_SCRIPT);
+                let data = await res.json();
+                
+                document.getElementById("status-consola").innerText = `Fase Activa en Servidor: ${data.sistema.fase}`;
+                
+                let alumnos = data.alumnos || [];
+                alumnos.sort((a,b) => b.PUNTOS - a.PUNTOS);
+                
+                document.getElementById("lista-alumnos").innerHTML = alumnos.map(al => `
+                    <tr><td>${al.TITULO || 'Dr.'}</td><td>${al.NOMBRE}</td><td><b>${parseInt(al.PUNTOS)} pts</b></td></tr>
+                `).join('') || "<tr><td colspan='3'>Ningún alumno registrado.</td></tr>";
+
+            } catch(e) { console.error(e); }
+        }
+
+        async function cambiarFase() {
+            let f = document.getElementById("sel-fase").value;
+            await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ accion: "escribir_sistema", fase: parseInt(f), tiempo: 0.0 }) });
+            actualizarConsola();
+        }
+
+        async function lanzarReloj() {
+            let f = document.getElementById("sel-fase").value;
+            let s = parseInt(document.getElementById("num-tiempo").value);
+            let target = (Date.now() / 1000) + s;
+            await fetch(URL_APPS_SCRIPT, { method: 'POST', body: JSON.stringify({ accion: "escribir_sistema", fase: parseInt(f), tiempo: target }) });
+            actualizarConsola();
+        }
+
+        setInterval(actualizarConsola, 4000);
+        actualizarConsola();
+    </script>
+</body>
+</html>
