@@ -184,15 +184,48 @@
                     let n = (alumnos[0].NOMBRE || "").toLowerCase();
                     let esDra = t.includes("dra") || n.startsWith("dra") || n.includes("dra.");
                     
-                    // 🌐 COLOCAMOS LAS URLS ABSOLUTAS DIRECTAS (Asegúrese de que el nombre coincida con su GitHub)
-                    let rutaFoto = esDra 
-                        ? "https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/alumna_festejo_uba.png" 
-                        : "https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/alumno_festejo_uba.png";
+                    // Definimos una lista de opciones posibles para agotar instancias si falla el nombre
+                    let opcionesFotos = [];
+                    if (esDra) {
+                        opcionesFotos = [
+                            "alumna_festejo_uba.png",
+                            "alumna_festejo_uba.PNG",
+                            "Alumna_festejo_uba.png",
+                            "Alumna_Festejo_Uba.png",
+                            "alumno_festejo_uba.png" // Salvavidas final por si no encuentra la de mujer
+                        ];
+                    } else {
+                        opcionesFotos = [
+                            "alumno_festejo_uba.png",
+                            "alumno_festejo_uba.PNG",
+                            "Alumno_festejo_uba.png",
+                            "Alumno_Festejo_Uba.png",
+                            "alumna_festejo_uba.png" // Salvavidas final por si no encuentra la de hombre
+                        ];
+                    }
+
+                    // Armamos el bloque de imagen con un cargador inteligente secuencial
+                    let indiceIntento = 0;
+                    let urlInicial = IMG_BASE + opcionesFotos[0] + "?v=" + Math.floor(Math.random() * 10000);
                     
-                    // Añadimos el truco anti-caché para obligar a limpiar el frasco de la pantalla
-                    let rutaLimpia = rutaFoto + "?v=" + Math.floor(Math.random() * 10000);
+                    // El comando 'onerror' aquí adentro solo cambia de ruta si falla, sin bucles infinitos
+                    podioHtml += `
+                        <div style="margin: 20px auto; min-height: 250px;">
+                            <img id="foto-podio-dinamica" src="${urlInicial}" class="img-ganador" style="max-height: 300px; object-fit: contain;" 
+                                 onerror="
+                                    let lista = ${JSON.stringify(opcionesFotos)};
+                                    let imgEl = document.getElementById('foto-podio-dinamica');
+                                    if(!window.intentoFotoIdx) window.intentoFotoIdx = 0;
+                                    window.intentoFotoIdx++;
+                                    if(window.intentoFotoIdx < lista.length) {
+                                        imgEl.src = '${IMG_BASE}' + lista[window.intentoFotoIdx] + '?v=' + Math.floor(Math.random()*10000);
+                                    } else {
+                                        this.onerror = null; // Se rinde si ninguna existe para evitar parpadeos
+                                    }
+                                 "
+                            >
+                        </div>`;
                     
-                    podioHtml += `<div style="margin: 20px auto; min-height: 250px;"><img src="${rutaLimpia}" class="img-ganador" style="max-height: 300px; object-fit: contain;"></div>`;
                     podioHtml += `<h1 class='titulo-oro'>🏆 ${alumnos[0].TITULO || 'Dr.'} ${alumnos[0].NOMBRE} 🏆</h1>`;
                     podioHtml += `<div class='box-oro'>🥇 ORO: ${alumnos[0].NOMBRE}<br><span style='font-size:1.5rem'>${parseInt(alumnos[0].PUNTOS)} puntos</span></div><br>`;
                 }
