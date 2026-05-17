@@ -102,7 +102,8 @@
                 USER = { tipo: "juez" };
                 playAudio("bienvenida");
                 document.getElementById("pantalla-dinamica").innerHTML = "<div class='espera-box'>⚖️ Abriendo Estrado Presidencial...</div>";
-                setInterval(sincronizarNucleo, 3000);
+                // ⏱️ VELOCIDAD MEJORADA: Consulta cada 1.5 segundos
+                setInterval(sincronizarNucleo, 1500);
                 sincronizarNucleo();
             } else {
                 let nombre = document.getElementById("login-nombre").value.trim();
@@ -122,7 +123,8 @@
                         method: 'POST',
                         body: JSON.stringify({ accion: "nuevo_usuario", usuario: { EMAIL: idInput, NOMBRE: nombre, TITULO: titulo } })
                     });
-                    setInterval(sincronizarNucleo, 3000);
+                    // ⏱️ VELOCIDAD MEJORADA: Consulta cada 1.5 segundos
+                    setInterval(sincronizarNucleo, 1500);
                     sincronizarNucleo();
                 } catch(e) { alert("Falla al conectar con Google Sheets."); }
             }
@@ -183,9 +185,11 @@
                     let esDra = t.includes("dra") || n.startsWith("dra") || n.includes("dra.");
                     
                     let imgGanador = esDra ? "alumna_festejo_uba.png" : "alumno_festejo_uba.png";
-                    let rutaFoto = IMG_BASE + imgGanador;
                     
-                    podioHtml += `<div style="margin: 20px auto; min-height: 250px;"><img src="${rutaFoto}" class="img-ganador" style="max-height: 300px; object-fit: contain;"></div>`;
+                    // 🛡️ DESTRUCTOR DE CACHÉ INTERMEDIA: Suma un código único al final de la ruta para burlar el error de la foto
+                    let rutaFotoConFiltro = IMG_BASE + imgGanador + "?v=" + Math.floor(Math.random() * 10000);
+                    
+                    podioHtml += `<div style="margin: 20px auto; min-height: 250px;"><img src="${rutaFotoConFiltro}" class="img-ganador" style="max-height: 300px; object-fit: contain;"></div>`;
                     podioHtml += `<h1 class='titulo-oro'>🏆 ${alumnos[0].TITULO || 'Dr.'} ${alumnos[0].NOMBRE} 🏆</h1>`;
                     podioHtml += `<div class='box-oro'>🥇 ORO: ${alumnos[0].NOMBRE}<br><span style='font-size:1.5rem'>${parseInt(alumnos[0].PUNTOS)} puntos</span></div><br>`;
                 }
@@ -271,7 +275,7 @@
 
             let opcionesFases = `<option value="0" ${opcionSelectorDocenteLocal==="0"?'selected':''}>⏸️ Sala de Espera</option>`;
             preguntas.forEach(p => {
-                optionsFases = opcionesFases + `<option value="${p.ID}" ${opcionSelectorDocenteLocal===p.ID.toString()?'selected':''}>❓ Pregunta ${p.ID}</option>`;
+                opcionesFases = opcionesFases + `<option value="${p.ID}" ${opcionSelectorDocenteLocal===p.ID.toString()?'selected':''}>❓ Pregunta ${p.ID}</option>`;
             });
             opcionesFases += `<option value="88" ${opcionSelectorDocenteLocal==="88"?'selected':''}>📊 Resultados Parciales</option>`;
             opcionesFases += `<option value="99" ${opcionSelectorDocenteLocal==="99"?'selected':''}>🏆 PODIO FINAL</option>`;
