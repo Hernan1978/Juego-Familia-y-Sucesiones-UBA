@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import time
 import requests
-# El motor real de refresco en segundo plano sin romper sesiones
 from streamlit_autorefresh import st_autorefresh
 
 # ============================================================
@@ -10,7 +9,7 @@ from streamlit_autorefresh import st_autorefresh
 # ============================================================
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
 
-# 🚨 REEMPLAZÁ con tu nueva URL de Google Apps Script 🚨
+# URL de Google Apps Script
 URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzIkrNfH2Ji_YnAXAL7Rw3cVghN97cVNtt80AAJulZ1if5QIRKu-v1QloCnZNwuyoYGlg/exec"
 
 CLAVE_DOCENTE = "derecho2024"
@@ -125,6 +124,14 @@ label, [data-testid="stWidgetLabel"] p, .stSelectbox label,
 """, unsafe_allow_html=True)
 
 # ============================================================
+# INITIAL STATE & CONTROLES
+# ============================================================
+if "user" not in st.session_state: st.session_state.user = None
+if "f_voto" not in st.session_state: st.session_state.f_voto = -1
+if "enviado" not in st.session_state: st.session_state.enviado = False
+if "audio_reproducido" not in st.session_state: st.session_state.audio_reproducido = ""
+
+# ============================================================
 # FUNCIONES AUXILIARES
 # ============================================================
 def audio(key):
@@ -134,14 +141,14 @@ def audio(key):
 
 def fetch_remoto():
     try:
-        res = requests.get(URL_APPS_SCRIPT, timeout=4)
+        res = requests.get(URL_APPS_SCRIPT, timeout=3)
         return res.json()
     except:
         return None
 
 def llamar_api(payload):
     try:
-        res = requests.post(URL_APPS_SCRIPT, json=payload, timeout=5)
+        res = requests.post(URL_APPS_SCRIPT, json=payload, timeout=4)
         return res.json()
     except:
         return {"ok": False}
@@ -220,22 +227,7 @@ def preguntas_a_banco(preguntas):
     return banco
 
 # ============================================================
-# INITIAL STATE
-# ============================================================
-if "user" not in st.session_state: st.session_state.user = None
-if "f_voto" not in st.session_state: st.session_state.f_voto = -1
-if "enviado" not in st.session_state: st.session_state.enviado = False
-if "audio_reproducido" not in st.session_state: st.session_state.audio_reproducido = ""
-
-# ============================================================
-# MOTOR DE AUTOMATIZACIÓN (REEMPLAZA AL SCRIPT VIEJO)
-# ============================================================
-# Si el usuario está logueado, la app se actualiza silenciosamente cada 3 segundos
-if st.session_state.user is not None:
-    st_autorefresh(interval=3000, key="refresco_silencioso_asincrono")
-
-# ============================================================
-# LOGIN
+# PANTALLA LOGIN
 # ============================================================
 if st.session_state.user is None:
     if st.session_state.audio_reproducido != "bienvenida":
@@ -254,7 +246,6 @@ if st.session_state.user is None:
             m, n = m.strip(), n.strip()
             if m == CLAVE_DOCENTE:
                 st.session_state.user = {"tipo": "juez"}
-                st.grid() if hasattr(st, "grid") else None
                 st.rerun()
             elif "@" in m and n:
                 st.session_state.user = {"tipo": "alumno", "email": m, "nombre": n, "titulo": g}
@@ -268,7 +259,7 @@ if st.session_state.user is None:
     st.stop()
 
 # ============================================================
-# CARGAR ESTADOS GLOBALES
+# CARGAR ESTADOS GLOBALES (SÓLO DESPUÉS DEL LOGIN)
 # ============================================================
 sistema, alumnos_raw, preguntas_raw = cargar_datos()
 fase_serv = int(sistema.get("fase", 0))
@@ -285,6 +276,22 @@ fases_opciones[88] = "📊 Resultados Parciales"
 fases_opciones[99] = "🏆 PODIO FINAL"
 
 # ============================================================
+# MOTOR DE AUTOMATIZACIÓN INTELIGENTE (LIMITA EL TITILEO)
+# ============================================================
+if st.session_state.user is not None:
+    # Si es alumno, la pantalla SOLO refresca si NO ha votado todavía.
+    # En cuanto vota, el autorefresh se desactiva por completo para congelar el reloj.
+    if st.session_state.user.get("tipo") == "alumno":
+        if st.session_state.f_voto != fase_serv:
+            st.session_state.enviado = False
+
+        if not st.session_state.enviado:
+            st_autorefresh(interval=3000, key="refresco_alumno_activo")
+    else:
+        # El panel docente sí se actualiza de manera constante
+        st_autorefresh(interval=4000, key="refresco_docente")
+
+# ============================================================
 # PANEL DOCENTE
 # ============================================================
 if st.session_state.user["tipo"] == "juez":
@@ -299,7 +306,7 @@ if st.session_state.user["tipo"] == "juez":
     with c2:
         t_set = st.number_input("⏱ Segundos:", min_value=5, max_value=120, value=30)
         if st.button("▶️ INICIAR RELOJ"):
-            llamar_api({"accion": "escribir_sistema", "fase": fase_serv, "tiempo": ahora + t_set})
+            llamar_api({"accion": "escribir_sistema", "fase": fase_serv, "tiempo": time.time() + t_set})
             st.rerun()
     with c3:
         st.markdown("<br>", unsafe_allow_html=True)
@@ -338,14 +345,10 @@ if st.session_state.user["tipo"] == "juez":
             st.table(df_alumnos[["TITULO","NOMBRE","PUNTOS"]].sort_values("PUNTOS", ascending=False))
 
 # ============================================================
-# PANEL ALUMNO (CORREGIDO Y SIN CONFIGURACIONES DE RESETEO)
+# PANEL ALUMNO
 # ============================================================
 else:
     user = st.session_state.user
-
-    if st.session_state.f_voto != fase_serv:
-        st.session_state.enviado = False
-
     ya_envio = st.session_state.enviado
 
     if fase_serv == 99:
@@ -392,6 +395,10 @@ else:
                     
                     if not voto_bloqueado:
                         if st.button(f"{icono}  {opcion}", key=f"btn_{fase_serv}_{i}"):
+                            # CONGELAMOS EL ESTADO INMEDIATAMENTE ANTES DE HACER LA PETICIÓN WEB
+                            st.session_state.enviado = True
+                            st.session_state.f_voto = fase_serv
+                            
                             if opcion == p["k"]:
                                 audio("exito")
                                 pts = 10 + max(0, min(int(t_limite - ahora), 15))
@@ -403,18 +410,19 @@ else:
                                 st.session_state._respuesta_correcta = False
                                 st.session_state._pts_ganados = 0
                             
-                            st.session_state.enviado = True
-                            st.session_state.f_voto = fase_serv
                             st.rerun()
                     else:
                         st.markdown(f"<div class='kahoot-btn' style='background:{color};opacity:0.5;'>{icono} {opcion}</div>", unsafe_allow_html=True)
         else:
+            # PANTALLA ESTÁTICA POST-VOTO (SIN TEMPORIZADOR NI TITILEO)
             correcto = st.session_state.get("_respuesta_correcta", False)
             pts_g    = st.session_state.get("_pts_ganados", 0)
             if correcto:
                 st.markdown(f"<div style='background:rgba(38,137,12,0.85);color:#FFF;padding:20px;border-radius:15px;font-size:1.6rem;'>✅ ¡CORRECTO! +{pts_g} pts 🎉</div>", unsafe_allow_html=True)
             else:
                 st.markdown(f"<div style='background:rgba(226,27,60,0.85);color:#FFF;padding:20px;border-radius:15px;font-size:1.6rem;'>❌ INCORRECTO<br><small>Era: {p['k']}</small></div>", unsafe_allow_html=True)
+            
+            st.markdown("<br><p style='color:#CCFF00;font-size:1.2rem;font-weight:700;'>⏳ Dictamen enviado. Esperando al resto del Tribunal...</p>", unsafe_allow_html=True)
 
         st.markdown("---")
         st.markdown("### 👥 En Vivo")
