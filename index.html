@@ -184,19 +184,22 @@
                     let n = (alumnos[0].NOMBRE || "").toLowerCase();
                     let esDra = t.includes("dra") || n.startsWith("dra") || n.includes("dra.");
                     
-                    let imgGanador = esDra ? "alumna_festejo_uba.png" : "alumno_festejo_uba.png";
+                    // 🌐 COLOCAMOS LAS URLS ABSOLUTAS DIRECTAS (Asegúrese de que el nombre coincida con su GitHub)
+                    let rutaFoto = esDra 
+                        ? "https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/alumna_festejo_uba.png" 
+                        : "https://raw.githubusercontent.com/Hernan1978/Juego-Familia-y-Sucesiones-UBA/main/alumno_festejo_uba.png";
                     
-                    // 🛡️ DESTRUCTOR DE CACHÉ INTERMEDIA: Suma un código único al final de la ruta para burlar el error de la foto
-                    let rutaFotoConFiltro = IMG_BASE + imgGanador + "?v=" + Math.floor(Math.random() * 10000);
+                    // Añadimos el truco anti-caché para obligar a limpiar el frasco de la pantalla
+                    let rutaLimpia = rutaFoto + "?v=" + Math.floor(Math.random() * 10000);
                     
-                    podioHtml += `<div style="margin: 20px auto; min-height: 250px;"><img src="${rutaFotoConFiltro}" class="img-ganador" style="max-height: 300px; object-fit: contain;"></div>`;
+                    podioHtml += `<div style="margin: 20px auto; min-height: 250px;"><img src="${rutaLimpia}" class="img-ganador" style="max-height: 300px; object-fit: contain;"></div>`;
                     podioHtml += `<h1 class='titulo-oro'>🏆 ${alumnos[0].TITULO || 'Dr.'} ${alumnos[0].NOMBRE} 🏆</h1>`;
                     podioHtml += `<div class='box-oro'>🥇 ORO: ${alumnos[0].NOMBRE}<br><span style='font-size:1.5rem'>${parseInt(alumnos[0].PUNTOS)} puntos</span></div><br>`;
                 }
                 if(alumnos[1]) podioHtml += `<div class='box-plata'>🥈 PLATA: ${alumnos[1].NOMBRE} — ${parseInt(alumnos[1].PUNTOS)} pts</div><br>`;
                 if(alumnos[2]) podioHtml += `<div class='box-bronce'>🥉 BRONCE: ${alumnos[2].NOMBRE} — ${parseInt(alumnos[2].PUNTOS)} pts</div>`;
                 htmlInyectar = podioHtml;
-            } 
+            }
             else {
                 let p = preguntas.find(preg => preg.ID == fase);
                 if (!p) return;
