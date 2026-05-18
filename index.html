@@ -222,7 +222,7 @@
                 let filasTabla = alumnos.map((al, idx) => `<tr><td>${idx+1}°</td><td style="color:#FFF;">${al.TITULO || 'Dr.'} ${al.NOMBRE}</td><td>${parseInt(al.PUNTOS)} pts</td></tr>`).join('');
 
                 htmlInyectar = `
-                    <div class='pregunta-card'>${PREGUNTA}❓</h2>
+                    <div class='pregunta-card'>${PREGUNTA}❓</div>
                     ${relojHtml}
                     ${opcionesHtml}
                     <hr style='border-color:#D4AF37; margin:30px 0;'>
