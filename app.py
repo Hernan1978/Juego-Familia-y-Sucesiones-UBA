@@ -8,7 +8,6 @@ from streamlit_autorefresh import st_autorefresh
 # CONFIGURACIÓN
 # ============================================================
 st.set_page_config(page_title="LexPlay UBA", layout="wide")
-<link rel="icon" type="image/png" href="favicon.png">
 
 # URL de Google Apps Script
 URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzIkrNfH2Ji_YnAXAL7Rw3cVghN97cVNtt80AAJulZ1if5QIRKu-v1QloCnZNwuyoYGlg/exec"
